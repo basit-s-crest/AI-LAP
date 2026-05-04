@@ -1,0 +1,32 @@
+{
+  "event_id":    "evt_01HXQRST4UVW8XYZ5ABC",
+  "member_token": "mbr_9d4b2e7f3a1c8e5d0f6b",
+  "org_id":      "org_univ_maryland",
+  "source_type": "peer-post",
+  "timestamp":   "2026-03-15T23:44:55Z",
+
+  "inference_result": {
+    "risk_tier":   "crisis",
+    "risk_score":  0.94,
+    "risk_trend":  "increasing",
+    "active_signals": [
+      { "code": "CRS-05", "label": "Farewell pattern",          "confidence": 0.92 },
+      { "code": "SHA-03", "label": "Coded self-harm ideation",  "confidence": 0.87 },
+      { "code": "CRS-02", "label": "Time-bounding",             "confidence": 0.83 }
+    ],
+    "cultural_context": ["AAVE_CODE_SWITCH"],
+    "shap_attributions": [
+      { "span": "tell everyone i love", "weight": 0.61, "signal": "CRS-05", "rank": 1 },
+      { "span": "been thinking about unaliving", "weight": 0.55, "signal": "SHA-03", "rank": 2 },
+      { "span": "just gotta make it", "weight": 0.41, "signal": "CRS-02", "rank": 3 }
+    ],
+    "recommended_action": "immediate_crisis_protocol",
+    "model_version": "1.0.0"
+  },
+
+  "processing_metadata": {
+    "ingestion_id": "ing_01HXQRST4UVW8XYZ5ABC",
+    "processed_at": "2026-03-15T23:44:55.512Z",
+    "review_deadline": "2026-03-15T23:54:55Z"
+  }
+}
