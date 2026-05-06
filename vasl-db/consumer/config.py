@@ -12,7 +12,7 @@ import os
 KAFKA_BOOTSTRAP_SERVERS: str = os.environ["KAFKA_BOOTSTRAP_SERVERS"]
 KAFKA_TOPIC_ANNOTATED: str   = os.getenv("KAFKA_TOPIC_ANNOTATED", "alap.text.annotated")
 KAFKA_CONSUMER_GROUP: str    = os.getenv("KAFKA_CONSUMER_GROUP",  "vasl-dashboard-consumer")
-KAFKA_SSL_CA_LOCATION: str   = os.getenv("KAFKA_SSL_CA_LOCATION", "/certs/ca.pem")
+KAFKA_SSL_CA_LOCATION: str   = os.getenv("KAFKA_SSL_CA_LOCATION", "")
 KAFKA_POLL_TIMEOUT_S: float  = float(os.getenv("KAFKA_POLL_TIMEOUT_S", "1.0"))
 
 

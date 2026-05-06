@@ -1,8 +1,8 @@
 version: "3.9"
 
 # ============================================================
-# Local development stack
-# Mirrors the production topology without TLS/auth overhead.
+# VASL ALAP — Full local development stack
+# Services: Postgres, Redis, Zookeeper, Kafka, Ingestion, Consumer
 # Run: docker compose up -d
 # ============================================================
 
@@ -17,10 +17,11 @@ services:
       POSTGRES_USER:     vasl_user
       POSTGRES_PASSWORD: vasl_local_pass
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Run all migrations automatically on first start
+      # All *.sql files in migrations/ run in filename order (V1→V9)
+      # on first start when the data volume is empty.
       - ./migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vasl_user -d vasl"]
@@ -34,6 +35,9 @@ services:
     container_name: vasl_redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -47,11 +51,15 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME:   2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
     healthcheck:
-      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      test: ["CMD-SHELL", "zookeeper-shell localhost:2181 ls / > /dev/null 2>&1"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 20s
 
   # ── Kafka ────────────────────────────────────────────────────────────────────
   kafka:
@@ -70,11 +78,14 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME:       PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE:        "false"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
       interval: 10s
       timeout: 10s
       retries: 10
+      start_period: 30s
 
   # ── Kafka topic setup (runs once then exits) ─────────────────────────────────
   kafka-setup:
@@ -112,6 +123,28 @@ services:
       "
     restart: "no"
 
+  # ── Ingestion Gateway (FastAPI) ──────────────────────────────────────────────
+  ingestion:
+    build:
+      context: ./ingestion
+      dockerfile: Dockerfile
+    container_name: vasl_ingestion
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_TOPIC_RAW:         alap.text.raw
+      KAFKA_SSL_CA_LOCATION:   ""
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
   # ── Kafka consumer service ───────────────────────────────────────────────────
   consumer:
     build:
@@ -129,4 +162,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  postgres_data:      # Postgres tables and data
+  redis_data:         # Redis AOF persistence
+  kafka_data:         # Kafka topic/partition data
+  zookeeper_data:     # Zookeeper snapshots
+  zookeeper_log:      # Zookeeper transaction log

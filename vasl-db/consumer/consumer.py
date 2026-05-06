@@ -45,9 +45,15 @@ KAFKA_CONFIG = {
     "auto.offset.reset":  "earliest",
     # Manual commit — only after DB write succeeds
     "enable.auto.commit": False,
-    "security.protocol":  "SSL",
-    "ssl.ca.location":    KAFKA_SSL_CA_LOCATION,
 }
+
+# Only add SSL config when a CA cert path is provided
+# (omitted in local dev, required in staging/production)
+if KAFKA_SSL_CA_LOCATION:
+    KAFKA_CONFIG.update({
+        "security.protocol": "SSL",
+        "ssl.ca.location":   KAFKA_SSL_CA_LOCATION,
+    })
 
 
 def process_message(payload: dict[str, Any], db_conn, redis_client) -> None:

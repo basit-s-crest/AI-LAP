@@ -4,10 +4,49 @@ db.py
 PostgreSQL connection and all write operations.
 Every message is written inside a single transaction — all inserts
 succeed together or all roll back. No partial state.
+
+The Kafka message arriving here was originally published by the
+ingestion gateway (alap.text.raw), processed by the AI inference
+service, and re-published to alap.text.annotated with the inference
+result attached. The full payload shape is:
+
+{
+  "source_type":        "peer-post" | "journal" | "chat" | "assessment",
+  "event_id":           "ing_...",          ← ingestion_id from gateway
+  "original_source_id": "post_...",         ← caller's original ID
+  "ingestion_id":       "ing_...",
+  "org_id":             "org_...",
+  "member_token":       "mbr_...",
+  "timestamp":          "2026-...",
+
+  -- source-specific fields (only present for the relevant source_type)
+  "group_id":     "grp_..."          (peer-post)
+  "mood_score":   3                  (journal)
+  "session_id":   "sess_..."         (chat)
+  "role":         "member"|"coach"   (chat)
+  "instrument":   "PHQ8"|"GAD7"|"ACES" (assessment)
+  "item_number":  1                  (assessment)
+
+  "inference_result": {
+    "risk_tier":          "low"|"moderate"|"high"|"crisis",
+    "risk_score":         0.67,
+    "risk_trend":         "stable"|"increasing"|"decreasing",
+    "active_signals":     [...],
+    "cultural_context":   [...],
+    "shap_attributions":  [...],
+    "recommended_action": "...",
+    "model_version":      "1.0.0"
+  },
+
+  "processing_metadata": {
+    "ingestion_id":    "ing_...",
+    "processed_at":    "2026-...",
+    "review_deadline": "2026-..."
+  }
+}
 """
 
 import logging
-from datetime import datetime
 from typing import Any
 
 import psycopg2
@@ -48,17 +87,18 @@ def save_inference_event(payload: dict[str, Any], conn: psycopg2.extensions.conn
     Persist one inference result from the Kafka message into PostgreSQL.
 
     Steps (all inside one transaction):
-      1. Upsert member (token may already exist from a prior event)
+      1. Upsert member
       2. Insert inference_event  — idempotent on event_id
       3. Insert event_signals
       4. Insert shap_attributions
-      5. Upsert member_risk_snapshot via the DB function
+      5. Upsert member_risk_snapshot via the DB trigger function
 
     If the event_id already exists (Kafka replay / duplicate delivery),
     the INSERT ... ON CONFLICT DO NOTHING skips it cleanly.
     """
     inference = payload["inference_result"]
-    meta      = payload["processing_metadata"]
+    meta      = payload.get("processing_metadata", {})
+    source    = payload.get("source_type", "")
 
     with conn.cursor() as cur:
 
@@ -75,7 +115,6 @@ def save_inference_event(payload: dict[str, Any], conn: psycopg2.extensions.conn
         row = cur.fetchone()
 
         if row is None:
-            # Member already existed — fetch their internal id
             cur.execute(
                 "SELECT id FROM members WHERE member_token = %s",
                 (payload["member_token"],),
@@ -88,25 +127,55 @@ def save_inference_event(payload: dict[str, Any], conn: psycopg2.extensions.conn
         cur.execute(
             """
             INSERT INTO inference_events (
-                event_id, member_id, org_id, source_type,
-                event_timestamp, risk_tier, risk_score, risk_trend,
-                cultural_context, recommended_action,
-                clinician_reviewed, review_deadline, model_version
+                event_id,
+                original_source_id,
+                member_id,
+                org_id,
+                source_type,
+                event_timestamp,
+
+                group_id,
+                mood_score,
+                session_id,
+                role,
+                instrument,
+                item_number,
+
+                risk_tier,
+                risk_score,
+                risk_trend,
+                cultural_context,
+                recommended_action,
+                clinician_reviewed,
+                review_deadline,
+                model_version
             ) VALUES (
-                %s, %s, %s, %s,
-                %s, %s, %s, %s,
-                %s, %s,
+                %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
                 FALSE, %s, %s
             )
             ON CONFLICT (event_id) DO NOTHING
             RETURNING id
             """,
             (
+                # core
                 payload["event_id"],
+                payload.get("original_source_id"),
                 member_id,
                 payload["org_id"],
-                payload["source_type"],
+                source,
                 payload["timestamp"],
+
+                # source-specific (NULL when not applicable)
+                payload.get("group_id"),        # peer-post only
+                payload.get("mood_score"),       # journal only
+                payload.get("session_id"),       # chat only
+                payload.get("role"),             # chat only
+                payload.get("instrument"),       # assessment only
+                payload.get("item_number"),      # assessment only
+
+                # inference output
                 inference["risk_tier"],
                 inference["risk_score"],
                 inference.get("risk_trend"),
@@ -119,7 +188,6 @@ def save_inference_event(payload: dict[str, Any], conn: psycopg2.extensions.conn
 
         result = cur.fetchone()
         if result is None:
-            # Duplicate event_id — already in DB, safe to skip
             logger.info("Duplicate event_id=%s — skipping", payload["event_id"])
             conn.rollback()
             return
@@ -173,15 +241,17 @@ def save_inference_event(payload: dict[str, Any], conn: psycopg2.extensions.conn
             )
 
         # ── 5. Refresh member risk snapshot ───────────────────────────────
-        # Calls the PL/pgSQL function defined in V7 migration.
-        # Recalculates all rolling stats for this member in one query.
+        # The DB trigger on inference_events fires this automatically,
+        # but we call it explicitly here as a safety net in case the
+        # trigger is ever disabled during maintenance.
         cur.execute("SELECT upsert_member_risk_snapshot(%s)", (member_id,))
 
     conn.commit()
 
     logger.info(
-        "Saved event_id=%s | member=%s | tier=%s | score=%.3f",
+        "Saved event_id=%s | source=%s | member=%s | tier=%s | score=%.3f",
         payload["event_id"],
+        source,
         payload["member_token"],
         inference["risk_tier"],
         inference["risk_score"],
