@@ -3,14 +3,24 @@ main.py
 -------
 VASL ALAP — FastAPI application entry point.
 
-Start the server:
-    uvicorn main:app --reload
+Start the server (Windows):
+    uvicorn main:app --reload --loop asyncio --port 8000
+
+Start the server (Linux/Mac):
+    uvicorn main:app --reload --port 8000
 
 API docs:
     http://localhost:8000/docs
-Dashboard:
-    http://localhost:8000/
 """
+
+import sys
+
+# ── Windows: psycopg (async) requires SelectorEventLoop, not ProactorEventLoop.
+# The policy must be set before uvicorn creates its event loop.
+# Also pass --loop asyncio on the command line for the reloader subprocess.
+if sys.platform == "win32":
+    import asyncio
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,7 +42,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── API routers (must be registered BEFORE the static mount) ──────────────────
+# ── API routers ───────────────────────────────────────────────────────────────
 app.include_router(ingest.router)
 app.include_router(store.router)
 app.include_router(dashboard.router)
@@ -44,7 +54,6 @@ async def health():
 
 
 # ── Serve frontend dashboard at / ─────────────────────────────────────────────
-# Serves therapist.html directly — avoids the index.html naming requirement
 @app.get("/", include_in_schema=False)
 async def serve_dashboard():
     return FileResponse("frontend/therapist.html")

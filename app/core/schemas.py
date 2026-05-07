@@ -133,10 +133,16 @@ class AssessmentIn(BaseModel):
 
 
 class IngestOut(BaseModel):
-    status:    str
-    event_id:  str
-    source:    str
-    queued_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    status:          str
+    event_id:        str
+    source:          str
+    queued_at:       datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # Returned immediately after LLM responds (before DB save completes)
+    risk_tier:       Optional[str]   = None
+    risk_score:      Optional[float] = None
+    # Timing fields — worker uses these to log stages [3] and [4]
+    timing_llm_ms:   Optional[int]   = None   # how long the LLM call took
+    timing_total_ms: Optional[int]   = None   # total FastAPI processing time
 
 
 # ── Dashboard: response models ────────────────────────────────────────────────

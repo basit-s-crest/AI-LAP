@@ -1,167 +1,191 @@
 /**
  * worker.mjs
  * ──────────
- * BullMQ Worker — runs as a standalone Node.js process alongside Next.js.
+ * BullMQ Worker — processes chat inference jobs.
  *
- * Flow:
- *   1. Dequeues a chat message from the "vasl:chat_inference" BullMQ queue
- *   2. POSTs it to the FastAPI /v1/ingest/chat endpoint (which calls the LLM)
- *   3. Polls FastAPI for the inference result
- *   4. Publishes the score update to Redis pub/sub channel "vasl:score_updates"
- *      → Next.js SSE route picks this up and pushes it to all connected browsers
+ * Writes stages [2] and [5] timing into the shared Redis Hash
+ * vasl:timing:{event_id} so the test file can assemble a complete
+ * per-request log from all processes.
  *
- * Start with:
- *   npm run worker
- *
- * Or in a separate terminal:
- *   node --env-file=.env.local worker.mjs
+ * Concurrency = 20 → up to 20 parallel LLM calls at once.
  */
 
 import { Worker } from "bullmq";
 import Redis from "ioredis";
 
-const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379/0";
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const REDIS_URL  = process.env.REDIS_URL           ?? "redis://localhost:6379/0";
+const API_URL    = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const QUEUE_NAME = "vasl_chat_inference";
-const CHANNEL = "vasl_score_updates";
+const CHANNEL    = "vasl_score_updates";
+const TIMING_TTL = 600; // seconds
 
-// ── Redis pub connection ───────────────────────────────────────────────────────
+// ── Redis connections ─────────────────────────────────────────────────────────
 const pub = new Redis(REDIS_URL, { maxRetriesPerRequest: null });
-pub.on("error", (e) => console.error("[Worker Redis]", e.message));
+const tim = new Redis(REDIS_URL, { maxRetriesPerRequest: null }); // timing writes
+pub.on("error", e => { if (e.code !== "ECONNREFUSED") console.error("[pub]", e.message); });
+tim.on("error", e => { if (e.code !== "ECONNREFUSED") console.error("[tim]", e.message); });
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const ts  = () => new Date().toISOString();
+const now = () => Date.now();
+
+async function writeTiming(eventId, fields) {
+  try {
+    const key = `vasl:timing:${eventId}`;
+    const flat = {};
+    for (const [k, v] of Object.entries(fields)) flat[k] = String(v);
+    await tim.hset(key, flat);
+    await tim.expire(key, TIMING_TTL);
+  } catch { /* non-critical */ }
+}
+
+function log(jobId, stage, detail, elapsedMs) {
+  const e = elapsedMs != null ? `  +${elapsedMs}ms` : "";
+  console.log(`[${ts()}] [${String(jobId).slice(-8)}] ${stage.padEnd(26)}${e}  ${detail}`);
+}
 
 // ── Worker ────────────────────────────────────────────────────────────────────
 const worker = new Worker(
   QUEUE_NAME,
   async (job) => {
-    const payload = job.data;
-    console.log(
-      `[Worker] Processing job ${job.id} | member=${payload.member_token} | text="${payload.text.slice(0, 60)}..."`
-    );
+    const p  = job.data;
+    const t0 = now();
 
-    // ── 1. POST to FastAPI ingest/chat ────────────────────────────────────────
-    const ingestRes = await fetch(`${API_URL}/v1/ingest/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        event_id: payload.event_id,
-        org_id: payload.org_id,
-        member_token: payload.member_token,
-        session_id: payload.session_id,
-        role: payload.role,
-        text: payload.text,
-        timestamp: payload.timestamp,
-        consent_active: payload.consent_active,
-      }),
+    // ── [1] queue wait (time from frontend enqueue to worker pickup) ──────────
+    const s1_queue_wait_ms = p.enqueue_time ? t0 - p.enqueue_time : null;
+    log(job.id, "[1] queue wait",
+      `text="${p.text.slice(0, 45)}"`,
+      s1_queue_wait_ms);
+
+    // Write [1] into timing hash (test file wrote enqueue_time; we add pickup)
+    await writeTiming(p.event_id, {
+      s1_queue_wait_ms: s1_queue_wait_ms ?? "",
+      worker_pickup_at: t0,
     });
 
-    if (!ingestRes.ok) {
-      const err = await ingestRes.text();
-      throw new Error(`FastAPI ingest failed (${ingestRes.status}): ${err}`);
+    // ── [2] BullMQ → FastAPI ──────────────────────────────────────────────────
+    const t1 = now();
+    log(job.id, "[2] BullMQ→FastAPI", `event_id=${p.event_id}`);
+
+    let resp;
+    try {
+      const res = await fetch(`${API_URL}/v1/ingest/chat`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_id:       p.event_id,
+          org_id:         p.org_id,
+          member_token:   p.member_token,
+          session_id:     p.session_id,
+          role:           p.role ?? "member",
+          text:           p.text,
+          timestamp:      p.timestamp,
+          consent_active: p.consent_active ?? true,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      resp = await res.json();
+    } catch (err) {
+      log(job.id, "[2] FastAPI FAILED", err.message, now() - t1);
+      await writeTiming(p.event_id, { s2_error: err.message.slice(0, 200) });
+      throw err;
     }
 
-    const ingestData = await ingestRes.json();
-    console.log(`[Worker] Ingest accepted | event_id=${ingestData.event_id}`);
+    const t2 = now();
+    const s2_fastapi_ms = t2 - t1;
+    log(job.id, "[2] FastAPI responded",
+      `tier=${resp.risk_tier ?? "?"}  score=${resp.risk_score ?? "?"}`,
+      s2_fastapi_ms);
 
-    // ── 2. Poll for the inference result ─────────────────────────────────────
-    // FastAPI processes synchronously (LLM call inside the endpoint),
-    // so the result is available immediately via the member results endpoint.
-    let inferenceResult = null;
-    const maxAttempts = 10;
-    for (let i = 0; i < maxAttempts; i++) {
-      await sleep(1500);
-      try {
-        const resultRes = await fetch(
-          `${API_URL}/v1/results/member/${payload.member_token}`
-        );
-        if (resultRes.ok) {
-          const data = await resultRes.json();
-          // Find the event we just submitted
-          const event = data.events?.find(
-            (e) => e.event_id === payload.event_id
-          );
-          if (event) {
-            inferenceResult = {
-              event_id: event.event_id,
-              member_token: payload.member_token,
-              client_name: payload.client_name,
-              risk_tier: event.risk_tier,
-              risk_score: event.risk_score,
-              risk_trend: event.risk_trend ?? "stable",
-              recommended_action: event.recommended_action ?? "no_action",
-              active_signals: event.signals ?? [],
-              processed_at: new Date().toISOString(),
-            };
-            break;
-          }
-          // Fallback: use the snapshot-level data if event not found yet
-          if (data.current_risk_tier && i >= 2) {
-            inferenceResult = {
-              event_id: payload.event_id,
-              member_token: payload.member_token,
-              client_name: payload.client_name,
-              risk_tier: data.current_risk_tier,
-              risk_score: data.current_risk_score ?? 0,
-              risk_trend: data.risk_trend ?? "stable",
-              recommended_action: "schedule_followup",
-              active_signals: [],
-              processed_at: new Date().toISOString(),
-            };
-            break;
-          }
-        }
-      } catch (e) {
-        console.warn(`[Worker] Poll attempt ${i + 1} failed:`, e.message);
-      }
+    // ── [3] LLM call time (FastAPI measured it, returned in response body) ────
+    const s3_llm_ms = resp.timing_llm_ms ?? null;
+    if (s3_llm_ms != null) {
+      log(job.id, "[3] LLM call (inside FastAPI)", `OpenRouter round-trip`, s3_llm_ms);
     }
 
-    if (!inferenceResult) {
-      // Still publish a minimal update so the dashboard isn't left hanging
-      inferenceResult = {
-        event_id: payload.event_id,
-        member_token: payload.member_token,
-        client_name: payload.client_name,
-        risk_tier: "low",
-        risk_score: 0,
-        risk_trend: "stable",
-        recommended_action: "no_action",
-        active_signals: [],
-        processed_at: new Date().toISOString(),
-        error: "Result not available yet — check dashboard in a moment",
-      };
-    }
+    // Write [2] into timing hash
+    await writeTiming(p.event_id, {
+      s2_fastapi_ms,
+      s2_fastapi_done_at: t2,
+    });
 
-    // ── 3. Publish score update to Redis pub/sub ──────────────────────────────
-    await pub.publish(CHANNEL, JSON.stringify(inferenceResult));
-    console.log(
-      `[Worker] Published score update | tier=${inferenceResult.risk_tier} | score=${inferenceResult.risk_score}`
-    );
+    // ── [5] LLM → BullMQ publish ──────────────────────────────────────────────
+    const t3 = now();
+    const scoreUpdate = {
+      event_id:           resp.event_id,
+      member_token:       p.member_token,
+      client_name:        p.client_name ?? "Member",
+      risk_tier:          resp.risk_tier          ?? "low",
+      risk_score:         resp.risk_score         ?? 0,
+      risk_trend:         resp.risk_trend         ?? "stable",
+      recommended_action: resp.recommended_action ?? "no_action",
+      active_signals:     resp.active_signals     ?? [],
+      processed_at:       new Date().toISOString(),
+      _enqueue_time:      p.enqueue_time,
+    };
 
-    return inferenceResult;
+    await pub.publish(CHANNEL, JSON.stringify(scoreUpdate));
+    const t4 = now();
+    const s5_publish_ms = t4 - t3;
+    log(job.id, "[5] LLM→BullMQ publish",
+      `tier=${scoreUpdate.risk_tier}  channel=${CHANNEL}`,
+      s5_publish_ms);
+
+    // Write [5] into timing hash
+    await writeTiming(p.event_id, {
+      s5_publish_ms,
+      s5_published_at: t4,
+    });
+
+    const workerTotal = t4 - t0;
+    log(job.id, "✓ worker done",
+      `total=${workerTotal}ms  queue_wait=${s1_queue_wait_ms ?? "?"}ms  ` +
+      `fastapi=${s2_fastapi_ms}ms  llm=${s3_llm_ms ?? "?"}ms  publish=${s5_publish_ms}ms`);
+
+    return {
+      event_id:   p.event_id,
+      risk_tier:  scoreUpdate.risk_tier,
+      risk_score: scoreUpdate.risk_score,
+      _timing: {
+        s1_queue_wait_ms,
+        s2_fastapi_ms,
+        s3_llm_ms,
+        s5_publish_ms,
+        worker_total_ms: workerTotal,
+      },
+    };
   },
   {
-    connection: new Redis(REDIS_URL, { maxRetriesPerRequest: null }),
-    concurrency: 3,
+    connection:  new Redis(REDIS_URL, { maxRetriesPerRequest: null }),
+    concurrency: 20,
   }
 );
 
-worker.on("completed", (job, result) => {
-  console.log(
-    `[Worker] ✓ Job ${job.id} completed | tier=${result?.risk_tier ?? "?"}`
-  );
+worker.on("completed", (job, r) => {
+  const t = r?._timing;
+  if (t) {
+    console.log(
+      `[${ts()}] [${String(job.id).slice(-8)}] ✓ COMPLETE` +
+      `  queue_wait=${t.s1_queue_wait_ms ?? "?"}ms` +
+      `  fastapi=${t.s2_fastapi_ms}ms` +
+      `  llm=${t.s3_llm_ms ?? "?"}ms` +
+      `  publish=${t.s5_publish_ms}ms` +
+      `  worker_total=${t.worker_total_ms}ms`
+    );
+  }
 });
 
 worker.on("failed", (job, err) => {
-  console.error(`[Worker] ✗ Job ${job?.id} failed:`, err.message);
+  console.error(`[${ts()}] [${String(job?.id).slice(-8)}] ✗ FAILED  ${err.message}`);
 });
 
-worker.on("error", (err) => {
-  console.error("[Worker] Worker error:", err.message);
+worker.on("error", err => {
+  if (err.code !== "ECONNREFUSED") console.error(`[${ts()}] [Worker]`, err.message);
 });
 
-console.log(`[Worker] Started — listening on queue "${QUEUE_NAME}"`);
-console.log(`[Worker] FastAPI URL: ${API_URL}`);
-console.log(`[Worker] Redis: ${REDIS_URL}`);
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+console.log(`\n${"─".repeat(60)}`);
+console.log(`  Worker started  concurrency=20`);
+console.log(`  Queue:   ${QUEUE_NAME}`);
+console.log(`  FastAPI: ${API_URL}`);
+console.log(`  Redis:   ${REDIS_URL}`);
+console.log(`${"─".repeat(60)}\n`);
