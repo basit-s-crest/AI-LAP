@@ -1,1 +1,22 @@
-{  "name": "vasl",  "private": true,  "workspaces": ["backend", "packages/*"],  "scripts": {    "dev:api": "npm run dev --workspace=backend",    "dev:web": "npm run dev --workspace=frontend"  }} 
+{
+  "name": "vasl",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm run dev --workspace=frontend",
+    "dev:api": "npm run dev --workspace=backend",
+    "build:web": "npm run build --workspace=frontend",
+    "build:api": "npm run build --workspace=backend",
+    "start:web": "npm run start --workspace=frontend",
+    "start:api": "npm run start --workspace=backend",
+    "lint": "npm run lint --workspace=frontend",
+    "worker": "npm run worker --workspace=frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
