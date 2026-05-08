@@ -1,0 +1,8 @@
+[
+  {"id":1,"name":"Healing in Community","emoji":"🌿","members":142,"posts":312,"joined":true,"color":"#D4EDD7","desc":"A safe space for processing and growth through shared experience.","tags":["Support"],"mod":"Dr. Osei","status":"active"},
+  {"id":2,"name":"Queer & Thriving","emoji":"🌈","members":89,"posts":201,"joined":true,"color":"#D4E8F5","desc":"Celebrating LGBTQ+ identity, resilience, and community care.","tags":["LGBTQ+"],"mod":"Priya Sharma","status":"active"},
+  {"id":3,"name":"First-Gen Focus","emoji":"📚","members":115,"posts":88,"joined":false,"color":"#F5DDD4","desc":"Navigating college and career as a first-generation student.","tags":["First-Gen"],"mod":"Admin","status":"active"},
+  {"id":4,"name":"Mindful Mondays","emoji":"🧘","members":27,"posts":55,"joined":false,"color":"#D4EDD7","desc":"Weekly mindfulness practices and peer accountability.","tags":["Mindfulness"],"mod":"Priya Sharma","status":"active"},
+  {"id":5,"name":"Black Joy Collective","emoji":"✊🏾","members":55,"posts":178,"joined":false,"color":"#E8D5C4","desc":"Centering joy, rest, and Black mental wellness.","tags":["BIPOC"],"mod":"Nia Adeyemi","status":"active"},
+  {"id":6,"name":"Immigrant Stories","emoji":"🌍","members":39,"posts":92,"joined":false,"color":"#D4EDD7","desc":"Navigating identity, belonging, and bicultural life.","tags":["Immigrant"],"mod":"Admin","status":"paused"}
+]

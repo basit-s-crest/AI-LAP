@@ -1,0 +1,6 @@
+[
+  {"id":"u-member-1","email":"amara@azadihealth.com","password":"demo1234","firstName":"Amara","lastName":"Johnson","role":"user","avatarEmoji":"🌿"},
+  {"id":"u-coach-1","email":"osei@azadihealth.com","password":"demo1234","firstName":"Dr. Amara","lastName":"Osei","role":"coach","avatarEmoji":"👩🏾‍⚕️"},
+  {"id":"u-org-1","email":"chen@stateU.edu","password":"demo1234","firstName":"Dr.","lastName":"Chen","role":"organization","organizationId":"org-1","avatarEmoji":"🏢"},
+  {"id":"u-admin-1","email":"admin@azadihealth.com","password":"demo1234","firstName":"Admin","lastName":"User","role":"superadmin","avatarEmoji":"🛡️"}
+]

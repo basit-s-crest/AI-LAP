@@ -1,0 +1,32 @@
+{
+  "event_id":    "evt_01HXQAB7CDE8FGHIJ9KL",
+  "member_token": "mbr_7c3a9f2e1b8d4c6a0e5f",
+  "org_id":      "org_univ_maryland",
+  "source_type": "peer-post",
+  "timestamp":   "2026-03-15T14:22:00Z",
+
+  "inference_result": {
+    "risk_tier":   "moderate",
+    "risk_score":  0.67,
+    "risk_trend":  "increasing",
+    "active_signals": [
+      { "code": "ISO-04", "label": "Unseen/unchecked",       "confidence": 0.83 },
+      { "code": "HOP-03", "label": "Indirect hopelessness",  "confidence": 0.79 },
+      { "code": "CCM-09", "label": "AAVE register",          "confidence": 0.91 }
+    ],
+    "cultural_context": ["AAVE_CODE_SWITCH", "ISOLATION_PATTERN"],
+    "shap_attributions": [
+      { "span": "can't keep doing", "weight": 0.44, "signal": "HOP-03", "rank": 1 },
+      { "span": "nobody actually gets", "weight": 0.33, "signal": "ISO-04", "rank": 2 },
+      { "span": "idk why i even try", "weight": 0.28, "signal": "HOP-03", "rank": 3 }
+    ],
+    "recommended_action": "schedule_followup",
+    "model_version": "1.0.0"
+  },
+
+  "processing_metadata": {
+    "ingestion_id": "ing_01HXQAB7CDE8FGHIJ9KL",
+    "processed_at": "2026-03-15T14:22:00.342Z",
+    "review_deadline": "2026-03-16T14:22:00Z"
+  }
+}

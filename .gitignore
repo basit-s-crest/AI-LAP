@@ -1,44 +1,55 @@
-# Environment & Secrets
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Package lock files (keep only one — delete this section if you want to track them)
+package-lock.json
+**/package-lock.json
+yarn.lock
+**/yarn.lock
+pnpm-lock.yaml
+
+# Environment files
 .env
-.env.*
-!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+**/.env
+**/.env.local
 
-# Python Cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/.vercel
 
-# Virtual Environment
-venv/
+# Build outputs
+backend/dist/
+packages/database/dist/
 
-# pytest
-.pytest_cache/
-.coverage
-htmlcov/
-
-# mypy
-.mypy_cache/
+# Prisma generated client
+packages/database/node_modules/
+# Keep schema.prisma and migrations — DO NOT ignore those
 
 # Logs
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
-# IDE
+# Editor
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Docs folder (local only)
-Docs/
+# TypeScript
+*.tsbuildinfo
 
-# Build
-dist/
-build/
-*.egg-info/
-
-# Temp
-*.tmp
-tmp/
+# Turborepo cache (if you add it later)
+.turbo/

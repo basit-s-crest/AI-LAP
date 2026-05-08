@@ -1,0 +1,5 @@
+[
+  {"id":"n1","title":"Session reminder","message":"Weekly check-in tomorrow at 9:00 AM","read":false,"createdAt":"2026-04-30T14:00:00Z","severity":"info"},
+  {"id":"n2","title":"New group post","message":"Someone replied in Healing in Community","read":false,"createdAt":"2026-04-30T12:30:00Z","severity":"info"},
+  {"id":"n3","title":"Mood streak","message":"5 days in a row — great consistency!","read":true,"createdAt":"2026-04-29T09:00:00Z","severity":"success"}
+]

@@ -1,0 +1,8 @@
+[
+  {"id":1,"name":"Amara Johnson","email":"amara@email.com","joined":"Jan 12","groups":2,"sessions":6,"mood":4.1,"status":"active","tags":["BIPOC","18-24","Anxiety-Moderate"]},
+  {"id":2,"name":"Marcus Thompson","email":"marcus@email.com","joined":"Jan 19","groups":1,"sessions":3,"mood":3.2,"status":"active","tags":["LGBTQ+","25-30"]},
+  {"id":3,"name":"Priya Nair","email":"priya@email.com","joined":"Feb 2","groups":3,"sessions":11,"mood":4.5,"status":"active","tags":["Immigrant","18-24","Depression-Mild"]},
+  {"id":4,"name":"Jordan Wells","email":"jordan@email.com","joined":"Feb 14","groups":0,"sessions":1,"mood":2.8,"status":"flagged","tags":["18-24","Anxiety-Severe"]},
+  {"id":5,"name":"Sofia Reyes","email":"sofia@email.com","joined":"Mar 1","groups":2,"sessions":4,"mood":3.9,"status":"active","tags":["BIPOC","First-Gen","18-24"]},
+  {"id":6,"name":"Alex Kim","email":"alex@email.com","joined":"Mar 5","groups":1,"sessions":0,"mood":null,"status":"inactive","tags":["LGBTQ+","25-30"]}
+]

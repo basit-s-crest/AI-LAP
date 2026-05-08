@@ -1,0 +1,7 @@
+[
+  {"id":"s1","date":"Today, 9:00 AM","client":"Amara Johnson","type":"Weekly Check-in","duration":"50 min","status":"upcoming"},
+  {"id":"s2","date":"Today, 11:30 AM","client":"Marcus Thompson","type":"Initial Session","duration":"50 min","status":"upcoming"},
+  {"id":"s3","date":"Mar 24 · 2:00 PM","client":"Priya Nair","type":"Follow-up","duration":"30 min","status":"completed"},
+  {"id":"s4","date":"Mar 23 · 10:00 AM","client":"Sofia Reyes","type":"Weekly Check-in","duration":"50 min","status":"completed"},
+  {"id":"s5","date":"Mar 22 · 4:00 PM","client":"Jordan Wells","type":"Crisis Check-in","duration":"30 min","status":"completed"}
+]

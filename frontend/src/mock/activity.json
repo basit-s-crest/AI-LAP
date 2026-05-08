@@ -1,0 +1,8 @@
+[
+  {"icon":"👤","bg":"#D4EDD7","html":"<strong>Jordan Wells</strong> flagged — low mood trend 5 days","time":"2 min ago","type":"alert"},
+  {"icon":"💬","bg":"#D4E8F5","html":"<strong>Post deleted</strong> in Healing in Community by Dr. Osei","time":"18 min ago","type":"moderation"},
+  {"icon":"🧑‍🤝‍🧑","bg":"#F5E6C8","html":"<strong>Priya Nair</strong> joined First-Gen Focus","time":"34 min ago","type":"join"},
+  {"icon":"📅","bg":"#D4EDD7","html":"<strong>Session #203</strong> completed — Priya Sharma + user","time":"1h ago","type":"session"},
+  {"icon":"🏢","bg":"#F5E6C8","html":"<strong>State University System</strong> added 14 new users","time":"2h ago","type":"org"},
+  {"icon":"🆕","bg":"#D4E8F5","html":"<strong>New coach onboarded:</strong> Nia Adeyemi","time":"3h ago","type":"admin"}
+]

@@ -1,0 +1,7 @@
+[
+  {"id":1,"name":"Dr. Amara Osei","emoji":"👩🏾‍⚕️","bg":"#F5DDD4","avail":"available","rating":4.9,"sessions":142,"clients":18,"spec":"Trauma · CBT · Cultural Identity","org":"Azadi Health Staff"},
+  {"id":2,"name":"Marcus Rivera","emoji":"🧑🏽‍⚕️","bg":"#D4E8F5","avail":"available","rating":4.8,"sessions":98,"clients":14,"spec":"Depression · Grief · Mindfulness","org":"Azadi Health Staff"},
+  {"id":3,"name":"Priya Sharma","emoji":"👩🏽‍⚕️","bg":"#F5E6C8","avail":"busy","rating":4.9,"sessions":204,"clients":22,"spec":"Anxiety · ACT · South Asian Youth","org":"University Partners"},
+  {"id":4,"name":"Nia Adeyemi","emoji":"👩🏿‍⚕️","bg":"#D4EDD7","avail":"available","rating":5.0,"sessions":56,"clients":10,"spec":"LGBTQ+ Affirming · Somatic · Grief","org":"Azadi Health Staff"},
+  {"id":5,"name":"James Whitfield","emoji":"🧑🏻‍⚕️","bg":"#E8D5C4","avail":"offline","rating":4.7,"sessions":88,"clients":16,"spec":"CBT · Teen Anxiety · ADHD","org":"External"}
+]

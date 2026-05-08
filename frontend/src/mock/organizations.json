@@ -1,0 +1,6 @@
+[
+  {"id":1,"name":"State University System","type":"University","plan":"Enterprise","users":312,"active":248,"coaches":4,"spend":"$4,800/mo","contact":"dr.chen@stateU.edu"},
+  {"id":2,"name":"BlueCross Community","type":"Health Insurer","plan":"Pro","users":890,"active":601,"coaches":8,"spend":"$12,400/mo","contact":"programs@bcbs.com"},
+  {"id":3,"name":"Youth Empowerment NGO","type":"Non-Profit","plan":"Starter","users":67,"active":54,"coaches":2,"spend":"$480/mo","contact":"admin@yep.org"},
+  {"id":4,"name":"Metro Community Health","type":"Health System","plan":"Pro","users":445,"active":312,"coaches":5,"spend":"$6,200/mo","contact":"mch@metro.org"}
+]

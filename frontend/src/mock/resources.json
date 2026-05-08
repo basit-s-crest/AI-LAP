@@ -1,0 +1,22 @@
+{
+  "videos": [
+    {"emoji":"🧘","title":"Grounding Through Breath","duration":"8 min","background":"#D4EDD7","tag":"Anxiety"},
+    {"emoji":"🌱","title":"Building Self-Compassion","duration":"12 min","background":"#D4E8F5","tag":"Wellbeing"},
+    {"emoji":"🔥","title":"Setting Healthy Boundaries","duration":"15 min","background":"#F5DDD4","tag":"Relationships"},
+    {"emoji":"✊🏾","title":"Reclaiming Your Narrative","duration":"10 min","background":"#F5E6C8","tag":"Identity"},
+    {"emoji":"😴","title":"Sleep & Mental Health","duration":"7 min","background":"#D4EDD7","tag":"Wellness"},
+    {"emoji":"💬","title":"How to Talk to a Coach","duration":"5 min","background":"#D4E8F5","tag":"Getting Started"}
+  ],
+  "crisis": [
+    {"emoji":"📞","title":"988 Lifeline","description":"Call or text 988 · 24/7","background":"#FAE0DC"},
+    {"emoji":"💬","title":"Crisis Text Line","description":"Text HOME to 741741","background":"#F5E6C8"},
+    {"emoji":"🌈","title":"Trevor Project","description":"LGBTQ+ · 1-866-488-7386","background":"#D4E8F5"}
+  ],
+  "links": [
+    {"title":"NAMI Helpline","description":"National Alliance on Mental Illness · 1-800-950-6264"},
+    {"title":"SAMHSA National Helpline","description":"Substance Abuse & Mental Health · 1-800-662-4357"},
+    {"title":"Trevor Project","description":"LGBTQ+ Crisis Support · 1-866-488-7386"},
+    {"title":"Crisis Text Line","description":"Text HOME to 741741 · Any carrier"},
+    {"title":"988 Suicide & Crisis Lifeline","description":"Call or text 988 · 24/7 · Available in Spanish"}
+  ]
+}

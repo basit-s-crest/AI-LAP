@@ -1,0 +1,12 @@
+{
+  "options": [
+    {"value":5,"emoji":"😊","label":"Great","color":"#2E7D4F"},
+    {"value":4,"emoji":"🙂","label":"Good","color":"#4E8C58"},
+    {"value":3,"emoji":"😐","label":"Okay","color":"#B8832A"},
+    {"value":2,"emoji":"😟","label":"Low","color":"#B35A38"},
+    {"value":1,"emoji":"😔","label":"Hard","color":"#C0392B"}
+  ],
+  "history7": [
+    {"d":"Mon","v":3},{"d":"Tue","v":4},{"d":"Wed","v":2},{"d":"Thu","v":4},{"d":"Fri","v":5},{"d":"Sat","v":4},{"d":"Sun","v":3}
+  ]
+}
