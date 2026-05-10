@@ -1,1 +1,0 @@
-# VASL ALAP application package

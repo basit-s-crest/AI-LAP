@@ -1,23 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useCoachQuery } from "@/hooks/api/use-coaches";
-import type { Coach } from "@/types/coach";
+import { useCoachMessages } from "@/hooks/useCoachMessages";
+import { useCoachSocket } from "@/hooks/useCoachSocket";
+import type { CoachPublicDTO } from "@/types/coach";
+import type { CoachMessageDTO } from "@/types/coachMessage";
 import moods from "@/mock/moods.json";
 import type { MoodOption } from "@/types/mood";
 import { cn } from "@/lib/cn";
 
 const MOODS_DATA = moods.options as MoodOption[];
-
-const initialMsgs = [
-  { role: "coach" as const, text: "Hi! So glad you reached out. How have you been feeling since our last session?", time: "2:01 PM" },
-  { role: "user" as const, text: "A bit better honestly. The breathing exercises have been helping.", time: "2:02 PM" },
-  { role: "coach" as const, text: "That's wonderful 🌿 Consistency really does make a difference. What's been triggering you most?", time: "2:03 PM" },
-];
 
 const slots = [
   { t: "9:00 AM", b: false },
@@ -33,44 +31,64 @@ export default function CoachingChatPage() {
   const router = useRouter();
   const search = useSearchParams();
   const bookOnly = search.get("book") === "1";
-  const coachId = Number(params.coachId);
-  const { data: coachData, isPending: coachLoading } = useCoachQuery(coachId);
-  const coach: Coach | null = coachData ?? null;
-  const [msgs, setMsgs] = useState(initialMsgs);
+
+  // String coachId for the messaging hooks (Prisma CUID)
+  const coachIdStr = params.coachId as string;
+
+  const { data: coachData, isPending: coachLoading } = useCoachQuery(coachIdStr);
+  const coach: CoachPublicDTO | null = coachData ?? null;
+
   const [input, setInput] = useState("");
   const [selSlot, setSelSlot] = useState<string | null>(null);
   const [booked, setBooked] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Persistent message history
+  const {
+    messages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: messagesLoading,
+    prependMessage,
+  } = useCoachMessages(coachIdStr);
+
+  // Real-time socket
+  const { sendMessage, isConnected } = useCoachSocket({
+    onNewMessage: (msg: CoachMessageDTO) => {
+      prependMessage(msg);
+    },
+    onError: (err: { code: string; message: string }) => {
+      if (err.code === "SAVE_FAILED") {
+        toast.error("Message failed to send. Please try again.");
+      } else if (err.code === "UNAUTHORIZED_THREAD") {
+        toast.error("You are not authorized to message this coach.");
+      }
+    },
+  });
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const send = () => {
     const t = input.trim();
     if (!t) return;
-    setMsgs((m) => [...m, { role: "user", text: t, time: "Now" }]);
+    sendMessage(coachIdStr, t);
     setInput("");
-    setTimeout(() => {
-      setMsgs((m) => [
-        ...m,
-        {
-          role: "coach",
-          text: "Thank you for sharing that. Let's explore this more in our next session together.",
-          time: "Now",
-        },
-      ]);
-    }, 1200);
   };
 
   const bookingCard = coach ? (
     <Card className="mb-4">
       <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-dim">Book a Session</div>
       <div className="mb-3 flex items-center gap-3">
-        <div
-          className="flex h-14 w-14 items-center justify-center rounded-xl text-2xl"
-          style={{ background: coach.bg }}
-        >
-          {coach.emoji}
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#F5DDD4] text-2xl">
+          {coach.avatar ?? "👤"}
         </div>
         <div>
           <div className="font-serif text-[17px] font-semibold">{coach.name}</div>
-          <div className="text-xs text-mid">{coach.spec}</div>
+          <div className="text-xs text-mid">{coach.speciality}</div>
         </div>
       </div>
       <div className="my-4 h-px bg-line" />
@@ -157,46 +175,68 @@ export default function CoachingChatPage() {
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
           <div className="flex h-[460px] flex-col overflow-hidden rounded-card border border-line">
             <div className="flex items-center gap-3 bg-sidebar px-[18px] py-3.5">
-              <div
-                className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] text-[19px]"
-                style={{ background: coach.bg }}
-              >
-                {coach.emoji}
+              <div className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] bg-[#F5DDD4] text-[19px]">
+                {coach.avatar ?? "👤"}
               </div>
               <div>
                 <div className="text-sm font-semibold text-[#FDFAF5]">{coach.name}</div>
                 <div className="text-xs text-[#FDFAF5]/40">
-                  <span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#2E7D4F]" />
-                  Active now
+                  <span className={cn("mr-1 inline-block h-2 w-2 rounded-full", isConnected ? "bg-[#2E7D4F]" : "bg-gray-400")} />
+                  {isConnected ? "Active now" : "Connecting..."}
                 </div>
               </div>
             </div>
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-[18px]">
-              {msgs.map((m, i) => (
-                <div
-                  key={i}
-                  className={cn("max-w-[72%]", m.role === "user" ? "self-end" : "self-start")}
-                >
-                  <div
-                    className={cn(
-                      "rounded-[14px] px-[15px] py-2.5 text-[13.5px] leading-relaxed",
-                      m.role === "user"
-                        ? "rounded-br bg-sage text-white"
-                        : "rounded-bl border border-line bg-card text-ink shadow-[0_2px_6px_rgba(60,50,40,0.07)]"
-                    )}
+              {/* Load older messages button */}
+              {hasNextPage && (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetchingNextPage}
+                    className="rounded-full border border-line bg-card px-4 py-1.5 text-xs text-mid hover:bg-canvas disabled:opacity-50"
                   >
-                    {m.text}
-                  </div>
-                  <div
-                    className={cn(
-                      "mt-0.5 text-[10px] text-dim",
-                      m.role === "user" && "text-right"
-                    )}
-                  >
-                    {m.time}
-                  </div>
+                    {isFetchingNextPage ? "Loading..." : "Load older messages"}
+                  </button>
                 </div>
-              ))}
+              )}
+              {/* Loading state */}
+              {messagesLoading ? (
+                <div className="flex flex-1 items-center justify-center">
+                  <p className="text-sm text-dim">Loading messages…</p>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex flex-1 items-center justify-center">
+                  <p className="text-sm text-dim">Start the conversation!</p>
+                </div>
+              ) : (
+                messages.map((m) => (
+                  <div
+                    key={m.id}
+                    className={cn("max-w-[72%]", m.senderRole === "member" ? "self-end" : "self-start")}
+                  >
+                    <div
+                      className={cn(
+                        "rounded-[14px] px-[15px] py-2.5 text-[13.5px] leading-relaxed",
+                        m.senderRole === "member"
+                          ? "rounded-br bg-sage text-white"
+                          : "rounded-bl border border-line bg-card text-ink shadow-[0_2px_6px_rgba(60,50,40,0.07)]"
+                      )}
+                    >
+                      {m.content}
+                    </div>
+                    <div
+                      className={cn(
+                        "mt-0.5 text-[10px] text-dim",
+                        m.senderRole === "member" && "text-right"
+                      )}
+                    >
+                      {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} />
             </div>
             <div className="flex items-center gap-2 border-t border-line bg-card px-3.5 py-3">
               <input
@@ -206,7 +246,7 @@ export default function CoachingChatPage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
               />
-              <Button size="sm" type="button" onClick={send}>
+              <Button size="sm" type="button" onClick={send} disabled={!isConnected}>
                 Send
               </Button>
             </div>

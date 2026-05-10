@@ -12,7 +12,7 @@ import { Select } from "@/components/ui/Select";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
 import { closeModal, openModal } from "@/store/slices/uiSlice";
 import { useAppendCoachMutation, useCoachesQuery, useRemoveCoachMutation } from "@/hooks/api/use-coaches";
-import type { Coach } from "@/types/coach";
+import type { CoachPublicDTO } from "@/types/coach";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -32,17 +32,14 @@ export default function AdminCoachesPage() {
       toast.error("Name required");
       return;
     }
-    const c: Coach = {
-      id: Date.now(),
+    const c: CoachPublicDTO = {
+      id: `local-${Date.now()}`,
       name: name.trim(),
-      spec: spec || "—",
-      org,
-      emoji: "🧑",
-      bg: "#D4EDD7",
-      avail: "available",
-      rating: null,
-      sessions: 0,
-      clients: 0,
+      speciality: spec || null,
+      bio: org || null,
+      email: email.trim(),
+      avatar: null,
+      isActive: true,
     };
     appendCoach.mutate(c);
     dispatch(closeModal());
@@ -90,38 +87,31 @@ export default function AdminCoachesPage() {
                   <tr key={c.id} className="group">
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <div className="flex items-center gap-2">
-                        <div
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-base"
-                          style={{ background: c.bg }}
-                        >
-                          {c.emoji}
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F5DDD4] text-base">
+                          {c.avatar ?? "👤"}
                         </div>
                         <span className="font-semibold">{c.name}</span>
                       </div>
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-sm text-mid group-hover:bg-[#EDE7DC]">
-                      {c.spec}
+                      {c.speciality ?? "—"}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      <Badge
-                        variant={
-                          c.avail === "available" ? "sage" : c.avail === "busy" ? "gold" : "dim"
-                        }
-                      >
-                        {c.avail}
+                      <Badge variant={c.isActive ? "sage" : "dim"}>
+                        {c.isActive ? "active" : "inactive"}
                       </Badge>
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      {c.rating != null ? `⭐ ${c.rating}` : "—"}
+                      —
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      {c.sessions}
+                      —
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      {c.clients}
+                      —
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-xs text-mid group-hover:bg-[#EDE7DC]">
-                      {c.org}
+                      {c.bio ?? "—"}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <Button variant="ghost" size="xs" type="button" className="mr-1">

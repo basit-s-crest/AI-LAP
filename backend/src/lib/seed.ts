@@ -38,6 +38,29 @@ const runSeed = async (): Promise<void> => {
     },
   });
 
+  const hashedCoachPassword = await hashPassword("coach1234");
+
+  const coachAmara = await prisma.coach.upsert({
+    where: { email: "amara@azadihealth.com" },
+    update: { name: "Dr. Amara Osei", speciality: "Trauma · CBT · Cultural Identity", bio: "Azadi Health Staff", avatar: "👩🏾‍⚕️", isActive: true },
+    create: { email: "amara@azadihealth.com", name: "Dr. Amara Osei", password: hashedCoachPassword, speciality: "Trauma · CBT · Cultural Identity", bio: "Azadi Health Staff", avatar: "👩🏾‍⚕️", isActive: true },
+  });
+  console.log("Seeded coach: " + coachAmara.name);
+
+  const coachMarcus = await prisma.coach.upsert({
+    where: { email: "marcus@azadihealth.com" },
+    update: { name: "Marcus Rivera", speciality: "Depression · Grief · Mindfulness", bio: "Azadi Health Staff", avatar: "🧑🏽‍⚕️", isActive: true },
+    create: { email: "marcus@azadihealth.com", name: "Marcus Rivera", password: hashedCoachPassword, speciality: "Depression · Grief · Mindfulness", bio: "Azadi Health Staff", avatar: "🧑🏽‍⚕️", isActive: true },
+  });
+  console.log("Seeded coach: " + coachMarcus.name);
+
+  const coachPriya = await prisma.coach.upsert({
+    where: { email: "priya@azadihealth.com" },
+    update: { name: "Priya Sharma", speciality: "Anxiety · ACT · South Asian Youth", bio: "University Partners", avatar: "👩🏽‍⚕️", isActive: true },
+    create: { email: "priya@azadihealth.com", name: "Priya Sharma", password: hashedCoachPassword, speciality: "Anxiety · ACT · South Asian Youth", bio: "University Partners", avatar: "👩🏽‍⚕️", isActive: true },
+  });
+  console.log("Seeded coach: " + coachPriya.name);
+
   const groupOne = await prisma.communityGroup.findFirst({
     where: { name: "Mindful Mornings" },
   });

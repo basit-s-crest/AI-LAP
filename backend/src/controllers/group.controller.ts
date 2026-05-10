@@ -4,11 +4,11 @@ import prisma from "../lib/prisma";
 
 export const getGroups = async (req: Request, res: Response): Promise<Response> => {
   try {
-    if (!req.user?.userId) {
+    if (!req.user?.id) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const groups = await prisma.communityGroup.findMany({
       orderBy: { createdAt: "desc" },
     });
@@ -27,7 +27,7 @@ export const getGroups = async (req: Request, res: Response): Promise<Response> 
 export const getGroupById = async (req: Request, res: Response): Promise<Response> => {
   try {
     const group = await prisma.communityGroup.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
     });
 
     if (!group) {
@@ -42,13 +42,13 @@ export const getGroupById = async (req: Request, res: Response): Promise<Respons
 
 export const joinGroup = async (req: Request, res: Response): Promise<Response> => {
   try {
-    if (!req.user?.userId) {
+    if (!req.user?.id) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const group = await prisma.communityGroup.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
     });
 
     if (!group) {
@@ -74,13 +74,13 @@ export const joinGroup = async (req: Request, res: Response): Promise<Response> 
 
 export const leaveGroup = async (req: Request, res: Response): Promise<Response> => {
   try {
-    if (!req.user?.userId) {
+    if (!req.user?.id) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const group = await prisma.communityGroup.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
     });
 
     if (!group) {
@@ -102,12 +102,12 @@ export const leaveGroup = async (req: Request, res: Response): Promise<Response>
 
 export const createGroup = async (req: Request, res: Response): Promise<Response> => {
   try {
-    if (!req.user?.userId || !req.user.role) {
+    if (!req.user?.id || !req.user.role) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     if (!["admin", "coach"].includes(req.user.role.toLowerCase())) {
-      return res.status(401).json({ message: "Only admin/coach can create groups" });
+      return res.status(403).json({ message: "Only admin/coach can create groups" });
     }
 
     const { name, emoji, description, color, tags, mod } = req.body;
@@ -124,7 +124,7 @@ export const createGroup = async (req: Request, res: Response): Promise<Response
         color: color ?? "#4E8C58",
         tags: Array.isArray(tags) ? tags : [],
         mod: mod ?? null,
-        memberIds: [req.user.userId],
+        memberIds: [req.user.id],
       },
     });
 

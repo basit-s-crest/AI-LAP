@@ -15,20 +15,28 @@ export function DashboardLayout({
   topbarRight,
   breadcrumbs,
   impersonationBanner,
+  // Server-read values passed as props — correct on first render, no hydration mismatch
+  serverRole = "user",
+  serverDisplayName = "Member",
 }: {
   title: string;
   children: React.ReactNode;
   topbarRight?: React.ReactNode;
   breadcrumbs?: { label: string; href?: string }[];
   impersonationBanner?: React.ReactNode;
+  serverRole?: Role;
+  serverDisplayName?: string;
 }) {
   const router = useRouter();
-  const { user } = useAppSelector((s) => s.auth);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const role = user?.role ?? "user";
-  const displayName = user
-    ? `${user.firstName} ${user.lastName}`.trim()
-    : "Member";
+
+  // Redux hydrates after first render via AuthHydrator.
+  // Use server-passed values as fallback — they're already correct so no flash.
+  const reduxUser = useAppSelector((s) => s.auth.user);
+  const role: Role = reduxUser?.role ?? serverRole;
+  const displayName = reduxUser
+    ? `${reduxUser.firstName} ${reduxUser.lastName}`.trim() || serverDisplayName
+    : serverDisplayName;
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -36,7 +44,7 @@ export function DashboardLayout({
       <div className="flex min-h-screen">
         <div className="hidden md:block">
           <RoleSidebar
-            role={role as Role}
+            role={role}
             userName={displayName}
             onSwitchRole={() => router.push("/")}
           />
@@ -44,7 +52,7 @@ export function DashboardLayout({
         <MobileSidebar
           open={mobileOpen}
           onClose={() => setMobileOpen(false)}
-          role={role as Role}
+          role={role}
           userName={displayName}
         />
         <div className={cn("flex min-h-screen flex-1 flex-col")}>

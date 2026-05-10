@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
@@ -105,8 +105,7 @@ function buildDefaultValues(role: Role): FormValues {
 }
 
 function RoleRegisterScreen({ role }: { role: Role }) {
-  const registerMutation = useRegisterMutation();
-  const router = useRouter();
+  const registerMutation = useRegisterMutation(role);
   const config = REGISTER_CONFIG[role];
   const roleOption = getAuthRoleOption(role);
 
@@ -118,8 +117,7 @@ function RoleRegisterScreen({ role }: { role: Role }) {
   const onSubmit = methods.handleSubmit(async (data) => {
     try {
       await registerMutation.mutateAsync(data);
-      toast.success("Account created");
-      router.push("/verify");
+      toast.success("Check your email for the verification code");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Registration failed");
     }

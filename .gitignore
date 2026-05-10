@@ -25,11 +25,9 @@ frontend/.vercel
 
 # Build outputs
 backend/dist/
-packages/database/dist/
 
-# Prisma generated client
-packages/database/node_modules/
-# Keep schema.prisma and migrations — DO NOT ignore those
+# Prisma generated client (lives in backend/node_modules — never commit it)
+backend/node_modules/.prisma/
 
 # Logs
 logs/

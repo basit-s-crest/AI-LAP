@@ -1,33 +1,60 @@
 import axios from "axios";
+import { AUTH_TOKEN_KEY, AUTH_ROLE_KEY, AUTH_USER_JSON_KEY, AUTH_USER_NAME_KEY } from "@/constants/storage";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000",
+  headers: { "Content-Type": "application/json" },
+  timeout: 30_000,
 });
 
-// Request interceptor: attach Bearer token from localStorage
+/** Read a cookie value by name (client-side only). */
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const encoded = encodeURIComponent(name);
+  const match = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${encoded}=`));
+  return match ? decodeURIComponent(match.split("=")[1]) : null;
+}
+
+/** Clear all auth cookies on 401. */
+function clearAuthCookies() {
+  for (const key of [AUTH_TOKEN_KEY, AUTH_ROLE_KEY, AUTH_USER_JSON_KEY, AUTH_USER_NAME_KEY]) {
+    document.cookie = `${encodeURIComponent(key)}=; path=/; max-age=0`;
+  }
+}
+
+// ── Request: attach JWT from the azadi_token cookie ──────────────────────────
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("vasl_token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    const token = getCookie(AUTH_TOKEN_KEY);
+    if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Response interceptor: on 401, clear storage and redirect to /login
+// ── Response: normalise errors so callers get a plain Error with a message ───
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== "undefined") {
-      localStorage.removeItem("vasl_token");
-      localStorage.removeItem("vasl_user");
-      window.location.href = "/login";
+    // 403 with userId means "email not verified" — let the caller handle it
+    if (error.response?.status === 403 && error.response?.data?.userId) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+
+    // 401 anywhere else (expired/missing token) → clear cookies and redirect
+    if (error.response?.status === 401 && typeof window !== "undefined") {
+      clearAuthCookies();
+      window.location.href = "/login";
+      return Promise.reject(error);
+    }
+
+    // Surface the backend's message string as a plain Error
+    const message =
+      error.response?.data?.message ??
+      error.message ??
+      "Something went wrong";
+    return Promise.reject(new Error(message));
   }
 );
 

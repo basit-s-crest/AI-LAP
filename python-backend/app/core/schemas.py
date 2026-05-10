@@ -140,6 +140,9 @@ class IngestOut(BaseModel):
     # Returned immediately after LLM responds (before DB save completes)
     risk_tier:       Optional[str]   = None
     risk_score:      Optional[float] = None
+    risk_trend:      Optional[str]   = None
+    recommended_action: Optional[str] = None
+    active_signals:  List[SignalIn]  = []
     # Timing fields — worker uses these to log stages [3] and [4]
     timing_llm_ms:   Optional[int]   = None   # how long the LLM call took
     timing_total_ms: Optional[int]   = None   # total FastAPI processing time

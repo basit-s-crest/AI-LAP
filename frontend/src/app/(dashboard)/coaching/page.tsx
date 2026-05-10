@@ -1,13 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { CoachCard } from "@/components/cards/CoachCard";
 import { useCoachesQuery } from "@/hooks/api/use-coaches";
+import { useAssignCoach } from "@/hooks/useAssignCoach";
 
 export default function CoachingPage() {
-  const router = useRouter();
-  const { data: coaches = [] } = useCoachesQuery();
+  const { data: coaches, isLoading, isError, error } = useCoachesQuery();
+  const { assignAndNavigate, isPending, pendingCoachId } = useAssignCoach();
 
   return (
     <DashboardLayout title="Coaching">
@@ -18,12 +18,23 @@ export default function CoachingPage() {
           </div>
           <p className="text-sm text-mid">Culturally matched coaches available now</p>
         </div>
-        {coaches.map((c) => (
+
+        {isLoading && (
+          <div className="py-10 text-center text-sm text-mid">Loading coaches…</div>
+        )}
+
+        {isError && (
+          <div className="rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {(error as Error)?.message ?? "Failed to load coaches. Please try again."}
+          </div>
+        )}
+
+        {!isLoading && !isError && coaches?.map((c) => (
           <CoachCard
             key={c.id}
             coach={c}
-            onMessage={() => router.push(`/coaching/${c.id}`)}
-            onBook={() => router.push(`/coaching/${c.id}?book=1`)}
+            onMessage={() => assignAndNavigate(c.id)}
+            disabled={isPending && pendingCoachId === c.id}
           />
         ))}
       </div>

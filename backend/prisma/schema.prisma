@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Member / User ────────────────────────────────────────────────────────────
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String
+  password         String
+  role             String    @default("member")
+  avatar           String?
+  isVerified       Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  sentMessages     Message[]          @relation("SentMessages")
+  receivedMessages Message[]          @relation("ReceivedMessages")
+  emailVerifications EmailVerification[]
+  coachAssignments CoachMember[]
+  coachMessages    CoachMessage[]     @relation("CoachMessages")
+}
+
+// ─── Email Verification OTP ───────────────────────────────────────────────────
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  otp       String   // 6-digit code (stored hashed)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── Coach ────────────────────────────────────────────────────────────────────
+
+model Coach {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  password    String
+  avatar      String?
+  bio         String?
+  speciality  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members       CoachMember[]
+  coachMessages CoachMessage[] @relation("CoachMessages")
+}
+
+// ─── Coach ↔ Member assignment ────────────────────────────────────────────────
+
+model CoachMember {
+  id        String   @id @default(cuid())
+  coachId   String
+  userId    String
+  assignedAt DateTime @default(now())
+
+  coach     Coach    @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([coachId, userId])
+  @@index([coachId])
+  @@index([userId])
+}
+
+// ─── Messages ─────────────────────────────────────────────────────────────────
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+// ─── Community Groups ─────────────────────────────────────────────────────────
+
+model CommunityGroup {
+  id          String   @id @default(cuid())
+  name        String
+  emoji       String   @default("👥")
+  description String?
+  color       String   @default("#4E8C58")
+  tags        String[]
+  mod         String?
+  status      String   @default("active")
+  memberIds   String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── Coach Messages ───────────────────────────────────────────────────────────
+
+model CoachMessage {
+  id         String   @id @default(cuid())
+  userId     String
+  coachId    String
+  content    String
+  senderRole String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation("CoachMessages", fields: [userId], references: [id], onDelete: Cascade)
+  coach      Coach    @relation("CoachMessages", fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@index([userId, coachId, createdAt])
+  @@index([coachId, read])
+  @@index([userId, read])
+}

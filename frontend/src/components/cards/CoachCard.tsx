@@ -1,34 +1,22 @@
 "use client";
 
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import type { Coach } from "@/types/coach";
+import type { CoachPublicDTO } from "@/types/coach";
 import { cn } from "@/lib/cn";
 
 export function CoachCard({
   coach,
   onMessage,
   onBook,
+  disabled,
   className,
 }: {
-  coach: Coach;
+  coach: CoachPublicDTO;
   onMessage?: () => void;
   onBook?: () => void;
+  disabled?: boolean;
   className?: string;
 }) {
-  const availColor =
-    coach.avail === "available"
-      ? "#2E7D4F"
-      : coach.avail === "busy"
-        ? "#B8832A"
-        : "#9C9188";
-  const dot =
-    coach.avail === "available"
-      ? "bg-[#2E7D4F]"
-      : coach.avail === "busy"
-        ? "bg-gold"
-        : "bg-dim";
-
   return (
     <div
       className={cn(
@@ -36,39 +24,32 @@ export function CoachCard({
         className
       )}
     >
-      <div
-        className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-xl text-2xl"
-        style={{ background: coach.bg }}
-      >
-        {coach.emoji}
+      <div className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-xl bg-[#F5DDD4] text-2xl">
+        {coach.avatar ?? "👤"}
       </div>
       <div className="min-w-0 flex-1">
         <div className="font-serif text-[17px] font-semibold text-ink">{coach.name}</div>
-        <div className="my-1 text-xs text-mid">{coach.spec}</div>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs font-semibold" style={{ color: availColor }}>
-            <span className={cn("mr-1 inline-block h-2 w-2 rounded-full", dot)} />
-            {coach.avail === "available"
-              ? "Available now"
-              : coach.avail === "busy"
-                ? "In session"
-                : "Offline"}
-          </span>
-          {coach.rating != null ? (
-            <span className="text-xs text-dim">
-              ⭐ {coach.rating} · {coach.sessions} sessions
-            </span>
-          ) : null}
-        </div>
+        {coach.speciality ? (
+          <div className="my-1 text-xs text-mid">{coach.speciality}</div>
+        ) : null}
+        {coach.bio ? (
+          <div className="text-xs text-dim">{coach.bio}</div>
+        ) : null}
       </div>
       <div className="flex shrink-0 gap-2 self-center">
         {onMessage ? (
-          <Button variant="outline" size="sm" type="button" onClick={onMessage}>
-            Message
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={onMessage}
+            disabled={disabled}
+          >
+            {disabled ? "Connecting…" : "Message"}
           </Button>
         ) : null}
         {onBook ? (
-          <Button size="sm" type="button" onClick={onBook}>
+          <Button size="sm" type="button" onClick={onBook} disabled={disabled}>
             Book
           </Button>
         ) : null}

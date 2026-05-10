@@ -25,7 +25,8 @@ if sys.platform == "win32":
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import ingest, store, dashboard
+from app.routers import ingest, store, dashboard, request_logs, pipeline
+from app.middleware.request_logger import RequestLoggerMiddleware
 
 app = FastAPI(
     title="VASL ALAP API",
@@ -40,10 +41,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Request logger — must be added AFTER CORSMiddleware so it wraps
+#    the full request/response cycle (Starlette applies middleware in
+#    reverse registration order).
+app.add_middleware(RequestLoggerMiddleware)
+
 # ── API routers ───────────────────────────────────────────────────────────────
 app.include_router(ingest.router)
 app.include_router(store.router)
 app.include_router(dashboard.router)
+app.include_router(request_logs.router)
+app.include_router(pipeline.router)
 
 
 @app.get("/health", tags=["Health"])

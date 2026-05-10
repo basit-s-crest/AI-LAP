@@ -25,6 +25,7 @@ const COACH_PATHS = [
   "/messages",
   "/availability",
   "/notes",
+  "/coaching",
 ] as const;
 
 const ORG_PATHS = ["/dashboard", "/members", "/outcomes", "/coaches", "/settings"] as const;

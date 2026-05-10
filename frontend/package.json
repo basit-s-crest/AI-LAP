@@ -7,7 +7,29 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "worker": "node worker.mjs"
+    "worker": "node worker.mjs",
+    "test": "jest --runInBand"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "jsdom",
+    "testMatch": [
+      "**/__tests__/**/*.test.ts",
+      "**/__tests__/**/*.test.tsx"
+    ],
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1",
+      "^socket\\.io-client$": "<rootDir>/src/__mocks__/socket.io-client.ts"
+    },
+    "setupFilesAfterEnv": ["@testing-library/jest-dom", "<rootDir>/src/__tests__/setup.ts"],
+    "transform": {
+      "^.+\\.(ts|tsx)$": ["ts-jest", {
+        "tsconfig": {
+          "jsx": "react-jsx",
+          "moduleResolution": "node"
+        }
+      }]
+    }
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
@@ -28,6 +50,7 @@
     "react-hook-form": "^7.54.2",
     "react-redux": "^9.2.0",
     "recharts": "^2.15.0",
+    "socket.io-client": "^4.8.3",
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.6.0",
     "uuid": "^9.0.1",
@@ -35,14 +58,20 @@
   },
   "devDependencies": {
     "@tanstack/react-query-devtools": "^5.100.9",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@types/uuid": "^9.0.7",
     "eslint": "^9.17.0",
     "eslint-config-next": "^16.2.4",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.7.2"
   }
 }

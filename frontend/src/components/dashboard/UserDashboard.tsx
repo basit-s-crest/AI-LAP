@@ -89,15 +89,14 @@ export function UserDashboard() {
             <Link key={c.id} href={`/coaching/${c.id}`}>
               <Card variant="sm" hoverable className="mb-3">
                 <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-[42px] w-[42px] items-center justify-center rounded-[10px] text-xl"
-                    style={{ background: c.bg }}
-                  >
-                    {c.emoji}
+                  <div className="flex h-[42px] w-[42px] items-center justify-center rounded-[10px] bg-[#F5DDD4] text-xl">
+                    {c.avatar ?? "👤"}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold">{c.name}</div>
-                    <div className="text-sm text-dim">{c.spec.split("·")[0]?.trim()}</div>
+                    <div className="text-sm text-dim">
+                      {c.speciality?.split("·")[0]?.trim() ?? c.bio ?? ""}
+                    </div>
                   </div>
                   <span className="text-[11.5px] font-semibold text-[#2E7D4F]">
                     <span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#2E7D4F]" />

@@ -15,11 +15,12 @@
 import { Worker } from "bullmq";
 import Redis from "ioredis";
 
-const REDIS_URL  = process.env.REDIS_URL           ?? "redis://localhost:6379/0";
-const API_URL    = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-const QUEUE_NAME = "vasl_chat_inference";
-const CHANNEL    = "vasl_score_updates";
-const TIMING_TTL = 600; // seconds
+const REDIS_URL    = process.env.REDIS_URL           ?? "redis://localhost:6379/0";
+const API_URL      = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const FASTAPI_URL  = process.env.FASTAPI_URL         ?? "http://localhost:8000";
+const QUEUE_NAME   = "vasl_chat_inference";
+const CHANNEL      = "vasl_score_updates";
+const TIMING_TTL   = 600; // seconds
 
 // ── Redis connections ─────────────────────────────────────────────────────────
 const pub = new Redis(REDIS_URL, { maxRetriesPerRequest: null });
@@ -67,7 +68,7 @@ const worker = new Worker(
 
     let resp;
     try {
-      const res = await fetch(`${API_URL}/v1/ingest/chat`, {
+      const res = await fetch(`${FASTAPI_URL}/v1/ingest/chat`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -124,6 +125,13 @@ const worker = new Worker(
       s5_publish_ms);
 
     await writeTiming(p.event_id, { s5_publish_ms, s5_published_at: t4 });
+
+    // ── Flush all timing data to Postgres via FastAPI ─────────────────────
+    // Fire-and-forget — worker stage [5] is complete, DB write is non-critical
+    fetch(`${FASTAPI_URL}/v1/pipeline/flush/${p.event_id}`, { method: "POST" })
+      .then(r => r.json())
+      .then(j => log(job.id, "[DB] pipeline flushed", `stages=${j.stages_written?.join(",")}`))
+      .catch(e => log(job.id, "[DB] flush failed", e.message));
 
     const workerTotal = t4 - t0;
     log(job.id, "✓ worker done",

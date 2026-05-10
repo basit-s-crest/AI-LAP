@@ -7,11 +7,11 @@ export const getConversations = async (
   res: Response
 ): Promise<Response> => {
   try {
-    if (!req.user?.userId) {
+    if (!req.user?.id) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const userId = req.user.userId;
+    const userId = req.user.id;
 
     const messages = await prisma.message.findMany({
       where: {
@@ -58,12 +58,12 @@ export const getConversations = async (
 
 export const getMessages = async (req: Request, res: Response): Promise<Response> => {
   try {
-    if (!req.user?.userId) {
+    if (!req.user?.id) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const myUserId = req.user.userId;
-    const otherUserId = req.params.userId;
+    const myUserId = req.user.id;
+    const otherUserId = req.params.userId as string;
 
     const messages = await prisma.message.findMany({
       where: {
@@ -91,11 +91,11 @@ export const getMessages = async (req: Request, res: Response): Promise<Response
 
 export const sendMessage = async (req: Request, res: Response): Promise<Response> => {
   try {
-    if (!req.user?.userId) {
+    if (!req.user?.id) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const senderId = req.user.userId;
+    const senderId = req.user.id;
     const { receiverId, content } = req.body;
 
     if (!receiverId || !content) {
@@ -118,12 +118,12 @@ export const sendMessage = async (req: Request, res: Response): Promise<Response
 
 export const markAsRead = async (req: Request, res: Response): Promise<Response> => {
   try {
-    if (!req.user?.userId) {
+    if (!req.user?.id) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const myUserId = req.user.userId;
-    const otherUserId = req.params.userId;
+    const myUserId = req.user.id;
+    const otherUserId = req.params.userId as string;
 
     const updated = await prisma.message.updateMany({
       where: {

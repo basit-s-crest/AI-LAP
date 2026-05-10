@@ -1,63 +1,29 @@
-"use client";
+// Server Component — reads cookies on the server, no hydration mismatch
+import { cookies } from "next/headers";
+import { AUTH_ROLE_KEY, AUTH_USER_JSON_KEY } from "@/constants/storage";
+import type { Role } from "@/types/role";
+import type { AuthUser } from "@/types/auth";
+import { DashboardClient } from "./DashboardClient";
 
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { DashboardRouter } from "@/components/dashboard/DashboardRouter";
-import { useAppSelector } from "@/hooks/redux";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Mail, Bell } from "lucide-react";
+function parseRole(value: string | undefined): Role {
+  const valid: Role[] = ["user", "coach", "organization", "superadmin"];
+  return valid.includes(value as Role) ? (value as Role) : "user";
+}
 
-export default function DashboardPage() {
-  const role = useAppSelector((s) => s.auth.user?.role ?? "user");
+export default async function DashboardPage() {
+  const jar = await cookies();
+  const role = parseRole(jar.get(AUTH_ROLE_KEY)?.value);
 
-  const title =
-    role === "superadmin"
-      ? "Admin Overview"
-      : role === "organization"
-        ? "Overview"
-        : role === "coach"
-          ? "My Dashboard"
-          : "Home";
+  let displayName = "Member";
+  const raw = jar.get(AUTH_USER_JSON_KEY)?.value;
+  if (raw) {
+    try {
+      const u = JSON.parse(raw) as AuthUser;
+      displayName = `${u.firstName} ${u.lastName}`.trim() || "Member";
+    } catch {
+      // ignore malformed cookie
+    }
+  }
 
-  const topRight =
-    role === "superadmin" ? (
-      <div className="flex items-center gap-2">
-        <Badge variant="red">1 Alert</Badge>
-        <Button variant="ghost" size="sm" type="button">
-          ⬒ Export
-        </Button>
-      </div>
-    ) : role === "organization" ? (
-      <div className="flex items-center gap-2">
-        <Badge variant="gold">University · Enterprise</Badge>
-        <Button variant="ghost" size="sm" type="button">
-          ⬒ Export Report
-        </Button>
-      </div>
-    ) : role === "coach" ? (
-      <div className="flex items-center gap-2">
-        <Badge variant="red">2 Messages</Badge>
-      </div>
-    ) : (
-      <div className="flex items-center gap-2">
-        <div className="relative">
-          <Button variant="ghost" size="sm" type="button" aria-label="Messages">
-            <Mail className="h-4 w-4" />
-          </Button>
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full border-2 border-card bg-terra" />
-        </div>
-        <div className="relative">
-          <Button variant="ghost" size="sm" type="button" aria-label="Notifications">
-            <Bell className="h-4 w-4" />
-          </Button>
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full border-2 border-card bg-terra" />
-        </div>
-      </div>
-    );
-
-  return (
-    <DashboardLayout title={title} topbarRight={topRight}>
-      <DashboardRouter role={role} />
-    </DashboardLayout>
-  );
+  return <DashboardClient role={role} displayName={displayName} />;
 }

@@ -13,3 +13,13 @@ export interface Coach {
   org: string;
   status?: string;
 }
+
+export interface CoachPublicDTO {
+  id: string;           // CUID string from DB (not a number)
+  name: string;
+  email: string;
+  avatar: string | null;   // emoji string
+  bio: string | null;      // org affiliation
+  speciality: string | null;
+  isActive: boolean;
+}

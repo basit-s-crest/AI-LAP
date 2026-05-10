@@ -2,48 +2,64 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormProvider, useForm } from "react-hook-form";
+import { Controller, FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import { loginSchema } from "@/validations/auth.validation";
 import { RHFInput } from "@/components/form/RHFInput";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
 import { PasswordInput } from "@/components/ui/PasswordInput";
-//import { useLoginMutation } from "@/hooks/api/use-auth-mutations";
-import { useLogin } from "@/hooks/auth/useLogin"
-import { toast } from "sonner";
-import { Controller } from "react-hook-form";
-import { DEFAULT_LOGIN_REDIRECT } from "@/constants/routes";
+import { useLogin } from "@/hooks/auth/useLogin";
 import { getAuthRoleOption, parseAuthRole } from "@/lib/auth-roles";
+import { useEffect } from "react";
 
 type FormValues = { email: string; password: string };
 
 export function LoginScreen() {
- // const login = useLoginMutation();
-  const login = useLogin();
-  const router = useRouter();
   const search = useSearchParams();
-  const next = search.get("next") || DEFAULT_LOGIN_REDIRECT;
+  const router = useRouter();
   const role = parseAuthRole(search.get("role"));
   const roleOption = getAuthRoleOption(role);
+  const justRegistered = search.get("registered") === "1";
+
+  // Pass role so the hook hits the right backend endpoint (coach vs member)
+  const login = useLogin(role);
+
+  // Show success message when arriving from coach registration
+  useEffect(() => {
+    if (justRegistered) {
+      toast.success("Coach account created — sign in to continue");
+    }
+  }, [justRegistered]);
 
   const methods = useForm<FormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: roleOption.loginEmail, password: "demo1234" },
+    defaultValues: { email: "", password: "" },
   });
 
   const onSubmit = methods.handleSubmit(async (data) => {
     try {
       await login.mutateAsync(data);
       toast.success("Welcome back");
-      router.push(next);
-    } catch (e) {
+      // router.replace is called inside useLogin.onSuccess — no need here
+    } catch (e: unknown) {
+      // The api interceptor converts axios errors to plain Error objects,
+      // but for the 403 "not verified" case it re-throws the raw axios error
+      // so we can extract userId from the response body.
+      const axiosData = (e as any)?.response?.data;
+      if (axiosData?.userId) {
+        toast.error("Please verify your email first");
+        router.push(`/verify?userId=${axiosData.userId}`);
+        return;
+      }
       toast.error(e instanceof Error ? e.message : "Login failed");
     }
   });
 
   return (
     <div className="flex min-h-screen bg-canvas">
+      {/* ── Left panel ── */}
       <div className="relative hidden flex-1 flex-col justify-center overflow-hidden bg-sidebar p-[60px] lg:flex">
         <div
           className="pointer-events-none absolute inset-0"
@@ -75,23 +91,32 @@ export function LoginScreen() {
             "Available 7 days a week",
           ].map((f) => (
             <li key={f} className="flex items-center gap-2.5">
-              <span className="text-sage-light">OK</span>
+              <span className="text-sage-light">✓</span>
               {f}
             </li>
           ))}
         </ul>
       </div>
+
+      {/* ── Right panel ── */}
       <div className="flex w-full max-w-[600px] items-center justify-center bg-card px-10 py-14 lg:w-[600px]">
         <FormProvider {...methods}>
           <form onSubmit={onSubmit} className="w-full animate-fadeIn">
-            <h3 className="mb-1 font-serif text-[28px] font-semibold text-ink">Welcome Back</h3>
-            <p className="mb-7 text-[13.5px] text-mid">
-              Sign in to continue as {roleOption.label}
+            <p className="mb-2 text-xs font-bold uppercase tracking-[2px] text-sage">
+              {roleOption.label}
             </p>
+            <h3 className="mb-1 font-serif text-[28px] font-semibold text-ink">
+              Welcome Back
+            </h3>
+            <p className="mb-7 text-[13.5px] text-mid">
+              Sign in to your {roleOption.label.toLowerCase()} account
+            </p>
+
             <div className="mb-4">
               <Label htmlFor="email">Email</Label>
-              <RHFInput name="email" placeholder="you@example.com" />
+              <RHFInput name="email" type="email" placeholder="you@example.com" />
             </div>
+
             <div className="mb-4">
               <Label htmlFor="password">Password</Label>
               <Controller
@@ -106,20 +131,24 @@ export function LoginScreen() {
                 )}
               />
             </div>
+
             <Link
               href="/forgot-password"
               className="mb-4 block text-right text-xs text-sage hover:underline"
             >
               Forgot password?
             </Link>
+
             <Button type="submit" size="lg" fullWidth disabled={login.isPending}>
-              Sign In -&gt;
+              {login.isPending ? "Signing in…" : "Sign In →"}
             </Button>
+
             <div className="my-4 flex items-center gap-3 text-xs text-dim">
               <span className="h-px flex-1 bg-line" />
               or
               <span className="h-px flex-1 bg-line" />
             </div>
+
             <p className="text-center text-sm text-mid">
               New to Azadi?{" "}
               <Link

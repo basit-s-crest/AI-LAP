@@ -1,12 +1,9 @@
-import type { Coach } from "@/types/coach";
-import coaches from "@/mock/coaches.json";
+import api from "@/lib/api";
+import type { CoachPublicDTO } from "@/types/coach";
 
 export const coachService = {
-  async list(): Promise<Coach[]> {
-    return coaches as Coach[];
-  },
-
-  async getById(id: number): Promise<Coach | undefined> {
-    return (coaches as Coach[]).find((c) => c.id === id);
+  async list(): Promise<CoachPublicDTO[]> {
+    const response = await api.get<{ coaches: CoachPublicDTO[] }>("/api/coach/list");
+    return response.data.coaches;
   },
 };
