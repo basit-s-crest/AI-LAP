@@ -5,15 +5,18 @@ import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { GroupCard } from "@/components/cards/GroupCard";
 import { Input } from "@/components/ui/Input";
-import groupsData from "@/mock/groups.json";
+import { useGroups } from "@/hooks/groups/useGroups";
+import { useJoinGroup } from "@/hooks/groups/useJoinGroup";
+import { useLeaveGroup } from "@/hooks/groups/useLeaveGroup";
 import type { CommunityGroup } from "@/types/group";
 
 export default function CommunityGroupsPage() {
   const router = useRouter();
-  const [groups, setGroups] = useState<CommunityGroup[]>(
-    () => JSON.parse(JSON.stringify(groupsData)) as CommunityGroup[]
-  );
   const [q, setQ] = useState("");
+
+  const { data: groups = [], isLoading } = useGroups();
+  const joinGroup = useJoinGroup();
+  const leaveGroup = useLeaveGroup();
 
   const joined = useMemo(() => groups.filter((g) => g.joined), [groups]);
   const discover = useMemo(() => groups.filter((g) => !g.joined), [groups]);
@@ -21,9 +24,21 @@ export default function CommunityGroupsPage() {
   const filter = (list: CommunityGroup[]) =>
     list.filter((g) => g.name.toLowerCase().includes(q.toLowerCase()));
 
-  const toggle = (id: number) => {
-    setGroups((gs) => gs.map((g) => (g.id === id ? { ...g, joined: !g.joined } : g)));
+  const toggle = (g: CommunityGroup) => {
+    if (g.joined) {
+      leaveGroup.mutate(g.id);
+    } else {
+      joinGroup.mutate(g.id);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Community Groups">
+        <div className="text-sm text-dim">Loading...</div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Community Groups">
@@ -53,7 +68,7 @@ export default function CommunityGroupsPage() {
                   key={g.id}
                   group={g}
                   onOpen={() => router.push(`/community-groups/${g.id}`)}
-                  onToggleJoin={() => toggle(g.id)}
+                  onToggleJoin={() => toggle(g)}
                 />
               ))}
             </div>
@@ -64,7 +79,11 @@ export default function CommunityGroupsPage() {
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filter(discover).map((g) => (
-            <GroupCard key={g.id} group={g} onToggleJoin={() => toggle(g.id)} />
+            <GroupCard
+              key={g.id}
+              group={g}
+              onToggleJoin={() => toggle(g)}
+            />
           ))}
         </div>
       </div>

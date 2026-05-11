@@ -1,7 +1,7 @@
-export type GroupStatus = "active" | "paused";
+export type GroupStatus = "active" | "paused" | "archived";
 
 export interface CommunityGroup {
-  id: number;
+  id: string;
   name: string;
   emoji: string;
   members: number;
@@ -15,10 +15,16 @@ export interface CommunityGroup {
 }
 
 export interface GroupPost {
-  id: number;
+  id: string;
   author: string;
-  emoji: string;
-  time: string;
+  memberId: string;
   body: string;
-  replies: number;
+  replyCount: number;
+  supportCount: number;
+  isFlagged: boolean;
+  time: string;
+}
+
+export interface GroupDetail extends CommunityGroup {
+  posts: GroupPost[];
 }
