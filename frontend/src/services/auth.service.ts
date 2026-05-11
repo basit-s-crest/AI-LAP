@@ -77,6 +77,8 @@ export const authService = {
       name,
       email: payload.email,
       password: payload.password,
+      role: payload.role ?? "member",
+      adminCode: payload.adminCode,   // forwarded for superadmin gate
     });
     return { userId: data.userId };
   },

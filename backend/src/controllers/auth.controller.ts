@@ -7,6 +7,7 @@ import {
   generateToken,
   hashOtp,
   hashPassword,
+  type UserRole,
 } from "../services/auth.service";
 import { generateOtp, sendVerificationEmail } from "../services/email.service";
 
@@ -43,12 +44,26 @@ export const register = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const { email, name, password, avatar } = req.body;
+    const { email, name, password, avatar, role: rawRole, adminCode } = req.body;
 
     if (!email || !name || !password) {
       return res
         .status(400)
         .json({ message: "Name, email and password are required" });
+    }
+
+    // Only allow known roles; default to "member" for safety
+    const ALLOWED_ROLES = ["member", "superadmin"] as const;
+    type AllowedRole = typeof ALLOWED_ROLES[number];
+    const role: AllowedRole = ALLOWED_ROLES.includes(rawRole) ? rawRole : "member";
+
+    // Superadmin registration requires a valid invite code
+    if (role === "superadmin") {
+      const expectedCode = process.env.SUPERADMIN_INVITE_CODE;
+      if (!expectedCode || adminCode !== expectedCode) {
+        // console.log(adminCode)
+        return res.status(403).json({ message: "Invalid admin invite code" });
+      }
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -64,7 +79,7 @@ export const register = async (
         email,
         name,
         password: hashedPassword,
-        role: "member",
+        role,
         avatar: avatar ?? null,
         isVerified: false,
       },
@@ -152,7 +167,7 @@ export const verifyOtp = async (
       return res.status(404).json({ message: "User not found" });
     }
 
-    const token = generateToken(user.id, user.role);
+    const token = generateToken(user.id, user.role as UserRole);
 
     return res.status(200).json({
       message: "Email verified successfully",
@@ -253,7 +268,7 @@ export const login = async (
       });
     }
 
-    const token = generateToken(user.id, user.role);
+    const token = generateToken(user.id, user.role as UserRole);
 
     return res.status(200).json({
       message: "Login successful",

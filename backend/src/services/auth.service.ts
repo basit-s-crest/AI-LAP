@@ -1,30 +1,56 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-// ─── JWT ──────────────────────────────────────────────────────────────────────
+// ─── TYPES ────────────────────────────────────────────────────────────────────
+
+export type UserRole = "member" | "coach" | "superadmin";
 
 export interface TokenPayload {
   id: string;
-  role: "member" | "coach";
+  role: UserRole;
 }
 
-/**
- * Signs a JWT with the given id and role.
- * Expires in 7 days.
- */
-export const generateToken = (id: string, role: "member" | "coach"): string => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error("JWT_SECRET is not configured");
+// ─── JWT ──────────────────────────────────────────────────────────────────────
 
-  return jwt.sign({ id, role }, secret, { expiresIn: "7d" });
+/**
+ * Generate JWT token
+ */
+export const generateToken = (
+  id: string,
+  role: UserRole
+): string => {
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    throw new Error("JWT_SECRET is not configured");
+  }
+
+  return jwt.sign(
+    {
+      id,
+      role,
+    },
+    secret,
+    {
+      expiresIn: "7d",
+    }
+  );
 };
 
-// ─── Password ─────────────────────────────────────────────────────────────────
+// ─── PASSWORD ─────────────────────────────────────────────────────────────────
 
-export const hashPassword = async (password: string): Promise<string> => {
+/**
+ * Hash password before storing in DB
+ */
+export const hashPassword = async (
+  password: string
+): Promise<string> => {
   return bcrypt.hash(password, 10);
 };
 
+/**
+ * Compare plain password with hashed password
+ */
 export const comparePassword = async (
   plain: string,
   hashed: string
@@ -35,13 +61,17 @@ export const comparePassword = async (
 // ─── OTP ──────────────────────────────────────────────────────────────────────
 
 /**
- * Hashes a plain OTP before storing it in the database.
- * Uses bcrypt with a low cost factor (8) since OTPs are short-lived.
+ * Hash OTP before storing
  */
-export const hashOtp = async (otp: string): Promise<string> => {
+export const hashOtp = async (
+  otp: string
+): Promise<string> => {
   return bcrypt.hash(otp, 8);
 };
 
+/**
+ * Compare OTP
+ */
 export const compareOtp = async (
   plain: string,
   hashed: string
