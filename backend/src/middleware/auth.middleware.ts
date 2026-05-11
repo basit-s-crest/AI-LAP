@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 
 export interface AuthUser {
   id: string;
-  role: "member" | "coach";
+  role: "member" | "coach" | "superadmin";
 }
 
 declare global {
@@ -49,7 +49,7 @@ export const authMiddleware = (
 
     req.user = {
       id: decoded.id,
-      role: decoded.role as "member" | "coach",
+      role: decoded.role as "member" | "coach" | "superadmin",
     };
 
     return next();
@@ -62,7 +62,7 @@ export const authMiddleware = (
  * Role guard — use after authMiddleware.
  * Example: router.get("/admin", authMiddleware, requireRole("coach"), handler)
  */
-export const requireRole = (...roles: Array<"member" | "coach">) => {
+export const requireRole = (...roles: Array<"member" | "coach" | "superadmin">) => {
   return (req: Request, res: Response, next: NextFunction): Response | void => {
     if (!req.user || !roles.includes(req.user.role)) {
       return res.status(403).json({ message: "Forbidden: insufficient role" });

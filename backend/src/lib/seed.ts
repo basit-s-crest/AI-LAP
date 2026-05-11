@@ -128,6 +128,22 @@ const runSeed = async (): Promise<void> => {
     });
   }
 
+  const adminEmail = "admin@azadihealth.com";
+  const hashedAdminPassword = await hashPassword("admin1234");
+
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: { role: "superadmin", isVerified: true },
+    create: {
+      email: adminEmail,
+      name: "Super Admin",
+      password: hashedAdminPassword,
+      role: "superadmin",
+      isVerified: true,
+    },
+  });
+  console.log("Seeded admin: admin@azadihealth.com");
+
   console.log("Seed completed successfully");
 };
 

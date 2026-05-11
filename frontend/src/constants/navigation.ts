@@ -61,39 +61,14 @@ export const ORG_NAV: NavItem[] = [
 ];
 
 export const SUPERADMIN_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, section: "Admin Platform" },
-  { href: "/users", label: "Users", icon: Users, section: "Admin Platform", badge: "1" },
+  { href: "/admin/dashboard", label: "Overview", icon: LayoutDashboard, section: "Admin Platform" },
+  { href: "/admin/users", label: "Users", icon: Users, section: "Admin Platform", badge: "1" },
   { href: "/admin/coaches", label: "Coaches", icon: UserCheck, section: "Admin Platform" },
   {
     href: "/admin/groups",
     label: "Community Groups",
     icon: UsersRound,
     section: "Admin Platform",
-  },
-  { href: "/media", label: "Media & Photos", icon: Image, section: "Admin Platform" },
-  { href: "/moderation", label: "Moderation", icon: Flag, section: "Admin Platform", badge: "3" },
-  { href: "/organizations", label: "Client Orgs", icon: Building2, section: "Admin Platform" },
-  { href: "/activity", label: "Activity Log", icon: Activity, section: "Admin Platform" },
-  {
-    href: "/impersonate/org",
-    label: "Client Org Portal",
-    icon: Building2,
-    section: "Switch Portal",
-    portal: true,
-  },
-  {
-    href: "/impersonate/coach",
-    label: "Coach Portal",
-    icon: UserCheck,
-    section: "Switch Portal",
-    portal: true,
-  },
-  {
-    href: "/impersonate/member",
-    label: "Member App",
-    icon: Sparkles,
-    section: "Switch Portal",
-    portal: true,
   },
 ];
 

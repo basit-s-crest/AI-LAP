@@ -12,7 +12,7 @@ export function getDashboardRoute(role: Role): string {
     case "coach":        return "/dashboard";
     case "user":         return "/dashboard";
     case "organization": return "/dashboard";
-    case "superadmin":   return "/dashboard";
+    case "superadmin":   return "/admin/dashboard";
     default:             return "/dashboard";
   }
 }
