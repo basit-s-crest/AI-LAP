@@ -28,6 +28,8 @@ model User {
   emailVerifications EmailVerification[]
   coachAssignments CoachMember[]
   coachMessages    CoachMessage[]     @relation("CoachMessages")
+  groupMemberships GroupMembership[]
+  peerGroupPosts   PeerGroupPost[]
 }
 
 // ─── Email Verification OTP ───────────────────────────────────────────────────
@@ -107,6 +109,8 @@ model CommunityGroup {
   memberIds   String[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  memberships GroupMembership[]
+  posts       PeerGroupPost[]
 }
 
 // ─── Coach Messages ───────────────────────────────────────────────────────────
@@ -127,4 +131,34 @@ model CoachMessage {
   @@index([userId, coachId, createdAt])
   @@index([coachId, read])
   @@index([userId, read])
+}
+
+model GroupMembership {
+  id       String    @id @default(cuid())
+  memberId String
+  groupId  String
+  joinedAt DateTime  @default(now())
+  isActive Boolean   @default(true)
+  member   User      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  group    CommunityGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, groupId])
+  @@index([memberId])
+  @@index([groupId])
+}
+
+model PeerGroupPost {
+  id           String         @id @default(cuid())
+  groupId      String
+  memberId     String
+  body         String
+  replyCount   Int            @default(0)
+  supportCount Int            @default(0)
+  isFlagged    Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  group        CommunityGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member       User           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, createdAt])
+  @@index([memberId])
 }
