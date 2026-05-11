@@ -152,7 +152,7 @@ export const verifyOtp = async (
       return res.status(404).json({ message: "User not found" });
     }
 
-    const token = generateToken(user.id, "member");
+    const token = generateToken(user.id, user.role);
 
     return res.status(200).json({
       message: "Email verified successfully",
@@ -253,7 +253,7 @@ export const login = async (
       });
     }
 
-    const token = generateToken(user.id, "member");
+    const token = generateToken(user.id, user.role);
 
     return res.status(200).json({
       message: "Login successful",

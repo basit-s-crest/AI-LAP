@@ -4,6 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 
 import authRoutes from "./routes/auth.routes";
+import adminRouter from "./routes/admin.routes";
 import coachRouter from "./routes/coach.routes";
 import coachMessageRouter from "./routes/coachMessage.routes";
 import groupRouter from "./routes/group.routes";
@@ -23,6 +24,7 @@ app.use("/api/coach", coachRouter);
 app.use("/api/messages", messageRouter);
 app.use("/api/groups", groupRouter);
 app.use("/api/coach-messages", coachMessageRouter);
+app.use("/api/admin", adminRouter);
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_, res) => {

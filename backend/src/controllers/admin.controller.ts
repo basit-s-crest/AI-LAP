@@ -1,0 +1,304 @@
+import { Request, Response } from "express";
+import prisma from "../lib/prisma";
+import { hashPassword } from "../services/auth.service";
+
+// ─── USER MANAGEMENT ──────────────────────────────────────────────────────────
+
+export const getAllUsers = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { role: { not: "superadmin" } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        avatar: true,
+        isVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            groupMemberships: { where: { isActive: true } },
+            sentMessages: true,
+          },
+        },
+      },
+    });
+
+    return res.status(200).json(
+      users.map((u) => ({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        avatar: u.avatar,
+        isVerified: u.isVerified,
+        createdAt: u.createdAt,
+        updatedAt: u.updatedAt,
+        groupCount: u._count.groupMemberships,
+        messageCount: u._count.sentMessages,
+      }))
+    );
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getUserById = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        avatar: true,
+        isVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        groupMemberships: {
+          where: { isActive: true },
+          include: { group: { select: { id: true, name: true, emoji: true } } },
+        },
+      },
+    });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+    return res.status(200).json(user);
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateUser = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { name, email, role, isVerified } = req.body;
+    const user = await prisma.user.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name && { name }),
+        ...(email && { email }),
+        ...(role && { role }),
+        ...(isVerified !== undefined && { isVerified }),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    return res.status(200).json(user);
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const deleteUser = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    await prisma.user.delete({ where: { id: req.params.id } });
+    return res.status(200).json({ message: "User deleted" });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// ─── COACH MANAGEMENT ─────────────────────────────────────────────────────────
+
+export const getAllCoaches = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const coaches = await prisma.coach.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: { select: { members: true } },
+      },
+    });
+
+    return res.status(200).json(
+      coaches.map((c) => ({
+        id: c.id,
+        email: c.email,
+        name: c.name,
+        avatar: c.avatar,
+        bio: c.bio,
+        speciality: c.speciality,
+        isActive: c.isActive,
+        createdAt: c.createdAt,
+        memberCount: c._count.members,
+      }))
+    );
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const createCoach = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { email, name, password, bio, speciality, avatar } = req.body;
+
+    if (!email || !name || !password) {
+      return res.status(400).json({ message: "Email, name and password required" });
+    }
+
+    const exists = await prisma.coach.findUnique({ where: { email } });
+    if (exists) {
+      return res.status(409).json({ message: "Coach email already exists" });
+    }
+
+    const hashedPassword = await hashPassword(password);
+    const coach = await prisma.coach.create({
+      data: {
+        email,
+        name,
+        password: hashedPassword,
+        bio: bio ?? null,
+        speciality: speciality ?? null,
+        avatar: avatar ?? null,
+        isActive: true,
+      },
+    });
+
+    return res.status(201).json({
+      id: coach.id,
+      email: coach.email,
+      name: coach.name,
+      bio: coach.bio,
+      speciality: coach.speciality,
+      avatar: coach.avatar,
+      isActive: coach.isActive,
+      createdAt: coach.createdAt,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateCoach = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { name, email, bio, speciality, avatar, isActive } = req.body;
+    const coach = await prisma.coach.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name && { name }),
+        ...(email && { email }),
+        ...(bio !== undefined && { bio }),
+        ...(speciality !== undefined && { speciality }),
+        ...(avatar !== undefined && { avatar }),
+        ...(isActive !== undefined && { isActive }),
+      },
+    });
+    return res.status(200).json(coach);
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const removeCoach = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    await prisma.coach.update({
+      where: { id: req.params.id },
+      data: { isActive: false },
+    });
+    return res.status(200).json({ message: "Coach removed" });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// ─── COMMUNITY GROUP MANAGEMENT ───────────────────────────────────────────────
+
+export const adminGetGroups = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const groups = await prisma.communityGroup.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: {
+          select: {
+            memberships: { where: { isActive: true } },
+            posts: true,
+          },
+        },
+      },
+    });
+
+    return res.status(200).json(
+      groups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        emoji: g.emoji,
+        description: g.description,
+        color: g.color,
+        tags: g.tags,
+        mod: g.mod,
+        status: g.status,
+        memberCount: g._count.memberships,
+        postCount: g._count.posts,
+        createdAt: g.createdAt,
+      }))
+    );
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminCreateGroup = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { name, emoji, description, color, tags, mod } = req.body;
+    if (!name) return res.status(400).json({ message: "Name required" });
+
+    const group = await prisma.communityGroup.create({
+      data: {
+        name,
+        emoji: emoji ?? "👥",
+        description: description ?? null,
+        color: color ?? "#4E8C58",
+        tags: Array.isArray(tags) ? tags : [],
+        mod: mod ?? null,
+        memberIds: [],
+        status: "active",
+      },
+    });
+    return res.status(201).json(group);
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminUpdateGroup = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { name, emoji, description, color, tags, mod, status } = req.body;
+    const group = await prisma.communityGroup.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name && { name }),
+        ...(emoji && { emoji }),
+        ...(description !== undefined && { description }),
+        ...(color && { color }),
+        ...(tags && { tags }),
+        ...(mod !== undefined && { mod }),
+        ...(status && { status }),
+      },
+    });
+    return res.status(200).json(group);
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminArchiveGroup = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const group = await prisma.communityGroup.update({
+      where: { id: req.params.id },
+      data: { status: "archived" },
+    });
+    return res.status(200).json(group);
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
