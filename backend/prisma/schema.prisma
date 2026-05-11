@@ -28,6 +28,7 @@ model User {
   emailVerifications EmailVerification[]
   coachAssignments CoachMember[]
   coachMessages    CoachMessage[]     @relation("CoachMessages")
+  moods            Mood[]
 }
 
 // ─── Email Verification OTP ───────────────────────────────────────────────────
@@ -127,4 +128,21 @@ model CoachMessage {
   @@index([userId, coachId, createdAt])
   @@index([coachId, read])
   @@index([userId, read])
+}
+
+// ─── Daily Mood Tracking ──────────────────────────────────────────────────────
+
+model Mood {
+  id        String   @id @default(cuid())
+  userId    String
+  mood      String   // "GREAT", "GOOD", "OKAY", "LOW", "HARD"
+  date      DateTime // Store as date only (midnight UTC)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date(sort: Desc)])
+  @@index([userId, createdAt])
 }

@@ -8,6 +8,7 @@ import coachRouter from "./routes/coach.routes";
 import coachMessageRouter from "./routes/coachMessage.routes";
 import groupRouter from "./routes/group.routes";
 import messageRouter from "./routes/message.routes";
+import moodRouter from "./routes/mood.routes";
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use("/api/coach", coachRouter);
 app.use("/api/messages", messageRouter);
 app.use("/api/groups", groupRouter);
 app.use("/api/coach-messages", coachMessageRouter);
+app.use("/api/mood", moodRouter);
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_, res) => {

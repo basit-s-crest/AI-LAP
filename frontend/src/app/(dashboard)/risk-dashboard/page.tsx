@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import type { ScoreUpdateEvent } from "@/lib/vasl/types";
 
@@ -11,7 +11,17 @@ interface HistoryEntry {
   time:  string;
 }
 
+interface PersistedState {
+  scores:     Record<string, ScoreUpdateEvent>;
+  history:    Record<string, HistoryEntry[]>;
+  events:     Array<{ text: string; time: string; tier: string }>;
+  totalCount: number;
+  tierTotals: { low: number; moderate: number; high: number; crisis: number };
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────
+const STORAGE_KEY = "vasl_risk_dashboard_v1";
+
 const TIER_COLORS: Record<string, string> = {
   low:      "#4E8C58",
   moderate: "#B8832A",
@@ -31,15 +41,42 @@ const TIER_EMOJI: Record<string, string> = {
   crisis:   "🔴",
 };
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+function loadPersistedState(): PersistedState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as PersistedState;
+  } catch { /* ignore */ }
+  return {
+    scores:     {},
+    history:    {},
+    events:     [],
+    totalCount: 0,
+    tierTotals: { low: 0, moderate: 0, high: 0, crisis: 0 },
+  };
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 export default function RiskDashboardPage() {
-  const [scores, setScores]         = useState<Record<string, ScoreUpdateEvent>>({});
-  const [history, setHistory]       = useState<Record<string, HistoryEntry[]>>({});
-  const [events, setEvents]         = useState<Array<{ text: string; time: string; tier: string }>>([]);
+  // Initialise from localStorage so data survives a refresh
+  const initial = useRef<PersistedState | null>(null);
+  if (!initial.current) initial.current = loadPersistedState();
+
+  const [scores, setScores]         = useState<Record<string, ScoreUpdateEvent>>(initial.current.scores);
+  const [history, setHistory]       = useState<Record<string, HistoryEntry[]>>(initial.current.history);
+  const [events, setEvents]         = useState<Array<{ text: string; time: string; tier: string }>>(initial.current.events);
   const [connected, setConnected]   = useState(false);
   const [lastPing, setLastPing]     = useState<string | null>(null);
-  const [totalCount, setTotalCount] = useState(0);
-  const [tierTotals, setTierTotals] = useState({ low: 0, moderate: 0, high: 0, crisis: 0 });
+  const [totalCount, setTotalCount] = useState(initial.current.totalCount);
+  const [tierTotals, setTierTotals] = useState(initial.current.tierTotals);
+
+  // ── Persist to localStorage whenever state changes ────────────────────────
+  useEffect(() => {
+    try {
+      const state: PersistedState = { scores, history, events, totalCount, tierTotals };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch { /* quota exceeded or SSR — ignore */ }
+  }, [scores, history, events, totalCount, tierTotals]);
 
   // ── SSE connection ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -99,11 +136,26 @@ export default function RiskDashboardPage() {
 
   const scoreList = Object.values(scores).sort((a, b) => b.risk_score - a.risk_score);
 
+  function clearHistory() {
+    setScores({});
+    setHistory({});
+    setEvents([]);
+    setTotalCount(0);
+    setTierTotals({ low: 0, moderate: 0, high: 0, crisis: 0 });
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+  }
+
   return (
     <DashboardLayout
       title="Live Risk Dashboard"
       topbarRight={
         <div className="flex items-center gap-3">
+          <button
+            onClick={clearHistory}
+            className="rounded-lg border border-line bg-card px-3 py-1.5 text-xs font-semibold text-dim transition-colors hover:text-ink"
+          >
+            Clear History
+          </button>
           <div
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5"
             style={{ background: connected ? "rgba(78,140,88,.15)" : "rgba(192,57,43,.15)" }}
