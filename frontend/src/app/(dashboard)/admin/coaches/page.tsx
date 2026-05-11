@@ -8,45 +8,79 @@ import { Button } from "@/components/ui/Button";
 import { BaseModal } from "@/components/modals/BaseModal";
 import { Label } from "@/components/ui/Label";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
 import { closeModal, openModal } from "@/store/slices/uiSlice";
-import { useAppendCoachMutation, useCoachesQuery, useRemoveCoachMutation } from "@/hooks/api/use-coaches";
-import type { CoachPublicDTO } from "@/types/coach";
+import {
+  useAdminCoaches,
+  useCreateAdminCoach,
+  useRemoveAdminCoach,
+  useUpdateAdminCoach,
+} from "@/hooks/admin/useAdminCoaches";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export default function AdminCoachesPage() {
   const dispatch = useAppDispatch();
-  const { data: coaches = [], isPending } = useCoachesQuery();
-  const appendCoach = useAppendCoachMutation();
-  const removeCoach = useRemoveCoachMutation();
+  const { data: coaches = [], isPending } = useAdminCoaches();
+  const createCoach = useCreateAdminCoach();
+  const updateCoach = useUpdateAdminCoach();
+  const removeCoach = useRemoveAdminCoach();
   const modal = useAppSelector((s) => s.ui.modal);
   const [name, setName] = useState("");
   const [spec, setSpec] = useState("");
   const [org, setOrg] = useState("Azadi Health Staff");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("coach1234");
 
   const submit = () => {
-    if (!name.trim()) {
-      toast.error("Name required");
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      toast.error("Name, email and password are required");
       return;
     }
-    const c: CoachPublicDTO = {
-      id: `local-${Date.now()}`,
-      name: name.trim(),
-      speciality: spec || null,
-      bio: org || null,
-      email: email.trim(),
-      avatar: null,
-      isActive: true,
-    };
-    appendCoach.mutate(c);
-    dispatch(closeModal());
-    setName("");
-    setSpec("");
-    setEmail("");
-    toast.success("Coach added");
+
+    createCoach.mutate(
+      {
+        name: name.trim(),
+        email: email.trim(),
+        password: password.trim(),
+        speciality: spec || undefined,
+        bio: org || undefined,
+      },
+      {
+        onSuccess: () => {
+          dispatch(closeModal());
+          setName("");
+          setSpec("");
+          setOrg("Azadi Health Staff");
+          setEmail("");
+          setPassword("coach1234");
+          toast.success("Coach added");
+        },
+        onError: () => toast.error("Failed to add coach"),
+      }
+    );
+  };
+
+  const editCoach = (id: string, currentName: string, currentSpec: string | null, currentBio: string | null) => {
+    const nextName = window.prompt("Coach name", currentName);
+    if (!nextName) return;
+    const nextSpec = window.prompt("Speciality", currentSpec ?? "") ?? "";
+    const nextBio = window.prompt("Organization/Bio", currentBio ?? "") ?? "";
+
+    updateCoach.mutate(
+      {
+        id,
+        data: {
+          name: nextName,
+          speciality: nextSpec || null,
+          bio: nextBio || null,
+        },
+      },
+      {
+        onSuccess: () => toast.success("Coach updated"),
+        onError: () => toast.error("Failed to update coach"),
+      }
+    );
   };
 
   return (
@@ -63,7 +97,7 @@ export default function AdminCoachesPage() {
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                {["Coach", "Specialty", "Availability", "Rating", "Sessions", "Clients", "Org", ""].map(
+                {["Coach", "Specialty", "Availability", "Members", "Org", ""].map(
                   (h) => (
                     <th
                       key={h}
@@ -78,7 +112,7 @@ export default function AdminCoachesPage() {
             <tbody>
               {isPending ? (
                 <tr>
-                  <td colSpan={8} className="px-[22px] py-8 text-center text-sm text-mid">
+                  <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid">
                     Loading coaches…
                   </td>
                 </tr>
@@ -102,19 +136,19 @@ export default function AdminCoachesPage() {
                       </Badge>
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      —
-                    </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      —
-                    </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      —
+                      {c.memberCount}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-xs text-mid group-hover:bg-[#EDE7DC]">
                       {c.bio ?? "—"}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      <Button variant="ghost" size="xs" type="button" className="mr-1">
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        type="button"
+                        className="mr-1"
+                        onClick={() => editCoach(c.id, c.name, c.speciality, c.bio)}
+                      >
                         Edit
                       </Button>
                       <Button
@@ -122,7 +156,12 @@ export default function AdminCoachesPage() {
                         size="xs"
                         type="button"
                         className="text-danger"
-                        onClick={() => removeCoach.mutate(c.id)}
+                        onClick={() =>
+                          removeCoach.mutate(c.id, {
+                            onSuccess: () => toast.success("Coach removed"),
+                            onError: () => toast.error("Failed to remove coach"),
+                          })
+                        }
                       >
                         Remove
                       </Button>
@@ -151,15 +190,7 @@ export default function AdminCoachesPage() {
           </div>
           <div>
             <Label>Organization</Label>
-            <Select
-              options={[
-                { value: "Azadi Health Staff", label: "Azadi Health Staff" },
-                { value: "University Partners", label: "University Partners" },
-                { value: "External", label: "External" },
-              ]}
-              value={org}
-              onChange={setOrg}
-            />
+            <Input value={org} onChange={(e) => setOrg(e.target.value)} placeholder="Azadi Health Staff" />
           </div>
           <div>
             <Label>Email</Label>
@@ -168,6 +199,15 @@ export default function AdminCoachesPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="coach@email.com"
+            />
+          </div>
+          <div>
+            <Label>Password</Label>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="coach1234"
             />
           </div>
           <div className="flex gap-3 pt-2">

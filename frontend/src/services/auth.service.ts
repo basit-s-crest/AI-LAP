@@ -13,7 +13,7 @@ interface BackendUser {
   id: string;
   email: string;
   name: string;
-  role: string;       // "member" | "coach" — always present now
+  role: string;
   avatar: string | null;
   isVerified?: boolean; // only on User, not Coach
   createdAt: string;
@@ -47,8 +47,12 @@ function toAuthUser(u: BackendUser): AuthUser {
     email: u.email,
     firstName,
     lastName,
-    // Backend sends explicit "coach" or "member"/"user" — map to frontend Role
-    role: u.role === "coach" ? "coach" : "user",
+    role:
+      u.role === "superadmin"
+        ? "superadmin"
+        : u.role === "coach"
+          ? "coach"
+          : "user",
   };
 }
 

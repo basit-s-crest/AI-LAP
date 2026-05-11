@@ -31,15 +31,10 @@ const COACH_PATHS = [
 const ORG_PATHS = ["/dashboard", "/members", "/outcomes", "/coaches", "/settings"] as const;
 
 const SUPERADMIN_PATHS = [
-  "/dashboard",
-  "/users",
+  "/admin/dashboard",
+  "/admin/users",
   "/admin/coaches",
-  "/organizations",
   "/admin/groups",
-  "/media",
-  "/moderation",
-  "/activity",
-  "/impersonate",
 ] as const;
 
 const ROLE_PATHS: Record<Role, readonly string[]> = {
@@ -59,7 +54,7 @@ export function pathAllowedForRole(pathname: string, role: Role | null): boolean
 }
 
 export function getDefaultPathForRole(role: Role): string {
-  return "/dashboard";
+  return role === "superadmin" ? "/admin/dashboard" : "/dashboard";
 }
 
 export function getRoleLabel(role: Role): string {

@@ -11,8 +11,12 @@ import { Label } from "@/components/ui/Label";
 import { Input } from "@/components/ui/Input";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
 import { closeModal, openModal } from "@/store/slices/uiSlice";
-import { useAdminGroupsQuery, useAppendAdminGroupMutation } from "@/hooks/api/use-admin";
-import type { CommunityGroup } from "@/types/group";
+import {
+  useAdminGroups,
+  useArchiveAdminGroup,
+  useCreateAdminGroup,
+  useUpdateAdminGroup,
+} from "@/hooks/admin/useAdminGroups";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
 
@@ -20,8 +24,10 @@ const EMOJIS = ["🌿", "🌈", "📚", "🧘", "✊🏾", "🌍", "💚", "🦋
 
 export default function AdminGroupsPage() {
   const dispatch = useAppDispatch();
-  const { data: groups = [], isPending } = useAdminGroupsQuery();
-  const appendGroup = useAppendAdminGroupMutation();
+  const { data: groups = [], isPending } = useAdminGroups();
+  const createGroup = useCreateAdminGroup();
+  const updateGroup = useUpdateAdminGroup();
+  const archiveGroup = useArchiveAdminGroup();
   const modal = useAppSelector((s) => s.ui.modal);
   const [gname, setGname] = useState("");
   const [tags, setTags] = useState("");
@@ -32,25 +38,51 @@ export default function AdminGroupsPage() {
       toast.error("Group name required");
       return;
     }
-    const g: CommunityGroup = {
-      id: Date.now(),
-      name: gname.trim(),
-      emoji,
-      members: 0,
-      posts: 0,
-      joined: false,
-      color: "#D4EDD7",
-      desc: "",
-      tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-      mod: "Admin",
-      status: "active",
-    };
-    appendGroup.mutate(g);
-    dispatch(closeModal());
-    setGname("");
-    setTags("");
-    setEmoji("🌿");
-    toast.success("Group created");
+    createGroup.mutate(
+      {
+        name: gname.trim(),
+        emoji,
+        tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+      },
+      {
+        onSuccess: () => {
+          dispatch(closeModal());
+          setGname("");
+          setTags("");
+          setEmoji("🌿");
+          toast.success("Group created");
+        },
+        onError: () => toast.error("Failed to create group"),
+      }
+    );
+  };
+
+  const editGroup = (
+    id: string,
+    currentName: string,
+    currentEmoji: string,
+    currentDescription: string | null
+  ) => {
+    const nextName = window.prompt("Group name", currentName);
+    if (!nextName) return;
+    const nextEmoji = window.prompt("Emoji", currentEmoji) ?? currentEmoji;
+    const nextDescription =
+      window.prompt("Description", currentDescription ?? "") ?? currentDescription ?? "";
+
+    updateGroup.mutate(
+      {
+        id,
+        data: {
+          name: nextName,
+          emoji: nextEmoji,
+          description: nextDescription || null,
+        },
+      },
+      {
+        onSuccess: () => toast.success("Group updated"),
+        onError: () => toast.error("Failed to update group"),
+      }
+    );
   };
 
   return (
@@ -94,22 +126,39 @@ export default function AdminGroupsPage() {
                       </div>
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      {g.members}
+                      {g.memberCount}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      {g.posts}
+                      {g.postCount}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-sm text-mid group-hover:bg-[#EDE7DC]">
-                      {g.mod}
+                      {g.mod ?? "—"}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <Badge variant={g.status === "active" ? "sage" : "gold"}>{g.status}</Badge>
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      <Button variant="ghost" size="xs" type="button" className="mr-1">
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        type="button"
+                        className="mr-1"
+                        onClick={() => editGroup(g.id, g.name, g.emoji, g.description)}
+                      >
                         Edit
                       </Button>
-                      <Button variant="ghost" size="xs" type="button" className="text-danger">
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        type="button"
+                        className="text-danger"
+                        onClick={() =>
+                          archiveGroup.mutate(g.id, {
+                            onSuccess: () => toast.success("Group archived"),
+                            onError: () => toast.error("Failed to archive group"),
+                          })
+                        }
+                      >
                         Archive
                       </Button>
                     </td>
