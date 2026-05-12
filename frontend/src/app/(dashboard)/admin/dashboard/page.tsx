@@ -1,42 +1,29 @@
-"use client";
+// Server Component — reads cookies on the server, no hydration mismatch
+import { cookies } from "next/headers";
+import { AUTH_ROLE_KEY, AUTH_USER_JSON_KEY } from "@/constants/storage";
+import type { Role } from "@/types/role";
+import type { AuthUser } from "@/types/auth";
+import { DashboardClient } from "../../dashboard/DashboardClient";
 
-import Link from "next/link";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card } from "@/components/ui/Card";
-import { useAdminUsers } from "@/hooks/admin/useAdminUsers";
-import { useAdminCoaches } from "@/hooks/admin/useAdminCoaches";
-import { useAdminGroups } from "@/hooks/admin/useAdminGroups";
+function parseRole(value: string | undefined): Role {
+  const valid: Role[] = ["user", "coach", "organization", "superadmin"];
+  return valid.includes(value as Role) ? (value as Role) : "user";
+}
 
-export default function AdminDashboardPage() {
-  const { data: users = [] } = useAdminUsers();
-  const { data: coaches = [] } = useAdminCoaches();
-  const { data: groups = [] } = useAdminGroups();
+export default async function AdminDashboardPage() {
+  const jar = await cookies();
+  const role = parseRole(jar.get(AUTH_ROLE_KEY)?.value);
 
-  return (
-    <DashboardLayout title="Admin Dashboard">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card className="p-5">
-          <div className="text-sm text-dim">Users</div>
-          <div className="mt-1 text-2xl font-semibold">{users.length}</div>
-          <Link href="/admin/users" className="mt-3 inline-block text-sm text-sage hover:underline">
-            Manage users
-          </Link>
-        </Card>
-        <Card className="p-5">
-          <div className="text-sm text-dim">Coaches</div>
-          <div className="mt-1 text-2xl font-semibold">{coaches.length}</div>
-          <Link href="/admin/coaches" className="mt-3 inline-block text-sm text-sage hover:underline">
-            Manage coaches
-          </Link>
-        </Card>
-        <Card className="p-5">
-          <div className="text-sm text-dim">Groups</div>
-          <div className="mt-1 text-2xl font-semibold">{groups.length}</div>
-          <Link href="/admin/groups" className="mt-3 inline-block text-sm text-sage hover:underline">
-            Manage groups
-          </Link>
-        </Card>
-      </div>
-    </DashboardLayout>
-  );
+  let displayName = "Member";
+  const raw = jar.get(AUTH_USER_JSON_KEY)?.value;
+  if (raw) {
+    try {
+      const u = JSON.parse(raw) as AuthUser;
+      displayName = `${u.firstName} ${u.lastName}`.trim() || "Member";
+    } catch {
+      // ignore malformed cookie
+    }
+  }
+
+  return <DashboardClient role={role} displayName={displayName} />;
 }

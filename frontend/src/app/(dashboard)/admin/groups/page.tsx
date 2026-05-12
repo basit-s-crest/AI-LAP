@@ -1,5 +1,5 @@
 "use client";
-
+import api from "@/lib/api";
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TableWrap } from "@/components/ui/Table";
@@ -19,19 +19,42 @@ import {
 } from "@/hooks/admin/useAdminGroups";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 const EMOJIS = ["🌿", "🌈", "📚", "🧘", "✊🏾", "🌍", "💚", "🦋"];
+
+// Fetch coaches from the existing /api/auth/coaches endpoint
+function useCoaches() {
+  return useQuery({
+    queryKey: ["coaches"],
+    queryFn: async () => {
+      const res = await api.get<{ id: string; name: string }[]>("/api/auth/coaches");
+      return res.data;
+    },
+  });
+}
 
 export default function AdminGroupsPage() {
   const dispatch = useAppDispatch();
   const { data: groups = [], isPending } = useAdminGroups();
+  const { data: coaches = [] } = useCoaches();
   const createGroup = useCreateAdminGroup();
   const updateGroup = useUpdateAdminGroup();
   const archiveGroup = useArchiveAdminGroup();
   const modal = useAppSelector((s) => s.ui.modal);
+
+  // Create group state
   const [gname, setGname] = useState("");
   const [tags, setTags] = useState("");
   const [emoji, setEmoji] = useState("🌿");
+  const [mod, setMod] = useState("");
+
+  // Edit group state
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmoji, setEditEmoji] = useState("🌿");
+  const [editDescription, setEditDescription] = useState("");
+  const [editMod, setEditMod] = useState("");
 
   const submit = () => {
     if (!gname.trim()) {
@@ -43,6 +66,7 @@ export default function AdminGroupsPage() {
         name: gname.trim(),
         emoji,
         tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+        mod: mod || undefined,
       },
       {
         onSuccess: () => {
@@ -50,6 +74,7 @@ export default function AdminGroupsPage() {
           setGname("");
           setTags("");
           setEmoji("🌿");
+          setMod("");
           toast.success("Group created");
         },
         onError: () => toast.error("Failed to create group"),
@@ -57,33 +82,71 @@ export default function AdminGroupsPage() {
     );
   };
 
-  const editGroup = (
+  const openEdit = (
     id: string,
     currentName: string,
     currentEmoji: string,
-    currentDescription: string | null
+    currentDescription: string | null,
+    currentMod: string | null
   ) => {
-    const nextName = window.prompt("Group name", currentName);
-    if (!nextName) return;
-    const nextEmoji = window.prompt("Emoji", currentEmoji) ?? currentEmoji;
-    const nextDescription =
-      window.prompt("Description", currentDescription ?? "") ?? currentDescription ?? "";
+    setEditId(id);
+    setEditName(currentName);
+    setEditEmoji(currentEmoji);
+    setEditDescription(currentDescription ?? "");
+    setEditMod(currentMod ?? "");
+    dispatch(openModal("edit-group"));
+  };
 
+  const submitEdit = () => {
+    if (!editId || !editName.trim()) {
+      toast.error("Group name required");
+      return;
+    }
     updateGroup.mutate(
       {
-        id,
+        id: editId,
         data: {
-          name: nextName,
-          emoji: nextEmoji,
-          description: nextDescription || null,
+          name: editName.trim(),
+          emoji: editEmoji,
+          description: editDescription || null,
+          mod: editMod || null,
         },
       },
       {
-        onSuccess: () => toast.success("Group updated"),
+        onSuccess: () => {
+          dispatch(closeModal());
+          setEditId(null);
+          toast.success("Group updated");
+        },
         onError: () => toast.error("Failed to update group"),
       }
     );
   };
+
+  // Reusable moderator dropdown
+const ModeratorSelect = ({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) => (
+  <div>
+    <Label>Moderator</Label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+    >
+      <option value="">— Select moderator —</option>
+      {coaches.map((c) => (
+        <option key={c.id} value={c.name}>
+          {c.name}
+        </option>
+      ))}
+    </select>
+  </div>
+);
 
   return (
     <DashboardLayout title="Community Groups">
@@ -143,7 +206,7 @@ export default function AdminGroupsPage() {
                         size="xs"
                         type="button"
                         className="mr-1"
-                        onClick={() => editGroup(g.id, g.name, g.emoji, g.description)}
+                        onClick={() => openEdit(g.id, g.name, g.emoji, g.description, g.mod)}
                       >
                         Edit
                       </Button>
@@ -170,6 +233,7 @@ export default function AdminGroupsPage() {
         </TableWrap>
       </div>
 
+      {/* Create Group Modal */}
       <BaseModal
         open={modal === "add-group"}
         onClose={() => dispatch(closeModal())}
@@ -202,12 +266,58 @@ export default function AdminGroupsPage() {
             <Label>Tags</Label>
             <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. BIPOC, LGBTQ+" />
           </div>
+          <ModeratorSelect value={mod} onChange={setMod} />
           <div className="flex gap-3 pt-2">
             <Button variant="ghost" className="flex-1" type="button" onClick={() => dispatch(closeModal())}>
               Cancel
             </Button>
             <Button className="flex-1" type="button" onClick={submit}>
               Create Group
+            </Button>
+          </div>
+        </div>
+      </BaseModal>
+
+      {/* Edit Group Modal */}
+      <BaseModal
+        open={modal === "edit-group"}
+        onClose={() => dispatch(closeModal())}
+        title="Edit Community Group"
+      >
+        <div className="space-y-4">
+          <div>
+            <Label>Group Name</Label>
+            <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Group name" />
+          </div>
+          <div>
+            <Label>Emoji</Label>
+            <div className="flex flex-wrap gap-2">
+              {EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setEditEmoji(e)}
+                  className={cn(
+                    "flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card text-xl",
+                    editEmoji === e && "border-sage bg-sage-soft"
+                  )}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label>Description</Label>
+            <Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Optional description" />
+          </div>
+          <ModeratorSelect value={editMod} onChange={setEditMod} />
+          <div className="flex gap-3 pt-2">
+            <Button variant="ghost" className="flex-1" type="button" onClick={() => dispatch(closeModal())}>
+              Cancel
+            </Button>
+            <Button className="flex-1" type="button" onClick={submitEdit} disabled={updateGroup.isPending}>
+              {updateGroup.isPending ? "Saving…" : "Save Changes"}
             </Button>
           </div>
         </div>

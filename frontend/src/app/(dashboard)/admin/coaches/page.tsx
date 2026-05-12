@@ -19,6 +19,13 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+type EditState = {
+  id: string;
+  name: string;
+  spec: string;
+  bio: string;
+};
+
 export default function AdminCoachesPage() {
   const dispatch = useAppDispatch();
   const { data: coaches = [], isPending } = useAdminCoaches();
@@ -31,6 +38,8 @@ export default function AdminCoachesPage() {
   const [org, setOrg] = useState("Azadi Health Staff");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("coach1234");
+
+  const [editState, setEditState] = useState<EditState | null>(null);
 
   const submit = () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
@@ -61,23 +70,19 @@ export default function AdminCoachesPage() {
     );
   };
 
-  const editCoach = (id: string, currentName: string, currentSpec: string | null, currentBio: string | null) => {
-    const nextName = window.prompt("Coach name", currentName);
-    if (!nextName) return;
-    const nextSpec = window.prompt("Speciality", currentSpec ?? "") ?? "";
-    const nextBio = window.prompt("Organization/Bio", currentBio ?? "") ?? "";
-
+  const handleEditSave = () => {
+    if (!editState) return;
     updateCoach.mutate(
       {
-        id,
+        id: editState.id,
         data: {
-          name: nextName,
-          speciality: nextSpec || null,
-          bio: nextBio || null,
+          name: editState.name,
+          speciality: editState.spec || null,
+          bio: editState.bio || null,
         },
       },
       {
-        onSuccess: () => toast.success("Coach updated"),
+        onSuccess: () => { toast.success("Coach updated"); setEditState(null); },
         onError: () => toast.error("Failed to update coach"),
       }
     );
@@ -147,7 +152,7 @@ export default function AdminCoachesPage() {
                         size="xs"
                         type="button"
                         className="mr-1"
-                        onClick={() => editCoach(c.id, c.name, c.speciality, c.bio)}
+                        onClick={() => setEditState({ id: c.id, name: c.name, spec: c.speciality ?? "", bio: c.bio ?? "" })}
                       >
                         Edit
                       </Button>
@@ -174,6 +179,7 @@ export default function AdminCoachesPage() {
         </TableWrap>
       </div>
 
+      {/* ── Add Coach Modal ── */}
       <BaseModal
         open={modal === "add-coach"}
         onClose={() => dispatch(closeModal())}
@@ -219,6 +225,55 @@ export default function AdminCoachesPage() {
             </Button>
           </div>
         </div>
+      </BaseModal>
+
+      {/* ── Edit Coach Modal ── */}
+      <BaseModal
+        open={!!editState}
+        onClose={() => setEditState(null)}
+        title="Edit Coach"
+      >
+        {editState && (
+          <div className="space-y-4">
+            <div>
+              <Label>Full Name</Label>
+              <Input
+                value={editState.name}
+                onChange={(e) => setEditState({ ...editState, name: e.target.value })}
+                placeholder="Dr. Jane Smith"
+              />
+            </div>
+            <div>
+              <Label>Specialty</Label>
+              <Input
+                value={editState.spec}
+                onChange={(e) => setEditState({ ...editState, spec: e.target.value })}
+                placeholder="e.g. CBT · Trauma"
+              />
+            </div>
+            <div>
+              <Label>Organization / Bio</Label>
+              <Input
+                value={editState.bio}
+                onChange={(e) => setEditState({ ...editState, bio: e.target.value })}
+                placeholder="Azadi Health Staff"
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="ghost" className="flex-1" type="button" onClick={() => setEditState(null)}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                type="button"
+                onClick={handleEditSave}
+                disabled={updateCoach.isPending}
+              >
+                {updateCoach.isPending ? "Saving…" : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        )}
       </BaseModal>
     </DashboardLayout>
   );

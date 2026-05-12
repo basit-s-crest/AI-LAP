@@ -290,3 +290,26 @@ export const forgotPassword = async (
   // TODO: implement password reset flow
   return res.status(200).json({ message: "If that email exists, a reset link has been sent." });
 };
+
+// ─── Get Coaches ──────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/auth/coaches
+ * Returns a minimal list of all coaches: [{ id, name }]
+ * Auth-protected — any authenticated user may call this.
+ */
+export const getCoaches = async (
+  _req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coaches = await prisma.coach.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+    return res.status(200).json(coaches);
+  } catch (error) {
+    console.error("[getCoaches]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};

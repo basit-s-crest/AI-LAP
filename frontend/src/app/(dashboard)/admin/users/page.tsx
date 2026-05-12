@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TableWrap } from "@/components/ui/Table";
 import { TableToolbar } from "@/components/tables/TableToolbar";
@@ -8,30 +9,43 @@ import { Button } from "@/components/ui/Button";
 import { useAdminUsers, useDeleteAdminUser, useUpdateAdminUser } from "@/hooks/admin/useAdminUsers";
 import { toast } from "sonner";
 
+type EditState = {
+  id: string;
+  name: string;
+  isVerified: boolean;
+};
+
 export default function AdminUsersPage() {
   const { data: users = [], isPending } = useAdminUsers();
   const updateUser = useUpdateAdminUser();
   const deleteUser = useDeleteAdminUser();
 
-  const editUser = (id: string, currentName: string, currentRole: string, currentVerified: boolean) => {
-    const nextName = window.prompt("User name", currentName);
-    if (!nextName) return;
-    const nextRole = (window.prompt("Role (member/coach/superadmin)", currentRole) ?? currentRole).trim();
-    const nextVerified =
-      (window.prompt("Verified? (true/false)", String(currentVerified)) ?? String(currentVerified)).toLowerCase() ===
-      "true";
+  const [editTarget, setEditTarget] = useState<EditState | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editVerified, setEditVerified] = useState(false);
 
+  const openEdit = (id: string, currentName: string, currentVerified: boolean) => {
+    setEditTarget({ id, name: currentName, isVerified: currentVerified });
+    setEditName(currentName);
+    setEditVerified(currentVerified);
+  };
+
+  const handleSave = () => {
+    if (!editTarget) return;
     updateUser.mutate(
       {
-        id,
+        id: editTarget.id,
         data: {
-          name: nextName,
-          role: nextRole,
-          isVerified: nextVerified,
+          name: editName,
+          role: "member",
+          isVerified: editVerified,
         },
       },
       {
-        onSuccess: () => toast.success("User updated"),
+        onSuccess: () => {
+          toast.success("User updated");
+          setEditTarget(null);
+        },
         onError: () => toast.error("Failed to update user"),
       }
     );
@@ -86,7 +100,7 @@ export default function AdminUsersPage() {
                       size="xs"
                       type="button"
                       className="mr-1"
-                      onClick={() => editUser(u.id, u.name, u.role, u.isVerified)}
+                      onClick={() => openEdit(u.id, u.name, u.isVerified)}
                     >
                       Edit
                     </Button>
@@ -111,6 +125,62 @@ export default function AdminUsersPage() {
           </tbody>
         </table>
       </TableWrap>
+
+      {/* Edit User Modal */}
+      {editTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setEditTarget(null); }}
+        >
+          <div className="w-[480px] max-w-[95vw] rounded-2xl border border-[rgba(60,50,40,0.10)] bg-[#FDFAF5] p-7 shadow-xl">
+            
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="font-serif text-xl font-semibold text-[#1E1A16]">Edit User</h2>
+              <button
+                onClick={() => setEditTarget(null)}
+                className="rounded-md border border-[rgba(60,50,40,0.12)] px-2.5 py-1 text-xs text-[#5C5248] hover:bg-[#F0EBE1]"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-dim">
+                Full Name
+              </label>
+              <input
+                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-dim">
+                Verified
+              </label>
+              <select
+                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                value={String(editVerified)}
+                onChange={(e) => setEditVerified(e.target.value === "true")}
+              >
+                <option value="true">Verified</option>
+                <option value="false">Pending</option>
+              </select>
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <Button variant="ghost" className="flex-1" onClick={() => setEditTarget(null)}>
+                Cancel
+              </Button>
+              <Button variant="primary" className="flex-1" onClick={handleSave} disabled={updateUser.isPending}>
+                {updateUser.isPending ? "Saving…" : "Save Changes"}
+              </Button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

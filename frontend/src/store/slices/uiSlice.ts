@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
-export type ModalKey = "add-coach" | "add-group" | "confirm" | null;
+export type ModalKey = "add-coach" | "add-group" | "edit-group" | "confirm" | null;
 
 interface UiState {
   sidebarMobileOpen: boolean;
