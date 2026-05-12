@@ -1,18 +1,29 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/Card";
 import { StatsCard } from "@/components/cards/StatsCard";
-import { SessionCardRow } from "@/components/cards/SessionCard";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
 import { setOnDemand } from "@/store/slices/coachSlice";
 import { cn } from "@/lib/cn";
+import api from "@/lib/api";
+import type { ConversationSummary } from "@/types/coachMessage";
 
-const schedule = [
-  { t: "9:00 AM", name: "Amara Johnson", type: "Weekly Check-in", status: "confirmed" as const },
-  { t: "11:30 AM", name: "Marcus Thompson", type: "Initial Session", status: "confirmed" as const },
-  { t: "2:00 PM", name: "Sofia Reyes", type: "Follow-up", status: "pending" as const },
-  { t: "4:00 PM", name: "Open Slot", type: "On-demand available", status: "open" as const },
-];
+interface CoachMember {
+  id: string;
+  email: string;
+  name: string;
+  avatar: string | null;
+  isVerified: boolean;
+  createdAt: string;
+  assignedAt: string;
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 function Toggle({ on }: { on: boolean }) {
   return (
@@ -35,45 +46,111 @@ function Toggle({ on }: { on: boolean }) {
 export function CoachDashboardHome() {
   const dispatch = useAppDispatch();
   const onDemand = useAppSelector((s) => s.coach.onDemand);
+  const { data: members = [], isLoading: membersLoading } = useQuery({
+    queryKey: ["coach", "members"],
+    queryFn: async (): Promise<CoachMember[]> => {
+      const { data } = await api.get<{ members: CoachMember[] }>("/api/coach/members");
+      return data.members;
+    },
+  });
+  const { data: conversations = [] } = useQuery({
+    queryKey: ["coach-conversations"],
+    queryFn: async (): Promise<ConversationSummary[]> => {
+      const { data } = await api.get<ConversationSummary[]>("/api/coach-messages");
+      return data;
+    },
+  });
+
+  const unreadCount = conversations.reduce((total, item) => total + item.unreadCount, 0);
+  const recentConversations = [...conversations]
+    .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime())
+    .slice(0, 4);
 
   return (
     <div className="animate-fadeIn">
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatsCard label="Active Clients" value="18" sub="+2 this month" accent="blue" />
-        <StatsCard label="Sessions (Feb)" value="34" trend="↑ 6 vs Jan" trendUp accent="sage" />
-        <StatsCard label="Avg Rating" value="4.9" sub="⭐ Last 30 days" accent="gold" />
-        <StatsCard label="AI Flagged" value="1" sub="Review needed" accent="red" />
+        <StatsCard
+          label="Active Clients"
+          value={String(members.length)}
+          sub="assigned to you"
+          accent="blue"
+        />
+        <StatsCard
+          label="Message Threads"
+          value={String(conversations.length)}
+          sub="client conversations"
+          accent="sage"
+        />
+        <StatsCard
+          label="Unread Messages"
+          value={String(unreadCount)}
+          sub="need response"
+          accent="gold"
+        />
+        <StatsCard
+          label="New Clients"
+          value={String(
+            members.filter(
+              (member) =>
+                new Date(member.assignedAt).getTime() >
+                Date.now() - 30 * 24 * 60 * 60 * 1000
+            ).length
+          )}
+          sub="last 30 days"
+          accent="red"
+        />
       </div>
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
         <Card>
-          <h3 className="mb-3 font-serif text-lg font-semibold">Today&apos;s Schedule</h3>
-          {schedule.map((s) => (
-            <SessionCardRow
-              key={`${s.t}-${s.name}`}
-              time={s.t}
-              name={s.name}
-              type={s.type}
-              status={s.status}
-            />
-          ))}
+          <h3 className="mb-3 font-serif text-lg font-semibold">Assigned Clients</h3>
+          {membersLoading ? (
+            <div className="text-sm text-dim">Loading clients...</div>
+          ) : members.length === 0 ? (
+            <div className="text-sm text-dim">No clients assigned yet.</div>
+          ) : (
+            members.slice(0, 5).map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between border-b border-[rgba(60,50,40,0.08)] py-3 last:border-0"
+              >
+                <div>
+                  <div className="text-sm font-semibold">{member.name}</div>
+                  <div className="text-xs text-dim">{member.email}</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono text-xs text-mid">
+                    {formatDate(member.assignedAt)}
+                  </div>
+                  <div className="text-xs text-dim">
+                    {member.isVerified ? "Verified" : "Pending"}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </Card>
         <div className="space-y-4">
           <Card>
-            <h3 className="mb-3 font-serif text-lg font-semibold">AI Client Insights</h3>
-            <div className="mb-3 flex gap-3 rounded-[10px] bg-danger-soft p-3">
-              <span className="text-lg">⚠️</span>
-              <div>
-                <div className="text-sm font-semibold">Jordan Wells</div>
-                <div className="text-xs text-mid">Low mood trend — 5 consecutive days below 2</div>
-              </div>
-            </div>
-            <div className="flex gap-3 rounded-[10px] bg-sage-tint p-3">
-              <span className="text-lg">✓</span>
-              <div>
-                <div className="text-sm font-semibold">Amara Johnson</div>
-                <div className="text-xs text-mid">Mood improving — up 0.8 points this week</div>
-              </div>
-            </div>
+            <h3 className="mb-3 font-serif text-lg font-semibold">Recent Client Messages</h3>
+            {recentConversations.length === 0 ? (
+              <div className="text-sm text-dim">No client messages yet.</div>
+            ) : (
+              recentConversations.map((conversation) => (
+                <div
+                  key={conversation.partnerId}
+                  className={cn(
+                    "mb-3 flex gap-3 rounded-[10px] p-3 last:mb-0",
+                    conversation.unreadCount > 0 ? "bg-danger-soft" : "bg-sage-tint"
+                  )}
+                >
+                  <span className="text-lg">{conversation.unreadCount > 0 ? "!" : "✓"}</span>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold">{conversation.partnerName}</div>
+                    <div className="truncate text-xs text-mid">{conversation.lastMessage}</div>
+                  </div>
+                </div>
+              ))
+            )}
           </Card>
           <Card>
             <h3 className="mb-2 font-serif text-lg font-semibold">On-Demand Status</h3>

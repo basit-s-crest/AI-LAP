@@ -6,8 +6,8 @@ import { Card } from "@/components/ui/Card";
 import { StatsCard } from "@/components/cards/StatsCard";
 import { useAppSelector } from "@/hooks/redux";
 import { useCoachesQuery } from "@/hooks/api/use-coaches";
-import groups from "@/mock/groups.json";
-import type { CommunityGroup } from "@/types/group";
+import { useMoodTrend } from "@/hooks/api/use-mood";
+import { useGroups } from "@/hooks/groups/useGroups";
 
 const QUICK_ACCESS = [
   { id: "empowerment-kit", l: "Empowerment Kit", d: "Videos & resources", e: "🎬", p: "/empowerment-kit" },
@@ -19,7 +19,10 @@ export function UserDashboard() {
   const user = useAppSelector((s) => s.auth.user);
   const name = user?.firstName ?? "Amara";
   const { data: coaches = [] } = useCoachesQuery();
-  const joined = (groups as CommunityGroup[]).filter((g) => g.joined);
+  const { data: groups = [], isLoading: groupsLoading } = useGroups();
+  const { data: weekMood } = useMoodTrend(7);
+  const { data: monthMood } = useMoodTrend(30);
+  const joined = groups.filter((g) => g.joined);
 
   return (
     <div className="animate-fadeIn">
@@ -52,16 +55,45 @@ export function UserDashboard() {
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatsCard label="Days Tracked" value="24" sub="this month" accent="sage" />
-        <StatsCard label="Sessions" value="6" sub="with coaches" accent="blue" />
-        <StatsCard label="Communities" value="2" sub="groups joined" accent="gold" />
-        <StatsCard label="Avg Mood" value="3.8" sub="this week" accent="terra" />
+        <StatsCard
+          label="Days Tracked"
+          value={String(monthMood?.totalTracked ?? 0)}
+          sub="this month"
+          accent="sage"
+        />
+        <StatsCard
+          label="Coaches"
+          value={String(coaches.length)}
+          sub="available"
+          accent="blue"
+        />
+        <StatsCard
+          label="Communities"
+          value={String(joined.length)}
+          sub="groups joined"
+          accent="gold"
+        />
+        <StatsCard
+          label="Avg Mood"
+          value={weekMood?.averageMood ? weekMood.averageMood.toFixed(1) : "—"}
+          sub="this week"
+          accent="terra"
+        />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div>
           <h3 className="mb-3.5 font-serif text-lg font-semibold text-ink">Your Groups</h3>
-          {joined.map((g) => (
+          {groupsLoading ? (
+            <Card variant="sm" className="mb-3">
+              <div className="text-sm text-dim">Loading groups...</div>
+            </Card>
+          ) : joined.length === 0 ? (
+            <Card variant="sm" className="mb-3">
+              <div className="text-sm text-dim">Join a community group to see it here.</div>
+            </Card>
+          ) : (
+            joined.slice(0, 3).map((g) => (
             <Link key={g.id} href={`/community-groups/${g.id}`}>
               <Card variant="sm" hoverable className="mb-3">
                 <div className="flex items-center justify-between">
@@ -76,7 +108,8 @@ export function UserDashboard() {
                 </div>
               </Card>
             </Link>
-          ))}
+            ))
+          )}
           <Link href="/community-groups">
             <Button variant="ghost" size="sm" fullWidth>
               Browse All Groups

@@ -16,6 +16,25 @@ export function useAdminUsers() {
   });
 }
 
+export function useCreateAdminUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      name: string;
+      email: string;
+      password: string;
+      role?: string;
+      isVerified?: boolean;
+    }) => {
+      const { data } = await api.post("/api/admin/users", payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminUsersKey });
+    },
+  });
+}
+
 export function useUpdateAdminUser() {
   const queryClient = useQueryClient();
   return useMutation({

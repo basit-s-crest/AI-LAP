@@ -19,6 +19,9 @@ const col = createColumnHelper<PlatformUser>();
 export default function AdminUsersPage() {
   const { data: data = [], isPending } = useUsersQuery();
   const [q, setQ] = useState("");
+  const activeUsers = data.filter((user) => user.status === "active").length;
+  const inactiveUsers = data.filter((user) => user.status === "inactive").length;
+  const totalGroups = data.reduce((total, user) => total + user.groups, 0);
   const filtered = useMemo(
     () =>
       data.filter(
@@ -47,7 +50,7 @@ export default function AdminUsersPage() {
         ),
       }),
       col.accessor("groups", { header: "Groups" }),
-      col.accessor("sessions", { header: "Sessions" }),
+      col.accessor("sessions", { header: "Messages" }),
       col.accessor("mood", {
         header: "Avg Mood",
         cell: (info) => {
@@ -103,13 +106,13 @@ export default function AdminUsersPage() {
     <DashboardLayout title="User Management">
       <div className="animate-fadeIn">
         <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatsCard label="Total Registered" value="1,714" trend="↑ 8.4%" trendUp accent="sage" />
-          <StatsCard label="Active (30d)" value="1,215" sub="70.9% retention" accent="blue" />
-          <StatsCard label="PHQ/GAD Complete" value="1,142" sub="66.6%" accent="gold" />
-          <StatsCard label="Flagged" value="1" sub="Action needed" accent="red" />
+          <StatsCard label="Total Registered" value={String(data.length)} sub="from database" accent="sage" />
+          <StatsCard label="Active" value={String(activeUsers)} sub="verified users" accent="blue" />
+          <StatsCard label="Group Joins" value={String(totalGroups)} sub="active memberships" accent="gold" />
+          <StatsCard label="Pending" value={String(inactiveUsers)} sub="not verified" accent="red" />
         </div>
         <TableWrap>
-          <TableToolbar title="All Users (1,714)">
+          <TableToolbar title={`All Users (${filtered.length})`}>
             <TableFilters searchPlaceholder="Search users..." value={q} onChange={setQ} />
           </TableToolbar>
           {isPending ? (

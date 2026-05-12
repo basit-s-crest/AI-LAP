@@ -9,6 +9,7 @@ export const getGroups = async (req: Request, res: Response): Promise<Response> 
     const userId = req.user.id;
 
     const groups = await prisma.communityGroup.findMany({
+      where: { status: { not: "archived" } },
       orderBy: { createdAt: "desc" },
       include: {
         memberships: {
@@ -76,6 +77,10 @@ export const getGroupById = async (req: Request, res: Response): Promise<Respons
       return res.status(404).json({ message: "Group not found" });
     }
 
+    if (group.status === "archived") {
+      return res.status(404).json({ message: "Group not found" });
+    }
+
     return res.status(200).json({
       id: group.id,
       name: group.name,
@@ -116,6 +121,9 @@ export const joinGroup = async (req: Request, res: Response): Promise<Response> 
     });
     if (!group) {
       return res.status(404).json({ message: "Group not found" });
+    }
+    if (group.status === "archived") {
+      return res.status(403).json({ message: "Archived groups cannot be joined" });
     }
 
     await prisma.groupMembership.upsert({
@@ -196,6 +204,15 @@ export const createPost = async (req: Request, res: Response): Promise<Response>
 
     if (!body?.trim()) {
       return res.status(400).json({ message: "Post body is required" });
+    }
+
+    const group = await prisma.communityGroup.findUnique({
+      where: { id: groupId },
+      select: { status: true },
+    });
+
+    if (!group || group.status === "archived") {
+      return res.status(404).json({ message: "Group not found" });
     }
 
     const membership = await prisma.groupMembership.findUnique({

@@ -198,7 +198,17 @@ const ModeratorSelect = ({
                       {g.mod ?? "—"}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      <Badge variant={g.status === "active" ? "sage" : "gold"}>{g.status}</Badge>
+                      <Badge
+                        variant={
+                          g.status === "active"
+                            ? "sage"
+                            : g.status === "archived"
+                              ? "dim"
+                              : "gold"
+                        }
+                      >
+                        {g.status}
+                      </Badge>
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <Button
@@ -210,20 +220,40 @@ const ModeratorSelect = ({
                       >
                         Edit
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        type="button"
-                        className="text-danger"
-                        onClick={() =>
-                          archiveGroup.mutate(g.id, {
-                            onSuccess: () => toast.success("Group archived"),
-                            onError: () => toast.error("Failed to archive group"),
-                          })
-                        }
-                      >
-                        Archive
-                      </Button>
+                      {g.status === "archived" ? (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          type="button"
+                          className="text-sage"
+                          onClick={() =>
+                            updateGroup.mutate(
+                              { id: g.id, data: { status: "active" } },
+                              {
+                                onSuccess: () => toast.success("Group reactivated"),
+                                onError: () => toast.error("Failed to reactivate group"),
+                              }
+                            )
+                          }
+                        >
+                          Reactivate
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          type="button"
+                          className="text-danger"
+                          onClick={() =>
+                            archiveGroup.mutate(g.id, {
+                              onSuccess: () => toast.success("Group archived"),
+                              onError: () => toast.error("Failed to archive group"),
+                            })
+                          }
+                        >
+                          Archive
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))

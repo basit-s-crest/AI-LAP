@@ -6,7 +6,12 @@ import { TableWrap } from "@/components/ui/Table";
 import { TableToolbar } from "@/components/tables/TableToolbar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { useAdminUsers, useDeleteAdminUser, useUpdateAdminUser } from "@/hooks/admin/useAdminUsers";
+import {
+  useAdminUsers,
+  useCreateAdminUser,
+  useDeleteAdminUser,
+  useUpdateAdminUser,
+} from "@/hooks/admin/useAdminUsers";
 import { toast } from "sonner";
 
 type EditState = {
@@ -17,9 +22,15 @@ type EditState = {
 
 export default function AdminUsersPage() {
   const { data: users = [], isPending } = useAdminUsers();
+  const createUser = useCreateAdminUser();
   const updateUser = useUpdateAdminUser();
   const deleteUser = useDeleteAdminUser();
 
+  const [addOpen, setAddOpen] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addPassword, setAddPassword] = useState("");
+  const [addVerified, setAddVerified] = useState(true);
   const [editTarget, setEditTarget] = useState<EditState | null>(null);
   const [editName, setEditName] = useState("");
   const [editVerified, setEditVerified] = useState(false);
@@ -28,6 +39,38 @@ export default function AdminUsersPage() {
     setEditTarget({ id, name: currentName, isVerified: currentVerified });
     setEditName(currentName);
     setEditVerified(currentVerified);
+  };
+
+  const resetAddForm = () => {
+    setAddName("");
+    setAddEmail("");
+    setAddPassword("");
+    setAddVerified(true);
+  };
+
+  const handleCreate = () => {
+    if (!addName.trim() || !addEmail.trim() || !addPassword.trim()) {
+      toast.error("Name, email and password are required");
+      return;
+    }
+
+    createUser.mutate(
+      {
+        name: addName.trim(),
+        email: addEmail.trim(),
+        password: addPassword,
+        role: "member",
+        isVerified: addVerified,
+      },
+      {
+        onSuccess: () => {
+          toast.success("User added");
+          setAddOpen(false);
+          resetAddForm();
+        },
+        onError: (error) => toast.error(error.message || "Failed to add user"),
+      }
+    );
   };
 
   const handleSave = () => {
@@ -54,7 +97,11 @@ export default function AdminUsersPage() {
   return (
     <DashboardLayout title="User Management">
       <TableWrap>
-        <TableToolbar title={`All Users (${users.length})`} />
+        <TableToolbar title={`All Users (${users.length})`}>
+          <Button size="sm" type="button" onClick={() => setAddOpen(true)}>
+            + Add User
+          </Button>
+        </TableToolbar>
         <table className="w-full border-collapse">
           <thead>
             <tr>
@@ -125,6 +172,94 @@ export default function AdminUsersPage() {
           </tbody>
         </table>
       </TableWrap>
+
+      {/* Add User Modal */}
+      {addOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setAddOpen(false);
+          }}
+        >
+          <div className="w-[480px] max-w-[95vw] rounded-2xl border border-[rgba(60,50,40,0.10)] bg-[#FDFAF5] p-7 shadow-xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="font-serif text-xl font-semibold text-[#1E1A16]">Add User</h2>
+              <button
+                onClick={() => setAddOpen(false)}
+                className="rounded-md border border-[rgba(60,50,40,0.12)] px-2.5 py-1 text-xs text-[#5C5248] hover:bg-[#F0EBE1]"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-dim">
+                Full Name
+              </label>
+              <input
+                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                value={addName}
+                onChange={(e) => setAddName(e.target.value)}
+                placeholder="Member name"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-dim">
+                Email
+              </label>
+              <input
+                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                value={addEmail}
+                onChange={(e) => setAddEmail(e.target.value)}
+                placeholder="member@example.com"
+                type="email"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-dim">
+                Temporary Password
+              </label>
+              <input
+                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                value={addPassword}
+                onChange={(e) => setAddPassword(e.target.value)}
+                placeholder="Set temporary password"
+                type="password"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-dim">
+                Verified
+              </label>
+              <select
+                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                value={String(addVerified)}
+                onChange={(e) => setAddVerified(e.target.value === "true")}
+              >
+                <option value="true">Verified</option>
+                <option value="false">Pending</option>
+              </select>
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <Button variant="ghost" className="flex-1" onClick={() => setAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                className="flex-1"
+                onClick={handleCreate}
+                disabled={createUser.isPending}
+              >
+                {createUser.isPending ? "Adding…" : "Add User"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit User Modal */}
       {editTarget && (

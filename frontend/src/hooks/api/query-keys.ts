@@ -7,7 +7,7 @@ export const queryKeys = {
   users: {
     all: usersRoot,
     list: () => [...usersRoot, "list"] as const,
-    detail: (id: number) => [...usersRoot, "detail", id] as const,
+    detail: (id: string) => [...usersRoot, "detail", id] as const,
   },
   coaches: {
     all: coachesRoot,

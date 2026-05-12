@@ -1,7 +1,7 @@
 export type UserStatus = "active" | "flagged" | "inactive";
 
 export interface PlatformUser {
-  id: number;
+  id: string;
   name: string;
   email: string;
   joined: string;

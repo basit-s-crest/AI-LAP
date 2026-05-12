@@ -11,10 +11,10 @@ export function useUsersQuery() {
   });
 }
 
-export function useUserQuery(id: number, enabled = true) {
+export function useUserQuery(id: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.users.detail(id),
     queryFn: () => userService.getById(id),
-    enabled: enabled && Number.isFinite(id) && id > 0,
+    enabled: enabled && id.trim().length > 0,
   });
 }

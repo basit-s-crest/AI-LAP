@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authMiddleware, requireRole } from "../middleware/auth.middleware";
 import {
-  getAllUsers, getUserById, updateUser, deleteUser,
+  getAllUsers, getUserById, createUser, updateUser, deleteUser,
   getAllCoaches, createCoach, updateCoach, removeCoach,
   adminGetGroups, adminCreateGroup, adminUpdateGroup, adminArchiveGroup,
 } from "../controllers/admin.controller";
@@ -13,6 +13,7 @@ router.use(requireRole("superadmin"));
 
 // Users
 router.get("/users", getAllUsers);
+router.post("/users", createUser);
 router.get("/users/:id", getUserById);
 router.put("/users/:id", updateUser);
 router.delete("/users/:id", deleteUser);

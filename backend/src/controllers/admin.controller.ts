@@ -120,6 +120,95 @@ export const getUserById = async (
   }
 };
 
+export const createUser = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const {
+      email,
+      name,
+      password,
+      avatar,
+      role,
+      isVerified,
+    } = req.body;
+
+    if (!email || !name || !password) {
+      return res.status(400).json({
+        message: "Email, name and password are required",
+      });
+    }
+
+    const allowedRoles = ["member", "superadmin"];
+    const userRole = allowedRoles.includes(role) ? role : "member";
+
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "User already exists",
+      });
+    }
+
+    const hashedPassword = await hashPassword(password);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        password: hashedPassword,
+        avatar: avatar ?? null,
+        role: userRole,
+        isVerified: isVerified ?? true,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        avatar: true,
+        isVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            groupMemberships: {
+              where: {
+                isActive: true,
+              },
+            },
+            sentMessages: true,
+          },
+        },
+      },
+    });
+
+    return res.status(201).json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      avatar: user.avatar,
+      isVerified: user.isVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      groupCount: user._count.groupMemberships,
+      messageCount: user._count.sentMessages,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
 export const updateUser = async (
   req: Request<IdParam>,
   res: Response

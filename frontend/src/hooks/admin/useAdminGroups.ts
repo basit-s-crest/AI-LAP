@@ -32,6 +32,7 @@ export function useCreateAdminGroup() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminGroupsKey });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
     },
   });
 }
@@ -56,6 +57,7 @@ export function useUpdateAdminGroup() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminGroupsKey });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
     },
   });
 }
@@ -69,6 +71,7 @@ export function useArchiveAdminGroup() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminGroupsKey });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
     },
   });
 }
