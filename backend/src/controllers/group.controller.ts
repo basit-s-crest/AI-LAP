@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
+import { forwardPeerPostToSentiment } from "../services/sentimentForwarder";
 
 export const getGroups = async (req: Request, res: Response): Promise<Response> => {
   try {
@@ -40,6 +41,8 @@ export const getGroups = async (req: Request, res: Response): Promise<Response> 
       }))
     );
   } catch (error) {
+    
+    console.log("1")
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -104,6 +107,8 @@ export const getGroupById = async (req: Request, res: Response): Promise<Respons
       joined: group.memberships.length > 0,
     });
   } catch (error) {
+    
+    console.log("3")
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -134,6 +139,8 @@ export const joinGroup = async (req: Request, res: Response): Promise<Response> 
 
     return res.status(200).json({ message: "Joined group", joined: true });
   } catch (error) {
+    
+    console.log("4")
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -160,6 +167,8 @@ export const leaveGroup = async (req: Request, res: Response): Promise<Response>
 
     return res.status(200).json({ message: "Left group", joined: false });
   } catch (error) {
+    
+    console.log("5")
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -189,6 +198,8 @@ export const createGroup = async (req: Request, res: Response): Promise<Response
     });
     return res.status(201).json(group);
   } catch (error) {
+    
+    console.log("6")
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -228,6 +239,9 @@ export const createPost = async (req: Request, res: Response): Promise<Response>
       include: { member: { select: { id: true, name: true } } },
     });
 
+    // Fire-and-forget: forward post text to Python sentiment backend
+    forwardPeerPostToSentiment(post);
+
     return res.status(201).json({
       id: post.id,
       author: post.member.name,
@@ -239,6 +253,8 @@ export const createPost = async (req: Request, res: Response): Promise<Response>
       time: post.createdAt,
     });
   } catch (error) {
+    
+    console.log("9")
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -264,6 +280,7 @@ export const getPosts = async (req: Request, res: Response): Promise<Response> =
       }))
     );
   } catch (error) {
+    console.log("10")
     return res.status(500).json({ message: "Internal server error" });
   }
 };

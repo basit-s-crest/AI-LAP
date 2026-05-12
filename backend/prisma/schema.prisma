@@ -17,7 +17,7 @@ model User {
   email            String    @unique
   name             String
   password         String
-  role             String    @default("member")
+  role             String    @defaMessageult("member")
   avatar           String?
   isVerified       Boolean   @default(false)
   createdAt        DateTime  @default(now())
