@@ -1,28 +1,81 @@
 "use client";
 
-import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TableWrap } from "@/components/ui/Table";
 import { TableToolbar } from "@/components/tables/TableToolbar";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { useUsersQuery } from "@/hooks/api/use-users";
+import api from "@/lib/api";
+import type { ConversationSummary } from "@/types/coachMessage";
+
+function formatLastContact(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function getInitial(name: string) {
+  return name.trim().charAt(0).toUpperCase() || "?";
+}
 
 export default function CoachClientsPage() {
-  const { data: allUsers = [] } = useUsersQuery();
-  const users = useMemo(() => allUsers.slice(0, 4), [allUsers]);
+  const router = useRouter();
+  const [search, setSearch] = useState("");
+
+  const {
+    data: conversations = [],
+    isLoading,
+    isError,
+  } = useQuery<ConversationSummary[]>({
+    queryKey: ["coach-conversations"],
+    queryFn: async () => {
+      const { data } = await api.get<ConversationSummary[]>("/api/coach-messages");
+      return data;
+    },
+  });
+
+  const clients = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return conversations
+      .filter((client) => {
+        if (!query) return true;
+        return (
+          client.partnerName.toLowerCase().includes(query) ||
+          client.lastMessage.toLowerCase().includes(query)
+        );
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+      );
+  }, [conversations, search]);
 
   return (
     <DashboardLayout title="My Clients">
       <TableWrap className="animate-fadeIn">
-        <TableToolbar title="My Clients (18)">
-          <Input placeholder="Search clients..." className="w-[200px]" />
+        <TableToolbar title={`My Clients (${isLoading ? "..." : clients.length})`}>
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search clients..."
+            className="w-[200px]"
+          />
         </TableToolbar>
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              {["Client", "Sessions", "Last Session", "Avg Mood", "PHQ Score", "Status", ""].map(
+              {["Client", "Last Message", "Last Contact", "Unread", "Status", ""].map(
                 (h) => (
                   <th
                     key={h}
@@ -35,37 +88,81 @@ export default function CoachClientsPage() {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className="group">
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                  <div className="font-semibold">{u.name}</div>
-                  <div className="text-xs text-dim">{u.tags.join(" · ")}</div>
-                </td>
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                  {u.sessions}
-                </td>
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-mono text-xs text-mid group-hover:bg-[#EDE7DC]">
-                  3d ago
-                </td>
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                  <span className="font-mono font-semibold">{u.mood ?? "—"}</span>
-                </td>
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                  <Badge variant="dim">7.1</Badge>
-                </td>
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                  <Badge variant={u.status === "flagged" ? "red" : "sage"}>{u.status}</Badge>
-                </td>
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                  <Button variant="ghost" size="xs" type="button" className="mr-1">
-                    Notes
-                  </Button>
-                  <Button size="xs" type="button">
-                    Message
-                  </Button>
+            {isLoading ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-8 text-center text-sm text-dim"
+                >
+                  Loading clients...
                 </td>
               </tr>
-            ))}
+            ) : isError ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-8 text-center text-sm text-danger"
+                >
+                  Unable to load clients from coach messages.
+                </td>
+              </tr>
+            ) : clients.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-8 text-center text-sm text-dim"
+                >
+                  No clients have messaged this coach yet.
+                </td>
+              </tr>
+            ) : (
+              clients.map((client) => (
+                <tr key={client.partnerId} className="group">
+                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-[#D4EDD7] text-sm font-bold text-sage">
+                        {client.partnerAvatar ? (
+                          <img
+                            src={client.partnerAvatar}
+                            alt={client.partnerName}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          getInitial(client.partnerName)
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-semibold">{client.partnerName}</div>
+                        <div className="font-mono text-[11px] text-dim">
+                          User ID: {client.partnerId}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="max-w-[320px] truncate border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-sm text-mid group-hover:bg-[#EDE7DC]">
+                    {client.lastMessage}
+                  </td>
+                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-mono text-xs text-mid group-hover:bg-[#EDE7DC]">
+                    {formatLastContact(client.lastMessageAt)}
+                  </td>
+                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <Badge variant={client.unreadCount > 0 ? "terra" : "dim"}>
+                      {client.unreadCount}
+                    </Badge>
+                  </td>
+                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <Badge variant={client.unreadCount > 0 ? "gold" : "sage"}>
+                      {client.unreadCount > 0 ? "New message" : "Active"}
+                    </Badge>
+                  </td>
+                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <Button size="xs" type="button" onClick={() => router.push("/messages")}>
+                      Message
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </TableWrap>
