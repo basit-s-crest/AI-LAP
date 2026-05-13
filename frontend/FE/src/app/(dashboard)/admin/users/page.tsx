@@ -13,6 +13,7 @@ import {
   useUpdateAdminUser,
 } from "@/hooks/admin/useAdminUsers";
 import { toast } from "sonner";
+import type { AdminUser } from "@/types/admin";
 
 type EditState = {
   id: string;
@@ -27,6 +28,7 @@ export default function AdminUsersPage() {
   const deleteUser = useDeleteAdminUser();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [viewingUser, setViewingUser] = useState<AdminUser | null>(null);
   const [addName, setAddName] = useState("");
   const [addEmail, setAddEmail] = useState("");
   const [addPassword, setAddPassword] = useState("");
@@ -147,6 +149,15 @@ export default function AdminUsersPage() {
                       size="xs"
                       type="button"
                       className="mr-1"
+                      onClick={() => setViewingUser(u)}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      type="button"
+                      className="mr-1"
                       onClick={() => openEdit(u.id, u.name, u.isVerified)}
                     >
                       Edit
@@ -172,6 +183,67 @@ export default function AdminUsersPage() {
           </tbody>
         </table>
       </TableWrap>
+
+      {/* View User Modal */}
+      {viewingUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setViewingUser(null); }}
+        >
+          <div className="w-[480px] max-w-[95vw] rounded-2xl border border-[rgba(60,50,40,0.10)] bg-[#FDFAF5] p-7 shadow-xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="font-serif text-xl font-semibold text-[#1E1A16]">{viewingUser.name}</h2>
+              <button
+                onClick={() => setViewingUser(null)}
+                className="rounded-md border border-[rgba(60,50,40,0.12)] px-2.5 py-1 text-xs text-[#5C5248] hover:bg-[#F0EBE1]"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Email</p>
+                <p className="text-[13.5px] text-[#1E1A16]">{viewingUser.email}</p>
+              </div>
+              <div>
+                <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Role</p>
+                <p className="text-[13.5px] text-[#1E1A16]">{viewingUser.role}</p>
+              </div>
+              <div>
+                <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Verified</p>
+                <Badge variant={viewingUser.isVerified ? "sage" : "gold"}>
+                  {viewingUser.isVerified ? "Verified" : "Pending"}
+                </Badge>
+              </div>
+              <div>
+                <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Groups</p>
+                <p className="text-[13.5px] text-[#1E1A16]">{viewingUser.groupCount}</p>
+              </div>
+              <div>
+                <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Messages</p>
+                <p className="text-[13.5px] text-[#1E1A16]">{viewingUser.messageCount}</p>
+              </div>
+              <div>
+                <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Created</p>
+                <p className="text-[13.5px] text-[#1E1A16]">
+                  {new Date(viewingUser.createdAt).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <Button variant="ghost" className="w-full" onClick={() => setViewingUser(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add User Modal */}
       {addOpen && (

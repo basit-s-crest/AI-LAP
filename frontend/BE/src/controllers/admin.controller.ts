@@ -740,3 +740,184 @@ export const adminArchiveGroup = async (
     });
   }
 };
+
+// ─── ORGANIZATION MANAGEMENT ──────────────────────────────────────────────────
+
+export const adminGetOrgStats = async (
+  _req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const [totalPartners, totalMembers, totalCoaches, spendAgg] =
+      await Promise.all([
+        prisma.organization.count(),
+        prisma.user.count({ where: { organizationId: { not: null } } }),
+        prisma.coach.count({ where: { organizationId: { not: null } } }),
+        prisma.organization.aggregate({ _sum: { monthlySpend: true } }),
+      ]);
+
+    return res.status(200).json({
+      totalPartners,
+      totalMembers,
+      totalMRR: spendAgg._sum.monthlySpend ?? 0,
+      totalCoaches,
+    });
+  } catch (error) {
+    console.error("[adminGetOrgStats]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminGetOrgs = async (
+  _req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const orgs = await prisma.organization.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: {
+          select: {
+            members: true,
+            coaches: true,
+          },
+        },
+        members: {
+          select: { isVerified: true },
+        },
+      },
+    });
+
+    return res.status(200).json(
+      orgs.map((o) => {
+        const totalMembers = o._count.members;
+        const activeMembers = o.members.filter((m) => m.isVerified).length;
+        const activeRate =
+          totalMembers > 0
+            ? Math.round((activeMembers / totalMembers) * 100)
+            : 0;
+        return {
+          id: o.id,
+          name: o.name,
+          type: o.type,
+          plan: o.plan,
+          status: o.status,
+          primaryContactName: o.primaryContactName,
+          primaryContactEmail: o.primaryContactEmail,
+          monthlySpend: o.monthlySpend,
+          totalMembers,
+          activeMembers,
+          activeRate,
+          totalCoaches: o._count.coaches,
+          createdAt: o.createdAt,
+        };
+      })
+    );
+  } catch (error) {
+    console.error("[adminGetOrgs]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminCreateOrg = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const {
+      name,
+      type,
+      plan,
+      primaryContactName,
+      primaryContactEmail,
+      primaryContactPassword,
+      monthlySpend,
+      domain,
+    } = req.body;
+
+    if (!name || !primaryContactEmail || !primaryContactPassword) {
+      return res.status(400).json({
+        message: "name, primaryContactEmail and primaryContactPassword are required",
+      });
+    }
+
+    const existing = await prisma.organization.findUnique({
+      where: { primaryContactEmail },
+    });
+    if (existing) {
+      return res.status(409).json({ message: "Email already in use" });
+    }
+
+    const hashedPw = await hashPassword(primaryContactPassword);
+
+    const org = await prisma.organization.create({
+      data: {
+        name,
+        type: type ?? "University",
+        plan: plan ?? "Starter",
+        primaryContactName: primaryContactName ?? "",
+        primaryContactEmail,
+        primaryContactPassword: hashedPw,
+        monthlySpend: monthlySpend ? Number(monthlySpend) : 0,
+        domain: domain ?? null,
+      },
+    });
+
+    return res.status(201).json({
+      id: org.id,
+      name: org.name,
+      type: org.type,
+      plan: org.plan,
+      status: org.status,
+      primaryContactName: org.primaryContactName,
+      primaryContactEmail: org.primaryContactEmail,
+      monthlySpend: org.monthlySpend,
+      totalMembers: 0,
+      activeMembers: 0,
+      activeRate: 0,
+      totalCoaches: 0,
+      createdAt: org.createdAt,
+    });
+  } catch (error) {
+    console.error("[adminCreateOrg]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminUpdateOrg = async (
+  req: Request<IdParam>,
+  res: Response
+): Promise<Response> => {
+  try {
+    const { name, type, plan, primaryContactName, monthlySpend, status, domain } =
+      req.body;
+
+    const org = await prisma.organization.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(type !== undefined && { type }),
+        ...(plan !== undefined && { plan }),
+        ...(primaryContactName !== undefined && { primaryContactName }),
+        ...(monthlySpend !== undefined && { monthlySpend: Number(monthlySpend) }),
+        ...(status !== undefined && { status }),
+        ...(domain !== undefined && { domain }),
+      },
+    });
+
+    return res.status(200).json({
+      id: org.id,
+      name: org.name,
+      type: org.type,
+      plan: org.plan,
+      status: org.status,
+      primaryContactName: org.primaryContactName,
+      primaryContactEmail: org.primaryContactEmail,
+      monthlySpend: org.monthlySpend,
+      createdAt: org.createdAt,
+    });
+  } catch (error) {
+    console.error("[adminUpdateOrg]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};

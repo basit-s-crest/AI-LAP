@@ -70,6 +70,12 @@ export const SUPERADMIN_NAV: NavItem[] = [
     icon: UsersRound,
     section: "Admin Platform",
   },
+  {
+    href: "/admin/orgs",
+    label: "Client Orgs",
+    icon: Building2,
+    section: "Admin Platform",
+  },
 ];
 
 export function navForRole(role: Role): NavItem[] {
