@@ -2,19 +2,21 @@
   "name": "vasl",
   "private": true,
   "workspaces": [
-    "frontend",
-    "backend"
+    "frontend/FE",
+    "frontend/BE"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
-    "dev:web": "npm run dev --workspace=frontend",
-    "dev:api": "npm run dev --workspace=backend",
-    "build:web": "npm run build --workspace=frontend",
-    "build:api": "npm run build --workspace=backend",
-    "start:web": "npm run start --workspace=frontend",
-    "start:api": "npm run start --workspace=backend",
-    "lint": "npm run lint --workspace=frontend",
-    "worker": "npm run worker --workspace=frontend"
+    "dev": "concurrently --names \"FE,WORKER,BE\" --prefix-colors \"green,yellow,magenta\" \"npm run dev:fe\" \"npm run dev:worker\" \"npm run dev:be\"",
+    "dev:fe": "npm run dev --workspace=frontend/FE",
+    "dev:worker": "npm run worker --workspace=frontend/FE",
+    "dev:be": "npm run dev --workspace=frontend/BE",
+    "dev:all": "powershell -ExecutionPolicy Bypass -File ./dev.ps1",
+    "build:fe": "npm run build --workspace=frontend/FE",
+    "build:be": "npm run build --workspace=frontend/BE",
+    "start:fe": "npm run start --workspace=frontend/FE",
+    "start:be": "npm run start --workspace=frontend/BE",
+    "lint": "npm run lint --workspace=frontend/FE",
+    "worker": "npm run worker --workspace=frontend/FE"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
