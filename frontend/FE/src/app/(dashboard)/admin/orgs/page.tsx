@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TableWrap } from "@/components/ui/Table";
@@ -15,13 +15,15 @@ import { toast } from "sonner";
 import {
   useAdminOrgs,
   useAdminOrgStats,
+  useAdminAllCoaches,
   useCreateOrg,
   useUpdateOrg,
   type AdminOrg,
+  type OrgCoach,
   type CreateOrgPayload,
 } from "@/hooks/admin/useAdminOrgs";
 
-// ── Stat card (matches existing admin page pattern) ───────────────────────────
+// ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({
   label,
   value,
@@ -49,17 +51,137 @@ function StatCard({
   );
 }
 
-// ── Plan badge helper ─────────────────────────────────────────────────────────
+// ── Plan badge ────────────────────────────────────────────────────────────────
 function PlanBadge({ plan }: { plan: string }) {
   if (plan === "Enterprise") return <Badge variant="gold">Enterprise</Badge>;
   if (plan === "Pro")        return <Badge variant="blue">Pro</Badge>;
   return <Badge variant="dim">{plan}</Badge>;
 }
 
-// ── Shared select className (matches existing modal inputs) ───────────────────
-const selectCls =
-  "w-full rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3.5 py-2.5 text-[13.5px] text-ink outline-none focus:border-[#4E8C58] focus:shadow-[0_0_0_3px_#EBF5EC]";
+// ── Coach multi-select dropdown ───────────────────────────────────────────────
+function CoachMultiSelect({
+  coaches,
+  selected,
+  onChange,
+}: {
+  coaches: OrgCoach[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
 
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const toggle = (id: string) => {
+    onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
+  };
+
+  const filtered = coaches.filter(
+    (c) =>
+      c.isActive &&
+      (c.name.toLowerCase().includes(search.toLowerCase()) ||
+        (c.speciality ?? "").toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const selectedCoaches = coaches.filter((c) => selected.includes(c.id));
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex min-h-[42px] w-full flex-wrap items-center gap-1.5 rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-left text-[13.5px] text-ink outline-none focus:border-[#4E8C58] focus:shadow-[0_0_0_3px_#EBF5EC]"
+      >
+        {selectedCoaches.length === 0 ? (
+          <span className="text-dim">Select coaches…</span>
+        ) : (
+          selectedCoaches.map((c) => (
+            <span
+              key={c.id}
+              className="flex items-center gap-1 rounded-full bg-[#EBF5EC] px-2 py-0.5 text-xs font-medium text-[#4E8C58]"
+            >
+              {c.name}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); toggle(c.id); }}
+                className="ml-0.5 text-[#4E8C58] hover:text-[#2d5c35]"
+              >
+                ×
+              </button>
+            </span>
+          ))
+        )}
+        <span className="ml-auto text-dim">▾</span>
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-[10px] border-[1.5px] border-line bg-card shadow-lg">
+          <div className="p-2">
+            <input
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search coaches…"
+              className="w-full rounded-[7px] border border-[rgba(60,50,40,0.12)] bg-[#F7F3EE] px-3 py-1.5 text-sm outline-none focus:border-[#4E8C58]"
+            />
+          </div>
+          <ul className="max-h-52 overflow-y-auto pb-1">
+            {filtered.length === 0 ? (
+              <li className="px-4 py-3 text-sm text-dim">No coaches found</li>
+            ) : (
+              filtered.map((coach) => {
+                const checked = selected.includes(coach.id);
+                return (
+                  <li key={coach.id}>
+                    <button
+                      type="button"
+                      onClick={() => toggle(coach.id)}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[#F0EBE1]"
+                    >
+                      {/* Checkbox */}
+                      <span
+                        className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-[1.5px] transition-colors ${
+                          checked
+                            ? "border-[#4E8C58] bg-[#4E8C58]"
+                            : "border-[rgba(60,50,40,0.25)] bg-white"
+                        }`}
+                      >
+                        {checked && (
+                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                            <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </span>
+                      <span>
+                        <span className="block text-sm font-medium text-ink">{coach.name}</span>
+                        {coach.speciality && (
+                          <span className="block text-xs text-dim">{coach.speciality}</span>
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 const TYPE_OPTIONS = [
   { value: "University",     label: "University"     },
   { value: "Health Insurer", label: "Health Insurer" },
@@ -74,7 +196,6 @@ const PLAN_OPTIONS = [
   { value: "Enterprise", label: "Enterprise" },
 ];
 
-// ── Blank form state ──────────────────────────────────────────────────────────
 const BLANK: CreateOrgPayload = {
   name: "",
   type: "University",
@@ -84,27 +205,29 @@ const BLANK: CreateOrgPayload = {
   primaryContactPassword: "",
   monthlySpend: 0,
   domain: "",
+  coachIds: [],
 };
 
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function AdminOrgsPage() {
   const router = useRouter();
   const { data: orgs = [], isPending } = useAdminOrgs();
   const { data: stats } = useAdminOrgStats();
+  const { data: allCoaches = [] } = useAdminAllCoaches();
   const createOrg = useCreateOrg();
   const updateOrg = useUpdateOrg();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingOrg, setEditingOrg] = useState<AdminOrg | null>(null);
 
-  // ── Add form state ──
+  // Add form
   const [form, setForm] = useState<CreateOrgPayload>(BLANK);
   const [addError, setAddError] = useState("");
 
-  // ── Edit form state ──
-  const [editForm, setEditForm] = useState<Partial<AdminOrg>>({});
+  // Edit form
+  const [editForm, setEditForm] = useState<Partial<AdminOrg> & { coachIds?: string[] }>({});
   const [editError, setEditError] = useState("");
 
-  // ── Open edit modal ──
   const openEdit = (org: AdminOrg) => {
     setEditingOrg(org);
     setEditForm({
@@ -113,11 +236,11 @@ export default function AdminOrgsPage() {
       plan: org.plan,
       primaryContactName: org.primaryContactName,
       monthlySpend: org.monthlySpend,
+      coachIds: org.coaches?.map((c) => c.id) ?? [],
     });
     setEditError("");
   };
 
-  // ── Submit create ──
   const handleCreate = () => {
     setAddError("");
     if (!form.name.trim() || !form.primaryContactEmail.trim() || !form.primaryContactPassword.trim()) {
@@ -131,14 +254,14 @@ export default function AdminOrgsPage() {
         toast.success("Organization created");
       },
       onError: (err: unknown) => {
-        const msg = (err as { response?: { data?: { message?: string } } })
-          ?.response?.data?.message ?? "Failed to create organization";
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          "Failed to create organization";
         setAddError(msg);
       },
     });
   };
 
-  // ── Submit edit ──
   const handleEdit = () => {
     if (!editingOrg) return;
     setEditError("");
@@ -150,8 +273,9 @@ export default function AdminOrgsPage() {
           toast.success("Organization updated");
         },
         onError: (err: unknown) => {
-          const msg = (err as { response?: { data?: { message?: string } } })
-            ?.response?.data?.message ?? "Failed to update organization";
+          const msg =
+            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            "Failed to update organization";
           setEditError(msg);
         },
       }
@@ -164,33 +288,13 @@ export default function AdminOrgsPage() {
 
         {/* ── Stat row ── */}
         <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard
-            label="Total Partners"
-            value={stats?.totalPartners ?? "—"}
-            sub="Active contracts"
-            accent="sage"
-          />
-          <StatCard
-            label="Total Members"
-            value={stats ? stats.totalMembers.toLocaleString() : "—"}
-            sub="Across all orgs"
-            accent="gold"
-          />
-          <StatCard
-            label="MRR"
-            value={stats ? `$${(stats.totalMRR / 1000).toFixed(1)}k` : "—"}
-            sub="Monthly recurring revenue"
-            accent="blue"
-          />
-          <StatCard
-            label="Active Coaches"
-            value={stats?.totalCoaches ?? "—"}
-            sub="Across all orgs"
-            accent="terra"
-          />
+          <StatCard label="Total Partners"  value={stats?.totalPartners ?? "—"}                          sub="Active contracts"          accent="sage"  />
+          <StatCard label="Total Members"   value={stats ? stats.totalMembers.toLocaleString() : "—"}    sub="Across all orgs"           accent="gold"  />
+          <StatCard label="MRR"             value={stats ? `$${(stats.totalMRR / 1000).toFixed(1)}k` : "—"} sub="Monthly recurring revenue" accent="blue"  />
+          <StatCard label="Active Coaches"  value={stats?.totalCoaches ?? "—"}                           sub="Across all orgs"           accent="terra" />
         </div>
 
-        {/* ── Table ── */}
+        {/* ── Orgs table ── */}
         <TableWrap>
           <TableToolbar title="Client Organizations">
             <Button
@@ -231,24 +335,19 @@ export default function AdminOrgsPage() {
               ) : (
                 orgs.map((org) => (
                   <tr key={org.id} className="group">
-                    {/* Organization */}
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <p className="font-semibold text-ink">{org.name}</p>
                       <p className="text-xs text-dim">{org.primaryContactEmail}</p>
                     </td>
-                    {/* Type */}
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <Badge variant="dim">{org.type}</Badge>
                     </td>
-                    {/* Plan */}
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <PlanBadge plan={org.plan} />
                     </td>
-                    {/* Users */}
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <span className="font-mono font-bold text-ink">{org.totalMembers}</span>
                     </td>
-                    {/* Active Rate */}
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <div className="flex items-center gap-2">
                         <div className="h-[6px] w-[80px] overflow-hidden rounded-full bg-[#EDE7DC]">
@@ -260,33 +359,39 @@ export default function AdminOrgsPage() {
                         <span className="font-mono text-xs text-mid">{Math.round(org.activeRate)}%</span>
                       </div>
                     </td>
-                    {/* Coaches */}
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      {org.totalCoaches}
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-bold text-ink">{org.totalCoaches}</span>
+                        {org.coaches?.length > 0 && (
+                          <div className="flex -space-x-1">
+                            {org.coaches.slice(0, 3).map((c) => (
+                              <span
+                                key={c.id}
+                                title={c.name}
+                                className="flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#4E8C58] text-[9px] font-bold text-white"
+                              >
+                                {c.name.charAt(0).toUpperCase()}
+                              </span>
+                            ))}
+                            {org.coaches.length > 3 && (
+                              <span className="flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#EDE7DC] text-[9px] font-bold text-dim">
+                                +{org.coaches.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
-                    {/* MRR */}
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <span className="font-mono text-sm text-[#4E8C58]">
                         ${org.monthlySpend.toLocaleString()}/mo
                       </span>
                     </td>
-                    {/* Actions */}
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        type="button"
-                        className="mr-1"
-                        onClick={() => router.push("/org/dashboard")}
-                      >
+                      <Button variant="ghost" size="xs" type="button" className="mr-1" onClick={() => router.push("/org/dashboard")}>
                         Dashboard
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        type="button"
-                        onClick={() => openEdit(org)}
-                      >
+                      <Button variant="ghost" size="xs" type="button" onClick={() => openEdit(org)}>
                         Edit
                       </Button>
                     </td>
@@ -299,98 +404,56 @@ export default function AdminOrgsPage() {
       </div>
 
       {/* ── Add Partner Modal ── */}
-      <BaseModal
-        open={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        title="Add Partner Organization"
-      >
+      <BaseModal open={showAddModal} onClose={() => setShowAddModal(false)} title="Add Partner Organization">
         <div className="space-y-4">
           <div>
             <Label>Organization Name *</Label>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="State University System"
-            />
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="State University System" />
           </div>
           <div>
             <Label>Type *</Label>
-            <Select
-              options={TYPE_OPTIONS}
-              value={form.type}
-              onChange={(v) => setForm({ ...form, type: v })}
-            />
+            <Select options={TYPE_OPTIONS} value={form.type} onChange={(v) => setForm({ ...form, type: v })} />
           </div>
           <div>
             <Label>Plan *</Label>
-            <Select
-              options={PLAN_OPTIONS}
-              value={form.plan}
-              onChange={(v) => setForm({ ...form, plan: v })}
-            />
+            <Select options={PLAN_OPTIONS} value={form.plan} onChange={(v) => setForm({ ...form, plan: v })} />
           </div>
           <div>
             <Label>Primary Contact Name *</Label>
-            <Input
-              value={form.primaryContactName}
-              onChange={(e) => setForm({ ...form, primaryContactName: e.target.value })}
-              placeholder="Dr. Jane Chen"
-            />
+            <Input value={form.primaryContactName} onChange={(e) => setForm({ ...form, primaryContactName: e.target.value })} placeholder="Dr. Jane Chen" />
           </div>
           <div>
             <Label>Primary Contact Email *</Label>
-            <Input
-              type="email"
-              value={form.primaryContactEmail}
-              onChange={(e) => setForm({ ...form, primaryContactEmail: e.target.value })}
-              placeholder="admin@university.edu"
-            />
+            <Input type="email" value={form.primaryContactEmail} onChange={(e) => setForm({ ...form, primaryContactEmail: e.target.value })} placeholder="admin@university.edu" />
           </div>
           <div>
             <Label>Password *</Label>
-            <Input
-              type="password"
-              value={form.primaryContactPassword}
-              onChange={(e) => setForm({ ...form, primaryContactPassword: e.target.value })}
-              placeholder="Set org admin login password"
-            />
+            <Input type="password" value={form.primaryContactPassword} onChange={(e) => setForm({ ...form, primaryContactPassword: e.target.value })} placeholder="Set org admin login password" />
             <p className="mt-1 text-xs text-dim">This will be the org admin's login password.</p>
           </div>
           <div>
-            <Label>Monthly Spend ($)</Label>
-            <Input
-              type="number"
-              value={form.monthlySpend ?? ""}
-              onChange={(e) => setForm({ ...form, monthlySpend: Number(e.target.value) })}
-              placeholder="0"
+            <Label>Assign Coaches</Label>
+            <CoachMultiSelect
+              coaches={allCoaches}
+              selected={form.coachIds ?? []}
+              onChange={(ids) => setForm({ ...form, coachIds: ids })}
             />
+            <p className="mt-1 text-xs text-dim">Select one or more coaches to assign to this organization.</p>
+          </div>
+          <div>
+            <Label>Monthly Spend ($)</Label>
+            <Input type="number" value={form.monthlySpend ?? ""} onChange={(e) => setForm({ ...form, monthlySpend: Number(e.target.value) })} placeholder="0" />
           </div>
           <div>
             <Label>Domain</Label>
-            <Input
-              value={form.domain ?? ""}
-              onChange={(e) => setForm({ ...form, domain: e.target.value })}
-              placeholder="university.edu"
-            />
+            <Input value={form.domain ?? ""} onChange={(e) => setForm({ ...form, domain: e.target.value })} placeholder="university.edu" />
           </div>
           {addError && (
             <p className="rounded-[8px] bg-[#FAE0DC] px-3 py-2 text-sm text-danger">{addError}</p>
           )}
           <div className="flex gap-3 pt-2">
-            <Button
-              variant="ghost"
-              className="flex-1"
-              type="button"
-              onClick={() => setShowAddModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="flex-1"
-              type="button"
-              onClick={handleCreate}
-              disabled={createOrg.isPending}
-            >
+            <Button variant="ghost" className="flex-1" type="button" onClick={() => setShowAddModal(false)}>Cancel</Button>
+            <Button className="flex-1" type="button" onClick={handleCreate} disabled={createOrg.isPending}>
               {createOrg.isPending ? "Creating…" : "Create Organization"}
             </Button>
           </div>
@@ -398,81 +461,47 @@ export default function AdminOrgsPage() {
       </BaseModal>
 
       {/* ── Edit Org Modal ── */}
-      <BaseModal
-        open={!!editingOrg}
-        onClose={() => setEditingOrg(null)}
-        title="Edit Organization"
-      >
+      <BaseModal open={!!editingOrg} onClose={() => setEditingOrg(null)} title="Edit Organization">
         {editingOrg && (
           <div className="space-y-4">
             <div>
               <Label>Organization Name</Label>
-              <Input
-                value={editForm.name ?? ""}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                placeholder="Organization name"
-              />
+              <Input value={editForm.name ?? ""} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Organization name" />
             </div>
             <div>
               <Label>Type</Label>
-              <Select
-                options={TYPE_OPTIONS}
-                value={editForm.type ?? "University"}
-                onChange={(v) => setEditForm({ ...editForm, type: v })}
-              />
+              <Select options={TYPE_OPTIONS} value={editForm.type ?? "University"} onChange={(v) => setEditForm({ ...editForm, type: v })} />
             </div>
             <div>
               <Label>Plan</Label>
-              <Select
-                options={PLAN_OPTIONS}
-                value={editForm.plan ?? "Starter"}
-                onChange={(v) => setEditForm({ ...editForm, plan: v })}
-              />
+              <Select options={PLAN_OPTIONS} value={editForm.plan ?? "Starter"} onChange={(v) => setEditForm({ ...editForm, plan: v })} />
             </div>
             <div>
               <Label>Primary Contact Name</Label>
-              <Input
-                value={editForm.primaryContactName ?? ""}
-                onChange={(e) => setEditForm({ ...editForm, primaryContactName: e.target.value })}
-                placeholder="Contact name"
-              />
+              <Input value={editForm.primaryContactName ?? ""} onChange={(e) => setEditForm({ ...editForm, primaryContactName: e.target.value })} placeholder="Contact name" />
             </div>
             <div>
               <Label>Primary Contact Email</Label>
-              <Input
-                type="email"
-                value={editingOrg.primaryContactEmail}
-                disabled
-                className="opacity-50"
+              <Input type="email" value={editingOrg.primaryContactEmail} disabled className="opacity-50" />
+            </div>
+            <div>
+              <Label>Assign Coaches</Label>
+              <CoachMultiSelect
+                coaches={allCoaches}
+                selected={editForm.coachIds ?? []}
+                onChange={(ids) => setEditForm({ ...editForm, coachIds: ids })}
               />
             </div>
             <div>
               <Label>Monthly Spend ($)</Label>
-              <Input
-                type="number"
-                value={editForm.monthlySpend ?? ""}
-                onChange={(e) => setEditForm({ ...editForm, monthlySpend: Number(e.target.value) })}
-                placeholder="0"
-              />
+              <Input type="number" value={editForm.monthlySpend ?? ""} onChange={(e) => setEditForm({ ...editForm, monthlySpend: Number(e.target.value) })} placeholder="0" />
             </div>
             {editError && (
               <p className="rounded-[8px] bg-[#FAE0DC] px-3 py-2 text-sm text-danger">{editError}</p>
             )}
             <div className="flex gap-3 pt-2">
-              <Button
-                variant="ghost"
-                className="flex-1"
-                type="button"
-                onClick={() => setEditingOrg(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1"
-                type="button"
-                onClick={handleEdit}
-                disabled={updateOrg.isPending}
-              >
+              <Button variant="ghost" className="flex-1" type="button" onClick={() => setEditingOrg(null)}>Cancel</Button>
+              <Button className="flex-1" type="button" onClick={handleEdit} disabled={updateOrg.isPending}>
                 {updateOrg.isPending ? "Saving…" : "Save Changes"}
               </Button>
             </div>

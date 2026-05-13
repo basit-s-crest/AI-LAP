@@ -752,7 +752,7 @@ export const adminGetOrgStats = async (
       await Promise.all([
         prisma.organization.count(),
         prisma.user.count({ where: { organizationId: { not: null } } }),
-        prisma.coach.count({ where: { organizationId: { not: null } } }),
+        prisma.organizationCoach.count(),
         prisma.organization.aggregate({ _sum: { monthlySpend: true } }),
       ]);
 
@@ -779,11 +779,23 @@ export const adminGetOrgs = async (
         _count: {
           select: {
             members: true,
-            coaches: true,
           },
         },
         members: {
           select: { isVerified: true },
+        },
+        coachAssignments: {
+          include: {
+            coach: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                speciality: true,
+                isActive: true,
+              },
+            },
+          },
         },
       },
     });
@@ -808,7 +820,8 @@ export const adminGetOrgs = async (
           totalMembers,
           activeMembers,
           activeRate,
-          totalCoaches: o._count.coaches,
+          totalCoaches: o.coachAssignments.length,
+          coaches: o.coachAssignments.map((a) => a.coach),
           createdAt: o.createdAt,
         };
       })
@@ -833,6 +846,7 @@ export const adminCreateOrg = async (
       primaryContactPassword,
       monthlySpend,
       domain,
+      coachIds,
     } = req.body;
 
     if (!name || !primaryContactEmail || !primaryContactPassword) {
@@ -860,6 +874,21 @@ export const adminCreateOrg = async (
         primaryContactPassword: hashedPw,
         monthlySpend: monthlySpend ? Number(monthlySpend) : 0,
         domain: domain ?? null,
+        // Create junction rows for each selected coach
+        coachAssignments: Array.isArray(coachIds) && coachIds.length > 0
+          ? {
+              create: coachIds.map((coachId: string) => ({ coachId })),
+            }
+          : undefined,
+      },
+      include: {
+        coachAssignments: {
+          include: {
+            coach: {
+              select: { id: true, name: true, email: true, speciality: true, isActive: true },
+            },
+          },
+        },
       },
     });
 
@@ -875,7 +904,8 @@ export const adminCreateOrg = async (
       totalMembers: 0,
       activeMembers: 0,
       activeRate: 0,
-      totalCoaches: 0,
+      totalCoaches: org.coachAssignments.length,
+      coaches: org.coachAssignments.map((a) => a.coach),
       createdAt: org.createdAt,
     });
   } catch (error) {
@@ -889,9 +919,10 @@ export const adminUpdateOrg = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const { name, type, plan, primaryContactName, monthlySpend, status, domain } =
+    const { name, type, plan, primaryContactName, monthlySpend, status, domain, coachIds } =
       req.body;
 
+    // Update scalar fields
     const org = await prisma.organization.update({
       where: { id: req.params.id },
       data: {
@@ -905,6 +936,33 @@ export const adminUpdateOrg = async (
       },
     });
 
+    // Sync coach assignments if coachIds provided
+    if (Array.isArray(coachIds)) {
+      // Delete all existing assignments then recreate
+      await prisma.organizationCoach.deleteMany({
+        where: { organizationId: req.params.id },
+      });
+      if (coachIds.length > 0) {
+        await prisma.organizationCoach.createMany({
+          data: coachIds.map((coachId: string) => ({
+            organizationId: req.params.id,
+            coachId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    // Fetch updated assignments to return
+    const assignments = await prisma.organizationCoach.findMany({
+      where: { organizationId: req.params.id },
+      include: {
+        coach: {
+          select: { id: true, name: true, email: true, speciality: true, isActive: true },
+        },
+      },
+    });
+
     return res.status(200).json({
       id: org.id,
       name: org.name,
@@ -914,6 +972,8 @@ export const adminUpdateOrg = async (
       primaryContactName: org.primaryContactName,
       primaryContactEmail: org.primaryContactEmail,
       monthlySpend: org.monthlySpend,
+      totalCoaches: assignments.length,
+      coaches: assignments.map((a) => a.coach),
       createdAt: org.createdAt,
     });
   } catch (error) {
