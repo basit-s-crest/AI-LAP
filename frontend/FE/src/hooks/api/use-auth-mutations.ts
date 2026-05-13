@@ -23,12 +23,15 @@ export function useRegisterMutation(role: Role = "user") {
   return useMutation<{ userId: string } | void, Error, RegisterPayload>({
     mutationFn: (payload: RegisterPayload) => {
       if (role === "coach") return authService.registerCoach(payload);
+      if (role === "organization") return authService.registerOrganization(payload);
       // Pass role so the backend can set superadmin correctly
       return authService.register({ ...payload, role });
     },
     onSuccess: (result) => {
       if (role === "coach") {
         router.push("/login?role=coach&registered=1");
+      } else if (role === "organization") {
+        router.push("/org-login");
       } else if (role === "superadmin") {
         // Superadmin goes through OTP verification same as members
         const { userId } = result as { userId: string };

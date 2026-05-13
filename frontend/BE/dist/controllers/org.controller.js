@@ -1,0 +1,197 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.updateOrgSettings = exports.getOrgSettings = exports.getOrgCoaches = exports.getOrgMembers = exports.getOrgOverview = exports.orgLogin = void 0;
+const prisma_1 = __importDefault(require("../lib/prisma"));
+const auth_service_1 = require("../services/auth.service");
+const orgLogin = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
+        }
+        const organization = await prisma_1.default.organization.findUnique({
+            where: { primaryContactEmail: email },
+        });
+        if (!organization) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+        const valid = await (0, auth_service_1.comparePassword)(password, organization.primaryContactPassword);
+        if (!valid) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+        const token = (0, auth_service_1.generateToken)(organization.id, "organization", organization.id);
+        return res.status(200).json({
+            token,
+            organization: {
+                id: organization.id,
+                name: organization.name,
+                type: organization.type,
+                plan: organization.plan,
+                status: organization.status,
+            },
+        });
+    }
+    catch (error) {
+        console.error("[orgLogin]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.orgLogin = orgLogin;
+const getOrgOverview = async (req, res) => {
+    try {
+        const orgId = req.user?.orgId;
+        if (!orgId)
+            return res.status(401).json({ message: "Unauthorized" });
+        const organization = await prisma_1.default.organization.findUnique({ where: { id: orgId } });
+        if (!organization)
+            return res.status(404).json({ message: "Organization not found" });
+        const [totalMembers, activeMembers, totalCoaches] = await Promise.all([
+            prisma_1.default.user.count({ where: { organizationId: orgId } }),
+            prisma_1.default.user.count({ where: { organizationId: orgId, isVerified: true } }),
+            prisma_1.default.coach.count({ where: { organizationId: orgId } }),
+        ]);
+        const engagementRate = totalMembers > 0 ? (activeMembers / totalMembers) * 100 : 0;
+        return res.status(200).json({
+            orgName: organization.name,
+            type: organization.type,
+            plan: organization.plan,
+            status: organization.status,
+            totalMembers,
+            activeMembers,
+            totalCoaches,
+            engagementRate: Number(engagementRate.toFixed(2)),
+            sessionsThisMonth: 0,
+            avgPhqScore: null,
+        });
+    }
+    catch (error) {
+        console.error("[getOrgOverview]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getOrgOverview = getOrgOverview;
+const getOrgMembers = async (req, res) => {
+    try {
+        const orgId = req.user?.orgId;
+        if (!orgId)
+            return res.status(401).json({ message: "Unauthorized" });
+        const members = await prisma_1.default.user.findMany({
+            where: { organizationId: orgId },
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                isVerified: true,
+                createdAt: true,
+                avatar: true,
+                role: true,
+            },
+        });
+        return res.status(200).json(members.map((member) => ({
+            ...member,
+            status: member.isVerified ? "active" : "pending",
+        })));
+    }
+    catch (error) {
+        console.error("[getOrgMembers]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getOrgMembers = getOrgMembers;
+const getOrgCoaches = async (req, res) => {
+    try {
+        const orgId = req.user?.orgId;
+        if (!orgId)
+            return res.status(401).json({ message: "Unauthorized" });
+        const coaches = await prisma_1.default.coach.findMany({
+            where: { organizationId: orgId },
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                speciality: true,
+                bio: true,
+                isActive: true,
+                avatar: true,
+                createdAt: true,
+            },
+        });
+        return res.status(200).json(coaches);
+    }
+    catch (error) {
+        console.error("[getOrgCoaches]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getOrgCoaches = getOrgCoaches;
+const getOrgSettings = async (req, res) => {
+    try {
+        const orgId = req.user?.orgId;
+        if (!orgId)
+            return res.status(401).json({ message: "Unauthorized" });
+        const organization = await prisma_1.default.organization.findUnique({
+            where: { id: orgId },
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                plan: true,
+                primaryContactName: true,
+                primaryContactEmail: true,
+                status: true,
+                notifyWeeklyReport: true,
+                notifyCrisisAlerts: true,
+                notifyNewMembers: true,
+            },
+        });
+        if (!organization)
+            return res.status(404).json({ message: "Organization not found" });
+        return res.status(200).json(organization);
+    }
+    catch (error) {
+        console.error("[getOrgSettings]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getOrgSettings = getOrgSettings;
+const updateOrgSettings = async (req, res) => {
+    try {
+        const orgId = req.user?.orgId;
+        if (!orgId)
+            return res.status(401).json({ message: "Unauthorized" });
+        const { name, type, notifyWeeklyReport, notifyCrisisAlerts, notifyNewMembers } = req.body;
+        const updated = await prisma_1.default.organization.update({
+            where: { id: orgId },
+            data: {
+                ...(name !== undefined ? { name } : {}),
+                ...(type !== undefined ? { type } : {}),
+                ...(notifyWeeklyReport !== undefined ? { notifyWeeklyReport: Boolean(notifyWeeklyReport) } : {}),
+                ...(notifyCrisisAlerts !== undefined ? { notifyCrisisAlerts: Boolean(notifyCrisisAlerts) } : {}),
+                ...(notifyNewMembers !== undefined ? { notifyNewMembers: Boolean(notifyNewMembers) } : {}),
+            },
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                plan: true,
+                primaryContactName: true,
+                primaryContactEmail: true,
+                status: true,
+                notifyWeeklyReport: true,
+                notifyCrisisAlerts: true,
+                notifyNewMembers: true,
+            },
+        });
+        return res.status(200).json(updated);
+    }
+    catch (error) {
+        console.error("[updateOrgSettings]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.updateOrgSettings = updateOrgSettings;

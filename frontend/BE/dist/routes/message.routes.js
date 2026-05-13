@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const message_controller_1 = require("../controllers/message.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authMiddleware);
+router.get("/conversations", message_controller_1.getConversations);
+router.get("/:userId", message_controller_1.getMessages);
+router.post("/", message_controller_1.sendMessage);
+router.put("/:userId/read", message_controller_1.markAsRead);
+exports.default = router;

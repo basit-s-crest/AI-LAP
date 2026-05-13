@@ -5,7 +5,8 @@ import jwt from "jsonwebtoken";
 
 export interface AuthUser {
   id: string;
-  role: "member" | "coach" | "superadmin";
+  role: "member" | "coach" | "organization" | "superadmin";
+  orgId?: string;
 }
 
 declare global {
@@ -41,7 +42,7 @@ export const authMiddleware = (
       return res.status(500).json({ message: "JWT secret not configured" });
     }
 
-    const decoded = jwt.verify(token, secret) as { id?: string; role?: string };
+    const decoded = jwt.verify(token, secret) as { id?: string; role?: string; orgId?: string };
 
     if (!decoded.id || !decoded.role) {
       return res.status(401).json({ message: "Invalid token payload" });
@@ -49,7 +50,8 @@ export const authMiddleware = (
 
     req.user = {
       id: decoded.id,
-      role: decoded.role as "member" | "coach" | "superadmin",
+      role: decoded.role as "member" | "coach" | "organization" | "superadmin",
+      orgId: decoded.orgId,
     };
 
     return next();
@@ -62,7 +64,7 @@ export const authMiddleware = (
  * Role guard — use after authMiddleware.
  * Example: router.get("/admin", authMiddleware, requireRole("coach"), handler)
  */
-export const requireRole = (...roles: Array<"member" | "coach" | "superadmin">) => {
+export const requireRole = (...roles: Array<"member" | "coach" | "organization" | "superadmin">) => {
   return (req: Request, res: Response, next: NextFunction): Response | void => {
     if (!req.user || !roles.includes(req.user.role)) {
       return res.status(403).json({ message: "Forbidden: insufficient role" });

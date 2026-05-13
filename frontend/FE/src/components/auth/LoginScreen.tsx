@@ -158,6 +158,12 @@ export function LoginScreen() {
                 Create account
               </Link>
             </p>
+            <p className="mt-3 text-center text-xs text-dim">
+              Organization admin?{" "}
+              <Link href="/org-login" className="font-semibold text-sage hover:underline">
+                Sign in here
+              </Link>
+            </p>
           </form>
         </FormProvider>
       </div>

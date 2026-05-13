@@ -31,6 +31,8 @@ model User {
   groupMemberships GroupMembership[]
   peerGroupPosts   PeerGroupPost[]
   moods            Mood[]
+  organizationId   String?
+  organization     Organization?     @relation(fields: [organizationId], references: [id])
 }
 
 // ─── Email Verification OTP ───────────────────────────────────────────────────
@@ -64,6 +66,29 @@ model Coach {
 
   members       CoachMember[]
   coachMessages CoachMessage[] @relation("CoachMessages")
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+}
+
+model Organization {
+  id                     String   @id @default(cuid())
+  name                   String
+  type                   String   @default("University")
+  plan                   String   @default("Starter")
+  primaryContactName     String
+  primaryContactEmail    String   @unique
+  primaryContactPassword String
+  logo                   String?
+  domain                 String?
+  monthlySpend           Float    @default(0)
+  status                 String   @default("active")
+  notifyWeeklyReport     Boolean  @default(true)
+  notifyCrisisAlerts     Boolean  @default(true)
+  notifyNewMembers       Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  members                User[]
+  coaches                Coach[]
 }
 
 // ─── Coach ↔ Member assignment ────────────────────────────────────────────────
