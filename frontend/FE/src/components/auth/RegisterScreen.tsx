@@ -117,7 +117,11 @@ function RoleRegisterScreen({ role }: { role: Role }) {
   const onSubmit = methods.handleSubmit(async (data) => {
     try {
       await registerMutation.mutateAsync(data);
-      toast.success("Check your email for the verification code");
+      if (role === "organization") {
+        toast.success("Organization account created. Please sign in.");
+      } else {
+        toast.success("Check your email for the verification code");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Registration failed");
     }

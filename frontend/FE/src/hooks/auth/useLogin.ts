@@ -11,7 +11,7 @@ export function getDashboardRoute(role: Role): string {
   switch (role) {
     case "coach":        return "/dashboard";
     case "user":         return "/dashboard";
-    case "organization": return "/dashboard";
+    case "organization": return "/org/dashboard";
     case "superadmin":   return "/admin/dashboard";
     default:             return "/dashboard";
   }
@@ -24,6 +24,7 @@ export function useLogin(role: Role = "user") {
     mutationFn: (credentials: LoginCredentials) => {
       // Coach login hits a separate backend endpoint
       if (role === "coach") return authService.loginCoach(credentials);
+      if (role === "organization") return authService.orgLogin(credentials);
       return authService.login(credentials);
     },
     onSuccess: (session) => {

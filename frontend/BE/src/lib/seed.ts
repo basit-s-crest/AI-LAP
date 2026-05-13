@@ -144,6 +144,29 @@ const runSeed = async (): Promise<void> => {
   });
   console.log("Seeded admin: admin@azadihealth.com");
 
+  const hashedOrgPassword = await hashPassword("org1234");
+  const organization = await prisma.organization.upsert({
+    where: { primaryContactEmail: "org@stateuniversity.com" },
+    update: {
+      name: "State University System",
+      type: "University",
+      plan: "Enterprise",
+      status: "active",
+      primaryContactName: "Dr. Chen",
+      primaryContactPassword: hashedOrgPassword,
+    },
+    create: {
+      name: "State University System",
+      type: "University",
+      plan: "Enterprise",
+      status: "active",
+      primaryContactName: "Dr. Chen",
+      primaryContactEmail: "org@stateuniversity.com",
+      primaryContactPassword: hashedOrgPassword,
+    },
+  });
+  console.log(`Seeded organization: ${organization.name}`);
+
   console.log("Seed completed successfully");
 };
 

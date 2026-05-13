@@ -28,7 +28,13 @@ const COACH_PATHS = [
   "/coaching",
 ] as const;
 
-const ORG_PATHS = ["/dashboard", "/members", "/outcomes", "/coaches", "/settings"] as const;
+const ORGANIZATION_PATHS = [
+  "/org/dashboard",
+  "/org/members",
+  "/org/outcomes",
+  "/org/coaches",
+  "/org/settings",
+] as const;
 
 const SUPERADMIN_PATHS = [
   "/admin/dashboard",
@@ -40,13 +46,14 @@ const SUPERADMIN_PATHS = [
 const ROLE_PATHS: Record<Role, readonly string[]> = {
   user: USER_PATHS,
   coach: COACH_PATHS,
-  organization: ORG_PATHS,
+  organization: ORGANIZATION_PATHS,
   superadmin: SUPERADMIN_PATHS,
 };
 
 export function pathAllowedForRole(pathname: string, role: Role | null): boolean {
   if (!role) return false;
   const path = normalizePath(pathname);
+  if (role === "organization" && path.startsWith("/org/")) return true;
   const allowed = ROLE_PATHS[role];
   return allowed.some(
     (p) => path === p || path.startsWith(`${p}/`)
@@ -54,7 +61,9 @@ export function pathAllowedForRole(pathname: string, role: Role | null): boolean
 }
 
 export function getDefaultPathForRole(role: Role): string {
-  return role === "superadmin" ? "/admin/dashboard" : "/dashboard";
+  if (role === "superadmin") return "/admin/dashboard";
+  if (role === "organization") return "/org/dashboard";
+  return "/dashboard";
 }
 
 export function getRoleLabel(role: Role): string {

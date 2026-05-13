@@ -53,11 +53,11 @@ export const COACH_NAV: NavItem[] = [
 ];
 
 export const ORG_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/members", label: "Members", icon: Users },
-  { href: "/outcomes", label: "Outcomes & Reports", icon: BarChart3 },
-  { href: "/coaches", label: "Our Coaches", icon: UserCheck },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/org/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/org/members", label: "Members", icon: Users },
+  { href: "/org/outcomes", label: "Outcomes & Reports", icon: BarChart3 },
+  { href: "/org/coaches", label: "Our Coaches", icon: UserCheck },
+  { href: "/org/settings", label: "Settings", icon: Settings },
 ];
 
 export const SUPERADMIN_NAV: NavItem[] = [

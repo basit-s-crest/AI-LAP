@@ -3,11 +3,12 @@ import jwt from "jsonwebtoken";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
-export type UserRole = "member" | "coach" | "superadmin";
+export type UserRole = "member" | "coach" | "organization" | "superadmin";
 
 export interface TokenPayload {
   id: string;
   role: UserRole;
+  orgId?: string;
 }
 
 // ─── JWT ──────────────────────────────────────────────────────────────────────
@@ -17,7 +18,8 @@ export interface TokenPayload {
  */
 export const generateToken = (
   id: string,
-  role: UserRole
+  role: UserRole,
+  orgId?: string
 ): string => {
   const secret = process.env.JWT_SECRET;
 
@@ -29,6 +31,7 @@ export const generateToken = (
     {
       id,
       role,
+      ...(orgId ? { orgId } : {}),
     },
     secret,
     {

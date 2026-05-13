@@ -18,6 +18,9 @@ export const getThreadHandler = async (
     const limit = req.query.limit ? Number(req.query.limit) : 50;
 
     const { id, role } = req.user;
+    if (role !== "member" && role !== "coach") {
+      return res.status(403).json({ message: "Forbidden: insufficient role" });
+    }
     const userId = role === "member" ? id : partnerId;
     const coachId = role === "coach" ? id : partnerId;
 
@@ -41,6 +44,9 @@ export const markReadHandler = async (
 
     const partnerId = req.params.partnerId as string;
     const { id, role } = req.user;
+    if (role !== "member" && role !== "coach") {
+      return res.status(403).json({ message: "Forbidden: insufficient role" });
+    }
 
     const updated = await markRead(id, role, partnerId);
 
@@ -58,6 +64,9 @@ export const getConversationListHandler = async (
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     const { id, role } = req.user;
+    if (role !== "member" && role !== "coach") {
+      return res.status(403).json({ message: "Forbidden: insufficient role" });
+    }
     const conversations = await getConversationList(id, role);
 
     return res.status(200).json(conversations);

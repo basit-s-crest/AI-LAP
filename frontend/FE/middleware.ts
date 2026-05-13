@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { AUTH_ROLE_KEY, AUTH_TOKEN_KEY } from "@/constants/storage";
 import type { Role } from "@/types/role";
-import { pathAllowedForRole, normalizePath } from "@/lib/permissions";
+import { getDefaultPathForRole, pathAllowedForRole, normalizePath } from "@/lib/permissions";
 
 const PUBLIC_PATHS = new Set([
   "/",
   "/login",
+  "/org-login",
   "/register",
   "/verify",
   "/forgot-password",
@@ -33,9 +34,9 @@ export function middleware(request: NextRequest) {
   const roleCookie = request.cookies.get(AUTH_ROLE_KEY)?.value as Role | undefined;
 
   if (isPublic(path)) {
-    if (token && roleCookie && ["/login", "/register"].includes(path)) {
+    if (token && roleCookie && ["/login", "/org-login", "/register"].includes(path)) {
       const next = request.nextUrl.searchParams.get("next");
-      return NextResponse.redirect(new URL(next || "/dashboard", request.url));
+      return NextResponse.redirect(new URL(next || getDefaultPathForRole(roleCookie), request.url));
     }
     return NextResponse.next();
   }
@@ -46,8 +47,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(login);
   }
 
+  if (roleCookie === "organization" && !path.startsWith("/org")) {
+    return NextResponse.redirect(new URL("/org/dashboard", request.url));
+  }
+
   if (!pathAllowedForRole(path, roleCookie)) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL(getDefaultPathForRole(roleCookie), request.url));
   }
 
   return NextResponse.next();

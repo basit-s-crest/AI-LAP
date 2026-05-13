@@ -31,6 +31,28 @@ interface LoginResponse {
   user: BackendUser;  // both /api/auth/login and /api/coach/login return "user" key
 }
 
+interface OrgLoginResponse {
+  token: string;
+  organization: {
+    id: string;
+    name: string;
+    type: string;
+    plan: string;
+    status: string;
+  };
+}
+
+interface OrgRegisterResponse {
+  message: string;
+  organization: {
+    id: string;
+    name: string;
+    type: string;
+    plan: string;
+    status: string;
+  };
+}
+
 interface VerifyOtpResponse {
   message: string;
   token: string;
@@ -50,6 +72,8 @@ function toAuthUser(u: BackendUser): AuthUser {
     role:
       u.role === "superadmin"
         ? "superadmin"
+        : u.role === "organization"
+          ? "organization"
         : u.role === "coach"
           ? "coach"
           : "user",
@@ -97,6 +121,17 @@ export const authService = {
     });
   },
 
+  async registerOrganization(payload: RegisterPayload): Promise<void> {
+    await api.post<OrgRegisterResponse>("/api/org/register", {
+      email: payload.email,
+      password: payload.password,
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      organizationName: payload.organizationName,
+      organizationType: payload.organizationType,
+    });
+  },
+
   /**
    * Step 2 of signup: submits the OTP and returns a full session.
    */
@@ -129,6 +164,23 @@ export const authService = {
   async loginCoach(credentials: LoginCredentials): Promise<AuthSession> {
     const { data } = await api.post<LoginResponse>("/api/coach/login", credentials);
     return buildSession(data.token, data.user);
+  },
+
+  async orgLogin(credentials: LoginCredentials): Promise<AuthSession> {
+    const { data } = await api.post<OrgLoginResponse>("/api/org/login", credentials);
+    const user: AuthUser = {
+      id: data.organization.id,
+      email: credentials.email,
+      firstName: data.organization.name,
+      lastName: "",
+      role: "organization",
+      organizationId: data.organization.id,
+    };
+    return {
+      token: data.token,
+      user,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    };
   },
 
   async logout(): Promise<void> {
