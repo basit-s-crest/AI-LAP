@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import type { ScoreUpdateEvent } from "@/lib/vasl/types";
 
@@ -56,19 +56,36 @@ function loadPersistedState(): PersistedState {
   };
 }
 
+// ── Empty defaults (used for SSR and initial client render) ───────────────
+const EMPTY_STATE: PersistedState = {
+  scores:     {},
+  history:    {},
+  events:     [],
+  totalCount: 0,
+  tierTotals: { low: 0, moderate: 0, high: 0, crisis: 0 },
+};
+
 // ── Page ───────────────────────────────────────────────────────────────────
 export default function RiskDashboardPage() {
-  // Initialise from localStorage so data survives a refresh
-  const initial = useRef<PersistedState | null>(null);
-  if (!initial.current) initial.current = loadPersistedState();
-
-  const [scores, setScores]         = useState<Record<string, ScoreUpdateEvent>>(initial.current.scores);
-  const [history, setHistory]       = useState<Record<string, HistoryEntry[]>>(initial.current.history);
-  const [events, setEvents]         = useState<Array<{ text: string; time: string; tier: string }>>(initial.current.events);
+  // Always start with empty defaults so server and client render identically,
+  // then hydrate from localStorage in a useEffect (after mount).
+  const [scores, setScores]         = useState<Record<string, ScoreUpdateEvent>>(EMPTY_STATE.scores);
+  const [history, setHistory]       = useState<Record<string, HistoryEntry[]>>(EMPTY_STATE.history);
+  const [events, setEvents]         = useState<Array<{ text: string; time: string; tier: string }>>(EMPTY_STATE.events);
   const [connected, setConnected]   = useState(false);
   const [lastPing, setLastPing]     = useState<string | null>(null);
-  const [totalCount, setTotalCount] = useState(initial.current.totalCount);
-  const [tierTotals, setTierTotals] = useState(initial.current.tierTotals);
+  const [totalCount, setTotalCount] = useState(EMPTY_STATE.totalCount);
+  const [tierTotals, setTierTotals] = useState(EMPTY_STATE.tierTotals);
+
+  // Restore persisted state after mount (client-only, avoids SSR mismatch)
+  useEffect(() => {
+    const saved = loadPersistedState();
+    setScores(saved.scores);
+    setHistory(saved.history);
+    setEvents(saved.events);
+    setTotalCount(saved.totalCount);
+    setTierTotals(saved.tierTotals);
+  }, []);
 
   // ── Persist to localStorage whenever state changes ────────────────────────
   useEffect(() => {
