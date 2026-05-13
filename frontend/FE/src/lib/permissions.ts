@@ -41,6 +41,7 @@ const SUPERADMIN_PATHS = [
   "/admin/users",
   "/admin/coaches",
   "/admin/groups",
+  "/admin/orgs",
 ] as const;
 
 const ROLE_PATHS: Record<Role, readonly string[]> = {
@@ -53,6 +54,9 @@ const ROLE_PATHS: Record<Role, readonly string[]> = {
 export function pathAllowedForRole(pathname: string, role: Role | null): boolean {
   if (!role) return false;
   const path = normalizePath(pathname);
+  if (role === "superadmin") {
+    return path.startsWith("/admin/") || path === "/dashboard";
+  }
   if (role === "organization" && path.startsWith("/org/")) return true;
   const allowed = ROLE_PATHS[role];
   return allowed.some(

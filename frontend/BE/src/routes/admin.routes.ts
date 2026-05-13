@@ -4,6 +4,7 @@ import {
   getAllUsers, getUserById, createUser, updateUser, deleteUser,
   getAllCoaches, createCoach, updateCoach, removeCoach,
   adminGetGroups, adminCreateGroup, adminUpdateGroup, adminArchiveGroup,
+  adminGetOrgStats, adminGetOrgs, adminCreateOrg, adminUpdateOrg,
 } from "../controllers/admin.controller";
 
 const router = Router();
@@ -29,5 +30,11 @@ router.get("/groups", adminGetGroups);
 router.post("/groups", adminCreateGroup);
 router.put("/groups/:id", adminUpdateGroup);
 router.patch("/groups/:id/archive", adminArchiveGroup);
+
+// Organizations — /orgs/stats MUST come before /orgs/:id
+router.get("/orgs/stats", adminGetOrgStats);
+router.get("/orgs", adminGetOrgs);
+router.post("/orgs", adminCreateOrg);
+router.put("/orgs/:id", adminUpdateOrg);
 
 export default router;

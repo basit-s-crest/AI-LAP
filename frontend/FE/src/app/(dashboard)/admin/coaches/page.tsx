@@ -17,6 +17,7 @@ import {
   useUpdateAdminCoach,
 } from "@/hooks/admin/useAdminCoaches";
 import { useState } from "react";
+import type { AdminCoach } from "@/types/admin";
 import { toast } from "sonner";
 
 type EditState = {
@@ -40,6 +41,7 @@ export default function AdminCoachesPage() {
   const [password, setPassword] = useState("coach1234");
 
   const [editState, setEditState] = useState<EditState | null>(null);
+  const [viewingCoach, setViewingCoach] = useState<AdminCoach | null>(null);
 
   const submit = () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
@@ -152,6 +154,15 @@ export default function AdminCoachesPage() {
                         size="xs"
                         type="button"
                         className="mr-1"
+                        onClick={() => setViewingCoach(c)}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        type="button"
+                        className="mr-1"
                         onClick={() => setEditState({ id: c.id, name: c.name, spec: c.speciality ?? "", bio: c.bio ?? "" })}
                       >
                         Edit
@@ -178,6 +189,55 @@ export default function AdminCoachesPage() {
           </table>
         </TableWrap>
       </div>
+
+      {/* ── View Coach Modal ── */}
+      <BaseModal
+        open={!!viewingCoach}
+        onClose={() => setViewingCoach(null)}
+        title={viewingCoach?.name ?? ""}
+      >
+        {viewingCoach && (
+          <div className="space-y-4">
+            <div>
+              <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Email</p>
+              <p className="text-[13.5px] text-ink">{viewingCoach.email}</p>
+            </div>
+            <div>
+              <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Specialty</p>
+              <p className="text-[13.5px] text-ink">{viewingCoach.speciality ?? "—"}</p>
+            </div>
+            <div>
+              <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Bio / Organization</p>
+              <p className="text-[13.5px] text-ink">{viewingCoach.bio ?? "—"}</p>
+            </div>
+            <div>
+              <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Status</p>
+              <Badge variant={viewingCoach.isActive ? "sage" : "dim"}>
+                {viewingCoach.isActive ? "active" : "inactive"}
+              </Badge>
+            </div>
+            <div>
+              <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Members</p>
+              <p className="text-[13.5px] text-ink">{viewingCoach.memberCount}</p>
+            </div>
+            <div>
+              <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Created</p>
+              <p className="text-[13.5px] text-ink">
+                {new Date(viewingCoach.createdAt).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
+            </div>
+            <div className="pt-2">
+              <Button className="w-full" variant="ghost" type="button" onClick={() => setViewingCoach(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </BaseModal>
 
       {/* ── Add Coach Modal ── */}
       <BaseModal
