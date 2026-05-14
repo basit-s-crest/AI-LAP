@@ -11,10 +11,10 @@ export function useOrganizationsQuery() {
   });
 }
 
-export function useOrganizationQuery(id: number, enabled = true) {
+export function useOrganizationQuery(id: string | number, enabled = true) {
   return useQuery({
     queryKey: queryKeys.organizations.detail(id),
     queryFn: () => organizationService.getById(id),
-    enabled: enabled && Number.isFinite(id) && id > 0,
+    enabled: enabled && String(id).length > 0,
   });
 }

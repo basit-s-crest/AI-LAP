@@ -16,6 +16,15 @@ export function useActivityQuery() {
   return useQuery({
     queryKey: queryKeys.admin.activity(),
     queryFn: () => adminService.getActivity(),
+    retry: 1,
+  });
+}
+
+export function useMoodDistributionQuery() {
+  return useQuery({
+    queryKey: queryKeys.admin.moodDistribution(),
+    queryFn: () => adminService.getMoodDistribution(),
+    retry: 1,
   });
 }
 

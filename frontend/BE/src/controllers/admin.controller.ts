@@ -994,3 +994,170 @@ export const adminUpdateOrg = async (
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+// ─── DASHBOARD AGGREGATES (superadmin home) ───────────────────────────────────
+
+const ACTIVITY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+export const adminGetActivity = async (
+  _req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const since = new Date(Date.now() - ACTIVITY_WINDOW_MS);
+
+    const [newUsers, memberships, flaggedPosts, newOrgs, newCoaches] =
+      await Promise.all([
+        prisma.user.findMany({
+          where: {
+            createdAt: { gte: since },
+            role: { not: "superadmin" },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 8,
+          select: { id: true, name: true, createdAt: true },
+        }),
+        prisma.groupMembership.findMany({
+          where: { joinedAt: { gte: since } },
+          orderBy: { joinedAt: "desc" },
+          take: 8,
+          include: {
+            member: { select: { name: true } },
+            group: { select: { name: true } },
+          },
+        }),
+        prisma.peerGroupPost.findMany({
+          where: { createdAt: { gte: since }, isFlagged: true },
+          orderBy: { createdAt: "desc" },
+          take: 8,
+          include: {
+            member: { select: { name: true } },
+            group: { select: { name: true } },
+          },
+        }),
+        prisma.organization.findMany({
+          where: { createdAt: { gte: since } },
+          orderBy: { createdAt: "desc" },
+          take: 6,
+          select: { id: true, name: true, createdAt: true },
+        }),
+        prisma.coach.findMany({
+          where: { createdAt: { gte: since } },
+          orderBy: { createdAt: "desc" },
+          take: 6,
+          select: { id: true, name: true, createdAt: true },
+        }),
+      ]);
+
+    type Out = {
+      id: string;
+      type: string;
+      message: string;
+      createdAt: string;
+      actorName: string | null;
+    };
+
+    const rows: Array<Out & { _t: number }> = [];
+
+    newUsers.forEach((u) =>
+      rows.push({
+        id: `user-${u.id}`,
+        type: "admin",
+        message: "joined the platform",
+        createdAt: u.createdAt.toISOString(),
+        actorName: u.name,
+        _t: u.createdAt.getTime(),
+      })
+    );
+
+    memberships.forEach((m) =>
+      rows.push({
+        id: `gm-${m.id}`,
+        type: "join",
+        message: `joined ${m.group.name}`,
+        createdAt: m.joinedAt.toISOString(),
+        actorName: m.member.name,
+        _t: m.joinedAt.getTime(),
+      })
+    );
+
+    flaggedPosts.forEach((p) =>
+      rows.push({
+        id: `post-${p.id}`,
+        type: "alert",
+        message: `flagged post in ${p.group.name}`,
+        createdAt: p.createdAt.toISOString(),
+        actorName: p.member.name,
+        _t: p.createdAt.getTime(),
+      })
+    );
+
+    newOrgs.forEach((o) =>
+      rows.push({
+        id: `org-${o.id}`,
+        type: "org",
+        message: "new partner organization added",
+        createdAt: o.createdAt.toISOString(),
+        actorName: o.name,
+        _t: o.createdAt.getTime(),
+      })
+    );
+
+    newCoaches.forEach((c) =>
+      rows.push({
+        id: `coach-${c.id}`,
+        type: "admin",
+        message: "new coach onboarded",
+        createdAt: c.createdAt.toISOString(),
+        actorName: c.name,
+        _t: c.createdAt.getTime(),
+      })
+    );
+
+    rows.sort((a, b) => b._t - a._t);
+    const payload = rows.slice(0, 20).map(({ _t: _unused, ...rest }) => rest);
+
+    return res.status(200).json(payload);
+  } catch (error) {
+    console.error("[adminGetActivity]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminGetMoodDistribution = async (
+  _req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const grouped = await prisma.mood.groupBy({
+      by: ["mood"],
+      _count: { _all: true },
+    });
+
+    const counts: Record<string, number> = {
+      GREAT: 0,
+      GOOD: 0,
+      OKAY: 0,
+      LOW: 0,
+      HARD: 0,
+    };
+
+    for (const row of grouped) {
+      const key = String(row.mood).toUpperCase();
+      if (key in counts) {
+        counts[key] = row._count._all;
+      }
+    }
+
+    return res.status(200).json({
+      great: counts.GREAT,
+      good: counts.GOOD,
+      okay: counts.OKAY,
+      low: counts.LOW,
+      struggling: counts.HARD,
+    });
+  } catch (error) {
+    console.error("[adminGetMoodDistribution]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};

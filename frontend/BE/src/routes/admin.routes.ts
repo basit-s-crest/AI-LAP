@@ -5,12 +5,16 @@ import {
   getAllCoaches, createCoach, updateCoach, removeCoach,
   adminGetGroups, adminCreateGroup, adminUpdateGroup, adminArchiveGroup,
   adminGetOrgStats, adminGetOrgs, adminCreateOrg, adminUpdateOrg,
+  adminGetActivity, adminGetMoodDistribution,
 } from "../controllers/admin.controller";
 
 const router = Router();
 
 router.use(authMiddleware);
 router.use(requireRole("superadmin"));
+
+router.get("/activity", adminGetActivity);
+router.get("/mood-distribution", adminGetMoodDistribution);
 
 // Users
 router.get("/users", getAllUsers);

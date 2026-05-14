@@ -17,11 +17,12 @@ export const queryKeys = {
   organizations: {
     all: organizationsRoot,
     list: () => [...organizationsRoot, "list"] as const,
-    detail: (id: number) => [...organizationsRoot, "detail", id] as const,
+    detail: (id: string | number) => [...organizationsRoot, "detail", id] as const,
   },
   admin: {
     all: adminRoot,
     groups: () => [...adminRoot, "groups"] as const,
     activity: () => [...adminRoot, "activity"] as const,
+    moodDistribution: () => [...adminRoot, "mood-distribution"] as const,
   },
 } as const;

@@ -1,5 +1,6 @@
 export interface Organization {
-  id: number;
+  /** Cuid from API or legacy numeric id from mocks */
+  id: string | number;
   name: string;
   type: string;
   plan: string;

@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { StatsCard } from "@/components/cards/StatsCard";
 import { ActivityCardRow } from "@/components/cards/ActivityCard";
-import { useActivityQuery } from "@/hooks/api/use-admin";
+import { useActivityQuery, useMoodDistributionQuery } from "@/hooks/api/use-admin";
 import { useOrganizationsQuery } from "@/hooks/api/use-organizations";
 import { useAdminCoaches } from "@/hooks/admin/useAdminCoaches";
 import { useAdminGroups } from "@/hooks/admin/useAdminGroups";
@@ -14,19 +14,29 @@ function formatShortDate(date: Date) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+const CHART_RANGE_OPTIONS = [
+  { label: "7D", days: 7 as const },
+  { label: "30D", days: 30 as const },
+  { label: "90D", days: 90 as const },
+] as const;
+
 export function SuperadminDashboardHome() {
   const { data: activity = [] } = useActivityQuery();
   const { data: orgs = [] } = useOrganizationsQuery();
   const { data: users = [] } = useAdminUsers();
   const { data: coaches = [] } = useAdminCoaches();
   const { data: groups = [] } = useAdminGroups();
+  const { data: moodApi } = useMoodDistributionQuery();
+
+  const [chartDays, setChartDays] = useState<7 | 30 | 90>(30);
 
   const bars = useMemo(() => {
     const today = new Date();
-    const days = Array.from({ length: 30 }, (_, index) => {
+    const n = chartDays;
+    const days = Array.from({ length: n }, (_, index) => {
       const date = new Date(today);
       date.setHours(0, 0, 0, 0);
-      date.setDate(today.getDate() - (29 - index));
+      date.setDate(today.getDate() - (n - 1 - index));
       return date;
     });
 
@@ -45,7 +55,24 @@ export function SuperadminDashboardHome() {
       v: counts[index],
       h: Math.max((counts[index] / max) * 100, counts[index] > 0 ? 8 : 2),
     }));
-  }, [users]);
+  }, [users, chartDays]);
+
+  const moodRows = useMemo(() => {
+    const g = moodApi?.great ?? 0;
+    const good = moodApi?.good ?? 0;
+    const okay = moodApi?.okay ?? 0;
+    const low = moodApi?.low ?? 0;
+    const struggling = moodApi?.struggling ?? 0;
+    const total = g + good + okay + low + struggling;
+    const p = (n: number) => (total > 0 ? n / total : 0);
+    return [
+      ["😊 Great", p(g), "#4E8C58"],
+      ["🙂 Good", p(good), "#7AB882"],
+      ["😐 Okay", p(okay), "#B8832A"],
+      ["😟 Low", p(low), "#B35A38"],
+      ["😔 Struggling", p(struggling), "#C0392B"],
+    ] as const;
+  }, [moodApi]);
 
   const topGroups = useMemo(
     () => [...groups].sort((a, b) => b.postCount - a.postCount).slice(0, 5),
@@ -88,19 +115,22 @@ export function SuperadminDashboardHome() {
       <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
         <Card>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="font-serif text-lg font-semibold">Platform Activity — 30 Days</h3>
+            <h3 className="font-serif text-lg font-semibold">
+              Platform Activity — {chartDays} Days
+            </h3>
             <div className="flex gap-2">
-              {["7D", "30D", "90D"].map((t, i) => (
+              {CHART_RANGE_OPTIONS.map(({ label, days }) => (
                 <button
-                  key={t}
+                  key={label}
                   type="button"
+                  onClick={() => setChartDays(days)}
                   className={
-                    i === 1
+                    chartDays === days
                       ? "rounded-md border border-sage px-2 py-1 text-[11.5px] font-semibold text-sage"
                       : "rounded-md border border-[rgba(60,50,40,0.12)] px-2 py-1 text-[11.5px] font-semibold text-mid"
                   }
                 >
-                  {t}
+                  {label}
                 </button>
               ))}
             </div>
@@ -124,7 +154,7 @@ export function SuperadminDashboardHome() {
         <Card>
           <h3 className="mb-3 font-serif text-lg font-semibold">Live Activity</h3>
           {activity.slice(0, 5).map((a, i) => (
-            <ActivityCardRow key={i} {...a} />
+            <ActivityCardRow key={a.id ?? `activity-${i}`} {...a} />
           ))}
         </Card>
       </div>
@@ -133,13 +163,7 @@ export function SuperadminDashboardHome() {
           <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-dim">
             Mood Distribution
           </div>
-          {[
-            ["😊 Great", 0.28, "#4E8C58"],
-            ["🙂 Good", 0.35, "#7AB882"],
-            ["😐 Okay", 0.22, "#B8832A"],
-            ["😟 Low", 0.1, "#B35A38"],
-            ["😔 Struggling", 0.05, "#C0392B"],
-          ].map(([l, p, c]) => (
+          {moodRows.map(([l, p, c]) => (
             <div key={String(l)} className="mb-3">
               <div className="mb-1 flex items-center justify-between">
                 <div className="text-sm">{l}</div>

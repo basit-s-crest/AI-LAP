@@ -75,12 +75,12 @@ export default function AdminOrganizationsPage() {
                   <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 max-w-[80px] flex-1 overflow-hidden rounded bg-[#EDE7DC]">
-                        <div
-                          className="h-full rounded bg-sage"
-                          style={{ width: `${Math.round((o.active / o.users) * 100)}%` }}
-                        />
-                      </div>
-                      <span className="font-mono text-xs">{Math.round((o.active / o.users) * 100)}%</span>
+                    <div
+                      className="h-full rounded bg-sage"
+                      style={{ width: `${Math.round((o.active / o.users) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="font-mono text-xs">{Math.round((o.active / o.users) * 100)}%</span>
                     </div>
                   </td>
                   <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
