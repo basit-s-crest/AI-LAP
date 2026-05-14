@@ -25,6 +25,7 @@ export function useCreateAdminUser() {
       password: string;
       role?: string;
       isVerified?: boolean;
+      organizationId?: string;
     }) => {
       const { data } = await api.post("/api/admin/users", payload);
       return data;
@@ -40,7 +41,7 @@ export function useUpdateAdminUser() {
   return useMutation({
     mutationFn: async (payload: {
       id: string;
-      data: Partial<Pick<AdminUser, "name" | "email" | "role" | "isVerified">>;
+      data: Partial<Pick<AdminUser, "name" | "email" | "role" | "isVerified" | "organizationId">>;
     }) => {
       const { data } = await api.put(`/api/admin/users/${payload.id}`, payload.data);
       return data;

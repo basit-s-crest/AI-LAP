@@ -9,6 +9,7 @@ export interface AdminUser {
   updatedAt: string;
   groupCount: number;
   messageCount: number;
+  organizationId?: string | null;
 }
 
 export interface AdminCoach {

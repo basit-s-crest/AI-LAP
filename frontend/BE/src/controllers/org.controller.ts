@@ -95,7 +95,7 @@ export const getOrgOverview = async (req: Request, res: Response): Promise<Respo
     const [totalMembers, activeMembers, totalCoaches] = await Promise.all([
       prisma.user.count({ where: { organizationId: orgId } }),
       prisma.user.count({ where: { organizationId: orgId, isVerified: true } }),
-      prisma.coach.count({ where: { organizationId: orgId } }),
+      prisma.organizationCoach.count({ where: { organizationId: orgId } }),
     ]);
 
     const engagementRate = totalMembers > 0 ? (activeMembers / totalMembers) * 100 : 0;
@@ -154,21 +154,26 @@ export const getOrgCoaches = async (req: Request, res: Response): Promise<Respon
     const orgId = req.user?.orgId;
     if (!orgId) return res.status(401).json({ message: "Unauthorized" });
 
-    const coaches = await prisma.coach.findMany({
+    const assignments = await prisma.organizationCoach.findMany({
       where: { organizationId: orgId },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        speciality: true,
-        bio: true,
-        isActive: true,
-        avatar: true,
-        createdAt: true,
+      orderBy: { assignedAt: "desc" },
+      include: {
+        coach: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            speciality: true,
+            bio: true,
+            isActive: true,
+            avatar: true,
+            createdAt: true,
+          },
+        },
       },
     });
 
+    const coaches = assignments.map(a => a.coach);
     return res.status(200).json(coaches);
   } catch (error) {
     console.error("[getOrgCoaches]", error);

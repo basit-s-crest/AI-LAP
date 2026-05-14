@@ -12,6 +12,7 @@ import {
   useDeleteAdminUser,
   useUpdateAdminUser,
 } from "@/hooks/admin/useAdminUsers";
+import { useAdminOrgs } from "@/hooks/admin/useAdminOrgs";
 import { toast } from "sonner";
 import type { AdminUser } from "@/types/admin";
 
@@ -19,10 +20,12 @@ type EditState = {
   id: string;
   name: string;
   isVerified: boolean;
+  organizationId?: string | null;
 };
 
 export default function AdminUsersPage() {
   const { data: users = [], isPending } = useAdminUsers();
+  const { data: orgs = [] } = useAdminOrgs();
   const createUser = useCreateAdminUser();
   const updateUser = useUpdateAdminUser();
   const deleteUser = useDeleteAdminUser();
@@ -33,14 +36,17 @@ export default function AdminUsersPage() {
   const [addEmail, setAddEmail] = useState("");
   const [addPassword, setAddPassword] = useState("");
   const [addVerified, setAddVerified] = useState(true);
+  const [addOrgId, setAddOrgId] = useState("");
   const [editTarget, setEditTarget] = useState<EditState | null>(null);
   const [editName, setEditName] = useState("");
   const [editVerified, setEditVerified] = useState(false);
+  const [editOrgId, setEditOrgId] = useState("");
 
-  const openEdit = (id: string, currentName: string, currentVerified: boolean) => {
-    setEditTarget({ id, name: currentName, isVerified: currentVerified });
+  const openEdit = (id: string, currentName: string, currentVerified: boolean, currentOrgId?: string | null) => {
+    setEditTarget({ id, name: currentName, isVerified: currentVerified, organizationId: currentOrgId });
     setEditName(currentName);
     setEditVerified(currentVerified);
+    setEditOrgId(currentOrgId || "");
   };
 
   const resetAddForm = () => {
@@ -48,6 +54,7 @@ export default function AdminUsersPage() {
     setAddEmail("");
     setAddPassword("");
     setAddVerified(true);
+    setAddOrgId("");
   };
 
   const handleCreate = () => {
@@ -63,6 +70,7 @@ export default function AdminUsersPage() {
         password: addPassword,
         role: "member",
         isVerified: addVerified,
+        organizationId: addOrgId || undefined,
       },
       {
         onSuccess: () => {
@@ -84,6 +92,7 @@ export default function AdminUsersPage() {
           name: editName,
           role: "member",
           isVerified: editVerified,
+          organizationId: editOrgId || undefined,
         },
       },
       {
@@ -158,7 +167,7 @@ export default function AdminUsersPage() {
                       size="xs"
                       type="button"
                       className="mr-1"
-                      onClick={() => openEdit(u.id, u.name, u.isVerified)}
+                      onClick={() => openEdit(u.id, u.name, u.isVerified, u.organizationId)}
                     >
                       Edit
                     </Button>
@@ -223,6 +232,12 @@ export default function AdminUsersPage() {
               <div>
                 <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Messages</p>
                 <p className="text-[13.5px] text-[#1E1A16]">{viewingUser.messageCount}</p>
+              </div>
+              <div>
+                <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Organization</p>
+                <p className="text-[13.5px] text-[#1E1A16]">
+                  {orgs.find((o) => o.id === viewingUser.organizationId)?.name || "None"}
+                </p>
               </div>
               <div>
                 <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Created</p>
@@ -316,6 +331,24 @@ export default function AdminUsersPage() {
               </select>
             </div>
 
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-dim">
+                Organization
+              </label>
+              <select
+                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                value={addOrgId}
+                onChange={(e) => setAddOrgId(e.target.value)}
+              >
+                <option value="">None</option>
+                {orgs.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="mt-5 flex gap-3">
               <Button variant="ghost" className="flex-1" onClick={() => setAddOpen(false)}>
                 Cancel
@@ -373,6 +406,24 @@ export default function AdminUsersPage() {
               >
                 <option value="true">Verified</option>
                 <option value="false">Pending</option>
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-dim">
+                Organization
+              </label>
+              <select
+                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                value={editOrgId}
+                onChange={(e) => setEditOrgId(e.target.value)}
+              >
+                <option value="">None</option>
+                {orgs.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
               </select>
             </div>
 

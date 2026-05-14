@@ -43,6 +43,7 @@ export const getAllUsers = async (
             sentMessages: true,
           },
         },
+        organizationId: true,
       },
     });
 
@@ -58,6 +59,7 @@ export const getAllUsers = async (
         updatedAt: u.updatedAt,
         groupCount: u._count.groupMemberships,
         messageCount: u._count.sentMessages,
+        organizationId: u.organizationId,
       }))
     );
   } catch (error) {
@@ -101,6 +103,7 @@ export const getUserById = async (
             },
           },
         },
+        organizationId: true,
       },
     });
 
@@ -132,6 +135,7 @@ export const createUser = async (
       avatar,
       role,
       isVerified,
+      organizationId,
     } = req.body;
 
     if (!email || !name || !password) {
@@ -165,6 +169,7 @@ export const createUser = async (
         avatar: avatar ?? null,
         role: userRole,
         isVerified: isVerified ?? true,
+        organizationId: organizationId ?? null,
       },
       select: {
         id: true,
@@ -185,6 +190,7 @@ export const createUser = async (
             sentMessages: true,
           },
         },
+        organizationId: true,
       },
     });
 
@@ -199,6 +205,7 @@ export const createUser = async (
       updatedAt: user.updatedAt,
       groupCount: user._count.groupMemberships,
       messageCount: user._count.sentMessages,
+      organizationId: user.organizationId,
     });
   } catch (error) {
     console.error(error);
@@ -219,6 +226,7 @@ export const updateUser = async (
       email,
       role,
       isVerified,
+      organizationId,
     } = req.body;
 
     const allowedRoles = [
@@ -243,6 +251,10 @@ export const updateUser = async (
       updatedData.isVerified = isVerified;
     }
 
+    if (organizationId !== undefined) {
+      updatedData.organizationId = organizationId === "" ? null : organizationId;
+    }
+
     const user = await prisma.user.update({
       where: {
         id: req.params.id,
@@ -256,6 +268,7 @@ export const updateUser = async (
         isVerified: true,
         createdAt: true,
         updatedAt: true,
+        organizationId: true,
       },
     });
 
