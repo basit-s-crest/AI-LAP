@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -14,17 +14,59 @@ import type { CoachMessageDTO } from "@/types/coachMessage";
 import moods from "@/mock/moods.json";
 import type { MoodOption } from "@/types/mood";
 import { cn } from "@/lib/cn";
+import api from "@/lib/api";
 
 const MOODS_DATA = moods.options as MoodOption[];
 
-const slots = [
-  { t: "9:00 AM", b: false },
-  { t: "10:30 AM", b: true },
-  { t: "12:00 PM", b: false },
-  { t: "2:00 PM", b: false },
-  { t: "3:30 PM", b: true },
-  { t: "5:00 PM", b: false },
-];
+// ── Slot helpers ──────────────────────────────────────────────────────────────
+
+type AvailSlot = { day: string; start: string; end: string; enabled: boolean };
+type TimeSlot  = { t: string; b: boolean; assignedToOther?: boolean };
+
+/** Parse "9:00 AM" → total minutes since midnight */
+function parseTime(t: string): number {
+  const [timePart, meridiem] = t.trim().split(" ");
+  const [hStr, mStr] = timePart.split(":");
+  let h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (meridiem === "PM" && h !== 12) h += 12;
+  if (meridiem === "AM" && h === 12) h = 0;
+  return h * 60 + m;
+}
+
+/** Format total minutes since midnight → "9:00 AM" */
+function formatTime(mins: number): string {
+  const h24 = Math.floor(mins / 60);
+  const m   = mins % 60;
+  const meridiem = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${meridiem}`;
+}
+
+/** Generate slot times from start → end with `duration` minute steps */
+function generateSlotTimes(start: string, end: string, duration: number): string[] {
+  const startMins = parseTime(start);
+  const endMins   = parseTime(end);
+  const times: string[] = [];
+  for (let t = startMins; t + duration <= endMins; t += duration) {
+    times.push(formatTime(t));
+  }
+  return times;
+}
+
+/** Combine today's date with a time string like "9:00 AM" → ISO string */
+function todayAt(timeStr: string): string {
+  const now = new Date();
+  const mins = parseTime(timeStr);
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
+    Math.floor(mins / 60), mins % 60, 0, 0);
+  return d.toISOString();
+}
+
+/** Today's day name e.g. "Monday" */
+function todayDayName(): string {
+  return new Date().toLocaleDateString("en-US", { weekday: "long" });
+}
 
 export default function CoachingChatPage() {
   const params = useParams();
@@ -32,7 +74,6 @@ export default function CoachingChatPage() {
   const search = useSearchParams();
   const bookOnly = search.get("book") === "1";
 
-  // String coachId for the messaging hooks (Prisma CUID)
   const coachIdStr = params.coachId as string;
 
   const { data: coachData, isPending: coachLoading } = useCoachQuery(coachIdStr);
@@ -41,9 +82,93 @@ export default function CoachingChatPage() {
   const [input, setInput] = useState("");
   const [selSlot, setSelSlot] = useState<string | null>(null);
   const [booked, setBooked] = useState(false);
+  const [booking, setBooking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Persistent message history
+  // ── Dynamic slot state ──────────────────────────────────────────────────────
+  const [slots, setSlots] = useState<TimeSlot[]>([]);
+  const [noAvailToday, setNoAvailToday] = useState(false);
+
+  const loadSlots = useCallback(async () => {
+    try {
+      const [availRes, sessionsRes] = await Promise.all([
+        api.get<{ slots: AvailSlot[]; duration: number }>(`/api/sessions/availability/${coachIdStr}`),
+        api.get<{ date: string }[]>("/api/sessions/member"),
+      ]);
+
+      const { slots: availSlots, duration } = availRes.data;
+      const memberSessions = sessionsRes.data;
+
+      const today = todayDayName();
+      const todaySlot = availSlots.find((s) => s.day === today && s.enabled);
+
+      if (!todaySlot) {
+        setNoAvailToday(true);
+        setSlots([]);
+        return;
+      }
+
+      setNoAvailToday(false);
+
+      const times = generateSlotTimes(todaySlot.start, todaySlot.end, duration || 50);
+
+      const bookedMinutes = new Set(
+        memberSessions.map((s) => {
+          const d = new Date(s.date);
+          return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`;
+        })
+      );
+
+      const generated: TimeSlot[] = times.map((t) => {
+        const iso = todayAt(t);
+        const d = new Date(iso);
+        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`;
+        return { t, b: bookedMinutes.has(key) };
+      });
+
+      setSlots(generated);
+    } catch {
+      // silently keep existing slots on poll failure
+    }
+  }, [coachIdStr]);
+
+  useEffect(() => {
+    loadSlots();
+    const interval = setInterval(loadSlots, 30_000);
+    return () => clearInterval(interval);
+  }, [loadSlots]);
+
+  // ── Book handler ────────────────────────────────────────────────────────────
+  const handleBook = async () => {
+    if (!selSlot || booking) return;
+    setBooking(true);
+    try {
+      await api.post("/api/sessions/book", {
+        coachId: coachIdStr,
+        date: todayAt(selSlot),
+      });
+      setSlots((prev) => prev.map((s) => (s.t === selSlot ? { ...s, b: true } : s)));
+      setBooked(true);
+    } catch (err: unknown) {
+      const msg = (err as Error).message ?? "";
+      if (
+        msg.toLowerCase().includes("already booked") ||
+        msg.toLowerCase().includes("already taken")
+      ) {
+        setSlots((prev) =>
+          prev.map((s) =>
+            s.t === selSlot ? { ...s, b: true, assignedToOther: true } : s
+          )
+        );
+        setSelSlot(null);
+      } else {
+        toast.error(msg || "Failed to book session");
+      }
+    } finally {
+      setBooking(false);
+    }
+  };
+
   const {
     messages,
     fetchNextPage,
@@ -53,7 +178,6 @@ export default function CoachingChatPage() {
     prependMessage,
   } = useCoachMessages(coachIdStr);
 
-  // Real-time socket
   const { sendMessage, isConnected } = useCoachSocket({
     onNewMessage: (msg: CoachMessageDTO) => {
       prependMessage(msg);
@@ -67,7 +191,6 @@ export default function CoachingChatPage() {
     },
   });
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -95,25 +218,33 @@ export default function CoachingChatPage() {
       <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-dim">
         Available Times — Today
       </div>
-      <div className="mb-4 grid grid-cols-2 gap-2">
-        {slots.map((s) => (
-          <button
-            key={`${s.t}-${s.b ? "booked" : "free"}`}
-            type="button"
-            disabled={s.b}
-            onClick={() => !s.b && setSelSlot(s.t)}
-            className={cn(
-              "rounded-lg border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card py-2 text-center text-[13px] font-semibold text-ink transition-colors",
-              !s.b && "hover:border-sage hover:bg-sage-soft",
-              selSlot === s.t && "border-sage bg-sage-tint text-sage",
-              s.b && "cursor-not-allowed border-dashed bg-[#EDE7DC] text-dim"
-            )}
-          >
-            {s.t}
-            {s.b ? " (Booked)" : ""}
-          </button>
-        ))}
-      </div>
+      {noAvailToday ? (
+        <p className="mb-4 text-sm text-mid">Coach not available today.</p>
+      ) : slots.length === 0 ? (
+        <p className="mb-4 text-sm text-dim">Loading availability…</p>
+      ) : (
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          {slots.map((s) => (
+            <button
+              key={`${s.t}-${s.b ? "booked" : "free"}`}
+              type="button"
+              disabled={s.b}
+              onClick={() => !s.b && setSelSlot(s.t)}
+              className={cn(
+                "rounded-lg border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card py-2 text-center text-[13px] font-semibold text-ink transition-colors",
+                !s.b && "hover:border-sage hover:bg-sage-soft",
+                selSlot === s.t && "border-sage bg-sage-tint text-sage",
+                s.b && !s.assignedToOther && "cursor-not-allowed border-dashed bg-[#EDE7DC] text-dim",
+                s.assignedToOther && "cursor-not-allowed border-dashed bg-[#F5E6E6] text-[#A0522D]"
+              )}
+            >
+              {s.t}
+              {s.b && !s.assignedToOther ? " (Booked)" : ""}
+              {s.assignedToOther ? " (Already Assigned)" : ""}
+            </button>
+          ))}
+        </div>
+      )}
       {booked ? (
         <div className="flex items-center gap-2.5 rounded-[10px] bg-sage-tint px-4 py-3">
           <span className="text-lg text-sage">✓</span>
@@ -128,10 +259,10 @@ export default function CoachingChatPage() {
         <Button
           fullWidth
           type="button"
-          disabled={!selSlot}
-          onClick={() => setBooked(true)}
+          disabled={!selSlot || booking}
+          onClick={handleBook}
         >
-          {selSlot ? `Book — ${selSlot}` : "Select a time slot"}
+          {booking ? "Booking…" : selSlot ? `Book — ${selSlot}` : "Select a time slot"}
         </Button>
       )}
     </Card>
@@ -187,7 +318,6 @@ export default function CoachingChatPage() {
               </div>
             </div>
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-[18px]">
-              {/* Load older messages button */}
               {hasNextPage && (
                 <div className="flex justify-center">
                   <button
@@ -200,7 +330,6 @@ export default function CoachingChatPage() {
                   </button>
                 </div>
               )}
-              {/* Loading state */}
               {messagesLoading ? (
                 <div className="flex flex-1 items-center justify-center">
                   <p className="text-sm text-dim">Loading messages…</p>

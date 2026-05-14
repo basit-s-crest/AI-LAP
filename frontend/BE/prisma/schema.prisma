@@ -223,3 +223,27 @@ model Mood {
   @@index([userId, date(sort: Desc)])
   @@index([userId, createdAt])
 }
+
+// ─── Sessions ─────────────────────────────────────────────────────────────────
+
+model Session {
+  id        String   @id @default(cuid())
+  coachId   String
+  memberId  String
+  date      DateTime
+  duration  Int      @default(50)
+  type      String   @default("Weekly Check-in")
+  status    String   @default("upcoming")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Coach Availability ───────────────────────────────────────────────────────
+
+model CoachAvailability {
+  id        String   @id @default(cuid())
+  coachId   String   @unique
+  slots     Json
+  duration  Int      @default(50)
+  updatedAt DateTime @updatedAt
+}
