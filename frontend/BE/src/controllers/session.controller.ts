@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
+import { memberOrganizationHasActiveCoach } from "../services/member-org-coach.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -10,6 +11,30 @@ type SlotEntry = {
   enabled: boolean;
 };
 
+/** Member / org / self-coach may read availability; others forbidden. */
+async function assertCanViewCoachAvailability(
+  user: { id: string; role: string; orgId?: string },
+  coachId: string
+): Promise<boolean> {
+  if (user.role === "member") {
+    return memberOrganizationHasActiveCoach(user.id, coachId);
+  }
+  if (user.role === "coach") {
+    return user.id === coachId;
+  }
+  if (user.role === "organization") {
+    if (!user.orgId) return false;
+    const link = await prisma.organizationCoach.findUnique({
+      where: {
+        organizationId_coachId: { organizationId: user.orgId, coachId },
+      },
+      include: { coach: true },
+    });
+    return !!(link?.coach?.isActive);
+  }
+  return true;
+}
+
 // ─── GET /api/sessions/availability/:coachId ─────────────────────────────────
 // Auth required. Returns the coach's saved availability slots and duration.
 
@@ -19,6 +44,12 @@ export const getCoachAvailability = async (
 ): Promise<Response> => {
   try {
     const { coachId } = req.params;
+    const user = req.user!;
+
+    const allowed = await assertCanViewCoachAvailability(user, coachId);
+    if (!allowed) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -148,11 +179,20 @@ export const bookSession = async (
   res: Response
 ): Promise<Response> => {
   try {
+    if (req.user?.role !== "member") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
     const memberId = req.user!.id;
     const { coachId, date } = req.body as { coachId: string; date: string };
 
     if (!coachId || !date) {
       return res.status(400).json({ message: "coachId and date are required" });
+    }
+
+    const inOrg = await memberOrganizationHasActiveCoach(memberId, coachId);
+    if (!inOrg) {
+      return res.status(403).json({ message: "Forbidden" });
     }
 
     const requestedDate = new Date(date);
