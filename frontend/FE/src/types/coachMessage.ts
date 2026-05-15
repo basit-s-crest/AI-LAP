@@ -6,6 +6,9 @@ export interface CoachMessageDTO {
   senderRole: "member" | "coach"
   read: boolean
   createdAt: string // ISO 8601
+  risk_tier?: "low" | "moderate" | "high" | "crisis" | null
+  risk_score?: number | null
+  risk_label?: "Analysed" | "Crisis" | "High Risk" | "Moderate" | "Low Risk" | null
 }
 
 export interface ConversationSummary {

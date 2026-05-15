@@ -313,6 +313,34 @@ export default function CoachMessagesPage() {
                       >
                         {msg.content}
                       </div>
+                      {/* ── Risk badge (member messages only) ── */}
+                      {msg.senderRole === "member" && (
+                        msg.risk_tier ? (
+                          <div className="mt-1 ml-0.5 flex items-center gap-1.5">
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
+                              style={{
+                                background: TIER_BG[msg.risk_tier]    ?? "#F0EBE1",
+                                color:      TIER_COLORS[msg.risk_tier] ?? "#5C5248",
+                              }}
+                            >
+                              {msg.risk_tier === "crisis" ? "🚨 " : msg.risk_tier === "high" ? "⚠️ " : ""}
+                              {msg.risk_label}
+                            </span>
+                            {msg.risk_score != null && (
+                              <span className="text-[10px] text-dim">
+                                {(msg.risk_score * 100).toFixed(0)}%
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="mt-1 ml-0.5">
+                            <span className="inline-flex items-center rounded-full border border-line bg-canvas px-2 py-0.5 text-[10.5px] text-dim">
+                              Analysing…
+                            </span>
+                          </div>
+                        )
+                      )}
                       <div className={cn("mt-1 text-[10px] text-dim", msg.senderRole === "coach" && "text-right")}>
                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </div>
