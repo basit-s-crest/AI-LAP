@@ -19,13 +19,42 @@ export const getCoachAvailability = async (
 ): Promise<Response> => {
   try {
     const { coachId } = req.params;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const bookedToday = await prisma.session.findMany({
+      where: {
+        coachId,
+        scheduledAt: { gte: today, lt: tomorrow },
+        status: { not: "cancelled" },
+      },
+      select: { scheduledAt: true, memberId: true },
+    });
+
     const avail = await prisma.coachAvailability.findUnique({
       where: { coachId },
     });
     if (!avail) {
-      return res.status(200).json({ slots: [], duration: 50 });
+      return res.status(200).json({
+        slots: [],
+        duration: 50,
+        bookedToday: bookedToday.map((b) => ({
+          date: b.scheduledAt.toISOString(),
+          memberId: b.memberId,
+        })),
+      });
     }
-    return res.status(200).json({ slots: avail.slots, duration: avail.duration });
+    return res.status(200).json({
+      slots: avail.slots,
+      duration: avail.duration,
+      bookedToday: bookedToday.map((b) => ({
+        date: b.scheduledAt.toISOString(),
+        memberId: b.memberId,
+      })),
+    });
   } catch (error) {
     console.error("[getCoachAvailability]", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -81,7 +110,7 @@ export const getCoachSessions = async (
 
     const sessions = await prisma.session.findMany({
       where: { coachId },
-      orderBy: { date: "desc" },
+      orderBy: { scheduledAt: "desc" },
     });
 
     // Batch-fetch member names
@@ -98,7 +127,7 @@ export const getCoachSessions = async (
         coachId: s.coachId,
         memberId: s.memberId,
         memberName: memberMap[s.memberId] ?? "Unknown",
-        date: s.date,
+        date: s.scheduledAt,
         duration: s.duration,
         type: s.type,
         status: s.status,
@@ -147,24 +176,42 @@ export const bookSession = async (
       }
     }
 
-    // Check slot not already booked (same coach, same minute)
-    const existing = await prisma.session.findFirst({
+    const existingSession = await prisma.session.findFirst({
       where: {
         coachId,
-        date: requestedDate,
+        scheduledAt: requestedDate,
         status: { not: "cancelled" },
       },
     });
-    if (existing) {
-      return res.status(409).json({ message: "This time slot is already booked" });
+    if (existingSession) {
+      return res.status(409).json({
+        message: "This slot is already booked",
+      });
     }
+
+    const memberConflict = await prisma.session.findFirst({
+      where: {
+        memberId,
+        scheduledAt: requestedDate,
+        status: { not: "cancelled" },
+      },
+    });
+    if (memberConflict) {
+      return res.status(409).json({
+        message: "You already have a session at this time",
+      });
+    }
+
+    const dur = avail?.duration ?? 50;
+    const endAt = new Date(requestedDate.getTime() + dur * 60 * 1000);
 
     const session = await prisma.session.create({
       data: {
         coachId,
         memberId,
-        date: requestedDate,
-        duration: avail?.duration ?? 50,
+        scheduledAt: requestedDate,
+        endAt,
+        duration: dur,
         type: "Weekly Check-in",
         status: "upcoming",
       },
@@ -189,12 +236,124 @@ export const getMemberSessions = async (
 
     const sessions = await prisma.session.findMany({
       where: { memberId },
-      orderBy: { date: "desc" },
+      orderBy: { scheduledAt: "desc" },
     });
 
     return res.status(200).json(sessions);
   } catch (error) {
     console.error("[getMemberSessions]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const cancelSession = async (
+  req: Request<{ id: string }>,
+  res: Response
+): Promise<Response> => {
+  try {
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+    const { id } = req.params;
+
+    const session = await prisma.session.findUnique({
+      where: { id },
+    });
+
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    const isCoach = session.coachId === userId;
+    const isMember = session.memberId === userId;
+    if (!isCoach && !isMember) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    if (session.status === "cancelled") {
+      return res.status(400).json({ message: "Session already cancelled" });
+    }
+
+    const updated = await prisma.session.update({
+      where: { id },
+      data: {
+        status: "cancelled",
+        cancelledBy: userRole === "coach" ? "coach" : "member",
+      },
+    });
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    console.error("[cancelSession]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const rescheduleSession = async (
+  req: Request<{ id: string }>,
+  res: Response
+): Promise<Response> => {
+  try {
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+    const { id } = req.params;
+    const { newScheduledAt } = req.body as { newScheduledAt: string };
+
+    if (!newScheduledAt) {
+      return res.status(400).json({ message: "newScheduledAt is required" });
+    }
+
+    const newDate = new Date(newScheduledAt);
+    if (isNaN(newDate.getTime())) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
+    if (newDate <= new Date()) {
+      return res.status(400).json({ message: "New date must be in the future" });
+    }
+
+    const session = await prisma.session.findUnique({ where: { id } });
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    const isCoach = session.coachId === userId;
+    const isMember = session.memberId === userId;
+    if (!isCoach && !isMember) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    if (session.status === "cancelled") {
+      return res.status(400).json({ message: "Cannot reschedule a cancelled session" });
+    }
+
+    const conflict = await prisma.session.findFirst({
+      where: {
+        coachId: session.coachId,
+        scheduledAt: newDate,
+        status: { not: "cancelled" },
+        NOT: { id },
+      },
+    });
+    if (conflict) {
+      return res.status(409).json({ message: "New slot is already booked" });
+    }
+
+    const dur = session.duration ?? 50;
+    const newEndAt = new Date(newDate.getTime() + dur * 60 * 1000);
+
+    const updated = await prisma.session.update({
+      where: { id },
+      data: {
+        scheduledAt: newDate,
+        endAt: newEndAt,
+        status: "rescheduled",
+        rescheduleBy: userRole === "coach" ? "coach" : "member",
+        rescheduleRequest: newDate,
+      },
+    });
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    console.error("[rescheduleSession]", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

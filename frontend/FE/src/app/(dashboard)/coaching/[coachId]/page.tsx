@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -15,13 +16,14 @@ import moods from "@/mock/moods.json";
 import type { MoodOption } from "@/types/mood";
 import { cn } from "@/lib/cn";
 import api from "@/lib/api";
+import { AUTH_USER_JSON_KEY } from "@/constants/storage";
 
 const MOODS_DATA = moods.options as MoodOption[];
 
 // ── Slot helpers ──────────────────────────────────────────────────────────────
 
 type AvailSlot = { day: string; start: string; end: string; enabled: boolean };
-type TimeSlot  = { t: string; b: boolean; assignedToOther?: boolean };
+type TimeSlot = { t: string; b: boolean; assignedToOther?: boolean; isMySession?: boolean };
 
 /** Parse "9:00 AM" → total minutes since midnight */
 function parseTime(t: string): number {
@@ -68,6 +70,101 @@ function todayDayName(): string {
   return new Date().toLocaleDateString("en-US", { weekday: "long" });
 }
 
+/** Same instant always maps to one key (UTC calendar parts) — avoids local/UTC mismatch vs API ISO strings */
+function utcSlotInstantKey(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}-${d.getUTCHours()}-${d.getUTCMinutes()}`;
+}
+
+/** True if `iso` parses to the same local calendar day as `ref` (local 00:00:00–23:59:59.999). */
+function isScheduledAtLocalCalendarToday(iso: string, ref: Date): boolean {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return false;
+  return (
+    d.getFullYear() === ref.getFullYear() &&
+    d.getMonth() === ref.getMonth() &&
+    d.getDate() === ref.getDate()
+  );
+}
+
+/** Only today through the next 6 days (one rolling week), not multi-month. */
+const RESCHEDULE_HORIZON_DAYS = 7;
+
+function formatYmdLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function dayNameLongLocal(d: Date): string {
+  return d.toLocaleDateString("en-US", { weekday: "long" });
+}
+
+/** Today through `horizonDays` ahead, only dates whose weekday matches coach portal enabled days. */
+function listCoachAvailableDates(availSlots: AvailSlot[], from: Date, horizonDays: number): { ymd: string; label: string }[] {
+  const enabled = new Set(availSlots.filter((s) => s.enabled).map((s) => s.day));
+  if (enabled.size === 0) return [];
+  const out: { ymd: string; label: string }[] = [];
+  const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0);
+  const end = new Date(cursor);
+  end.setDate(end.getDate() + horizonDays);
+  while (cursor < end) {
+    if (enabled.has(dayNameLongLocal(cursor))) {
+      const ymd = formatYmdLocal(cursor);
+      const label = cursor.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+      out.push({ ymd, label });
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return out;
+}
+
+/** Coach slot times for a calendar day (YYYY-MM-DD local) from weekly template + duration. */
+function getTimesForYmd(ymd: string, availSlots: AvailSlot[], duration: number): string[] {
+  const [y, mo, d] = ymd.split("-").map((x) => parseInt(x, 10));
+  if (!y || !mo || !d) return [];
+  const dayDate = new Date(y, mo - 1, d, 12, 0, 0, 0);
+  const dayName = dayNameLongLocal(dayDate);
+  const slot = availSlots.find((s) => s.day === dayName && s.enabled);
+  if (!slot) return [];
+  return generateSlotTimes(slot.start, slot.end, duration || 50);
+}
+
+/** Local wall time on a calendar day from "9:00 AM" style string. */
+function dateTimeOnCalendarDay(ymd: string, timeStr: string): Date {
+  const [y, mo, d] = ymd.split("-").map((x) => parseInt(x, 10));
+  const mins = parseTime(timeStr);
+  return new Date(y, mo - 1, d, Math.floor(mins / 60), mins % 60, 0, 0);
+}
+
+function filterTimesAfterNowIfToday(ymd: string, times: string[], now: Date): string[] {
+  if (ymd !== formatYmdLocal(now)) return times;
+  const t0 = now.getTime();
+  return times.filter((t) => dateTimeOnCalendarDay(ymd, t).getTime() > t0);
+}
+
+/** Like `listCoachAvailableDates` but drops days with no bookable slot left (e.g. today all past). */
+function listRescheduleDateOptions(
+  availSlots: AvailSlot[],
+  duration: number,
+  from: Date,
+  horizonDays: number
+): { ymd: string; label: string }[] {
+  const raw = listCoachAvailableDates(availSlots, from, horizonDays);
+  const now = new Date();
+  return raw.filter((o) => {
+    const times = getTimesForYmd(o.ymd, availSlots, duration);
+    return filterTimesAfterNowIfToday(o.ymd, times, now).length > 0;
+  });
+}
+
 export default function CoachingChatPage() {
   const params = useParams();
   const router = useRouter();
@@ -85,19 +182,123 @@ export default function CoachingChatPage() {
   const [booking, setBooking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+
   // ── Dynamic slot state ──────────────────────────────────────────────────────
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [noAvailToday, setNoAvailToday] = useState(false);
+  const [availabilityTemplate, setAvailabilityTemplate] = useState<AvailSlot[]>([]);
+  const [availabilityDuration, setAvailabilityDuration] = useState(50);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!showReschedule) return;
+    const allowed = listRescheduleDateOptions(
+      availabilityTemplate,
+      availabilityDuration,
+      new Date(),
+      RESCHEDULE_HORIZON_DAYS
+    );
+    if (allowed.length === 0) {
+      setRescheduleDate("");
+      setRescheduleTime("");
+      return;
+    }
+    setRescheduleDate((prev) =>
+      allowed.some((x) => x.ymd === prev) ? prev : allowed[0].ymd
+    );
+  }, [showReschedule, availabilityTemplate, availabilityDuration]);
+
+  useEffect(() => {
+    if (!showReschedule || !rescheduleDate) return;
+    const now = new Date();
+    const raw = getTimesForYmd(rescheduleDate, availabilityTemplate, availabilityDuration);
+    const times = filterTimesAfterNowIfToday(rescheduleDate, raw, now);
+    if (times.length === 0) {
+      setRescheduleTime("");
+      return;
+    }
+    setRescheduleTime((prev) => (times.includes(prev) ? prev : times[0]));
+  }, [showReschedule, rescheduleDate, availabilityTemplate, availabilityDuration]);
+
+  /** After reload, restore "Session confirmed" + actions from slots or member API */
+  const syncMyBookingState = useCallback(
+    async (generated: TimeSlot[]) => {
+      const mine = generated.find((x) => x.isMySession);
+      if (mine) {
+        setBooked(true);
+        setSelSlot(mine.t);
+        return;
+      }
+      const now = new Date();
+      try {
+        const res = await api.get<
+          { coachId: string; scheduledAt: string; status: string }[]
+        >("/api/sessions/member");
+        const sess = res.data.find(
+          (s) =>
+            s.coachId === coachIdStr &&
+            s.status !== "cancelled" &&
+            isScheduledAtLocalCalendarToday(s.scheduledAt, now)
+        );
+        if (sess) {
+          if (!isScheduledAtLocalCalendarToday(sess.scheduledAt, now)) {
+            setBooked(false);
+            setSelSlot(null);
+          } else {
+            const d = new Date(sess.scheduledAt);
+            const mins = d.getHours() * 60 + d.getMinutes();
+            setBooked(true);
+            setSelSlot(formatTime(mins));
+          }
+        } else {
+          setBooked(false);
+          setSelSlot(null);
+        }
+      } catch {
+        setBooked(false);
+        setSelSlot(null);
+      }
+    },
+    [coachIdStr]
+  );
 
   const loadSlots = useCallback(async () => {
     try {
-      const [availRes, sessionsRes] = await Promise.all([
-        api.get<{ slots: AvailSlot[]; duration: number }>(`/api/sessions/availability/${coachIdStr}`),
-        api.get<{ date: string }[]>("/api/sessions/member"),
-      ]);
+      const availRes = await api.get<{
+        slots: AvailSlot[];
+        duration: number;
+        bookedToday?: { date: string; memberId: string }[];
+      }>(`/api/sessions/availability/${coachIdStr}`);
 
-      const { slots: availSlots, duration } = availRes.data;
-      const memberSessions = sessionsRes.data;
+      const { slots: availSlots, duration, bookedToday = [] } = availRes.data;
+
+      setAvailabilityTemplate(availSlots);
+      setAvailabilityDuration(duration ?? 50);
+
+      function getMemberIdFromCookie(): string | null {
+        if (typeof document === "undefined") return null;
+        try {
+          const encoded = encodeURIComponent(AUTH_USER_JSON_KEY);
+          const match = document.cookie.split("; ").find((r) => r.startsWith(`${encoded}=`));
+          if (!match) return null;
+          const raw = decodeURIComponent(match.split("=")[1]);
+          const user = JSON.parse(raw) as { id?: string };
+          return user.id ?? null;
+        } catch {
+          return null;
+        }
+      }
+      const myMemberId = getMemberIdFromCookie();
 
       const today = todayDayName();
       const todaySlot = availSlots.find((s) => s.day === today && s.enabled);
@@ -105,6 +306,7 @@ export default function CoachingChatPage() {
       if (!todaySlot) {
         setNoAvailToday(true);
         setSlots([]);
+        await syncMyBookingState([]);
         return;
       }
 
@@ -112,25 +314,27 @@ export default function CoachingChatPage() {
 
       const times = generateSlotTimes(todaySlot.start, todaySlot.end, duration || 50);
 
-      const bookedMinutes = new Set(
-        memberSessions.map((s) => {
-          const d = new Date(s.date);
-          return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`;
-        })
-      );
+      const bookedMap = new Map<string, string>();
+      bookedToday.forEach((b: { date: string; memberId: string }) => {
+        const key = utcSlotInstantKey(b.date);
+        if (key) bookedMap.set(key, b.memberId);
+      });
 
       const generated: TimeSlot[] = times.map((t) => {
         const iso = todayAt(t);
-        const d = new Date(iso);
-        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`;
-        return { t, b: bookedMinutes.has(key) };
+        const key = utcSlotInstantKey(iso);
+        const bookedById = key ? bookedMap.get(key) : undefined;
+        const isBooked = !!bookedById;
+        const isMySession = bookedById === myMemberId;
+        return { t, b: isBooked, assignedToOther: isBooked && !isMySession, isMySession };
       });
 
       setSlots(generated);
+      await syncMyBookingState(generated);
     } catch {
       // silently keep existing slots on poll failure
     }
-  }, [coachIdStr]);
+  }, [coachIdStr, syncMyBookingState]);
 
   useEffect(() => {
     loadSlots();
@@ -147,13 +351,15 @@ export default function CoachingChatPage() {
         coachId: coachIdStr,
         date: todayAt(selSlot),
       });
-      setSlots((prev) => prev.map((s) => (s.t === selSlot ? { ...s, b: true } : s)));
+      await loadSlots();
       setBooked(true);
     } catch (err: unknown) {
-      const msg = (err as Error).message ?? "";
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+      const msg = axiosErr?.response?.data?.message ?? axiosErr?.message ?? "";
       if (
         msg.toLowerCase().includes("already booked") ||
-        msg.toLowerCase().includes("already taken")
+        msg.toLowerCase().includes("already taken") ||
+        msg.toLowerCase().includes("session at this time")
       ) {
         setSlots((prev) =>
           prev.map((s) =>
@@ -202,7 +408,240 @@ export default function CoachingChatPage() {
     setInput("");
   };
 
-  const bookingCard = coach ? (
+  const renderRescheduleModal = () => {
+    if (!portalReady || !showReschedule) return null;
+    const now = new Date();
+    const allowedDates = listRescheduleDateOptions(
+      availabilityTemplate,
+      availabilityDuration,
+      now,
+      RESCHEDULE_HORIZON_DAYS
+    );
+    const timeChoices = rescheduleDate
+      ? filterTimesAfterNowIfToday(
+          rescheduleDate,
+          getTimesForYmd(rescheduleDate, availabilityTemplate, availabilityDuration),
+          now
+        )
+      : [];
+
+    return createPortal(
+      <div
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="member-reschedule-title"
+      >
+        <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 id="member-reschedule-title" className="font-serif text-lg font-semibold">
+              Reschedule Session
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowReschedule(false)}
+              className="text-dim hover:text-ink"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="space-y-3">
+            {allowedDates.length === 0 ? (
+              <p className="text-sm text-mid">
+                Your coach has no upcoming bookable days in their weekly schedule. Ask them to set
+                availability in the portal.
+              </p>
+            ) : (
+              <>
+                <div>
+                  <label className="mb-1 block text-[12px] font-semibold uppercase tracking-wide text-dim">
+                    New Date
+                  </label>
+                  <select
+                    value={rescheduleDate}
+                    onChange={(e) => setRescheduleDate(e.target.value)}
+                    className="w-full rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-[13.5px] outline-none focus:border-sage"
+                  >
+                    {allowedDates.map((opt) => (
+                      <option key={opt.ymd} value={opt.ymd}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[12px] font-semibold uppercase tracking-wide text-dim">
+                    New Time
+                  </label>
+                  <select
+                    value={rescheduleTime}
+                    onChange={(e) => setRescheduleTime(e.target.value)}
+                    disabled={timeChoices.length === 0}
+                    className="w-full rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-[13.5px] outline-none focus:border-sage disabled:opacity-50"
+                  >
+                    {timeChoices.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="mt-5 flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => setShowReschedule(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              type="button"
+              disabled={
+                rescheduleLoading ||
+                allowedDates.length === 0 ||
+                !rescheduleDate ||
+                !rescheduleTime ||
+                timeChoices.length === 0
+              }
+              onClick={async () => {
+                setRescheduleLoading(true);
+                try {
+                  const newDate = dateTimeOnCalendarDay(rescheduleDate, rescheduleTime);
+                  if (!(newDate.getTime() > Date.now())) {
+                    toast.error("Pick a time in the future");
+                    return;
+                  }
+                  const newScheduledAt = newDate.toISOString();
+                  const sessionsRes = await api.get<
+                    { id: string; coachId: string; scheduledAt: string; status: string }[]
+                  >("/api/sessions/member");
+                  const nowRef = new Date();
+                  const mySession = sessionsRes.data.find(
+                    (s) =>
+                      s.coachId === coachIdStr &&
+                      s.status !== "cancelled" &&
+                      isScheduledAtLocalCalendarToday(s.scheduledAt, nowRef)
+                  );
+                  if (!mySession) {
+                    toast.error("Session not found");
+                    return;
+                  }
+                  await api.patch(
+                    `/api/sessions/${mySession.id}/reschedule`,
+                    { newScheduledAt }
+                  );
+                  setShowReschedule(false);
+                  setBooked(false);
+                  setSelSlot(null);
+                  await loadSlots();
+                  toast.success("Session rescheduled");
+                } catch (err: unknown) {
+                  const axiosErr = err as {
+                    response?: { data?: { message?: string } };
+                  };
+                  toast.error(
+                    axiosErr?.response?.data?.message ?? "Failed to reschedule"
+                  );
+                } finally {
+                  setRescheduleLoading(false);
+                }
+              }}
+            >
+              {rescheduleLoading ? "Saving…" : "Confirm Reschedule"}
+            </Button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
+  const renderCancelConfirmModal = () => {
+    if (!portalReady || !showCancelConfirm || !coach) return null;
+    return createPortal(
+      <div
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="member-cancel-title"
+      >
+        <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 id="member-cancel-title" className="font-serif text-lg font-semibold">
+              Cancel Session?
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowCancelConfirm(false)}
+              className="text-dim hover:text-ink"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-sm text-mid">
+            Are you sure you want to cancel your session with {coach.name}?
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => setShowCancelConfirm(false)}
+            >
+              Keep Session
+            </Button>
+            <Button
+              size="sm"
+              type="button"
+              disabled={cancelLoading}
+              onClick={async () => {
+                setCancelLoading(true);
+                try {
+                  const res = await api.get<
+                    { id: string; coachId: string; scheduledAt: string; status: string }[]
+                  >("/api/sessions/member");
+                  const mySession = res.data.find(
+                    (s) =>
+                      s.coachId === coachIdStr &&
+                      s.status !== "cancelled" &&
+                      new Date(s.scheduledAt).toTimeString().startsWith(
+                        new Date(todayAt(selSlot ?? "")).toTimeString().slice(0, 5)
+                      )
+                  );
+                  if (!mySession) return;
+                  await api.patch(`/api/sessions/${mySession.id}/cancel`);
+                  setBooked(false);
+                  setSelSlot(null);
+                  await loadSlots();
+                } catch (err: unknown) {
+                  const axiosErr = err as { response?: { data?: { message?: string } } };
+                  toast.error(axiosErr?.response?.data?.message ?? "Failed to cancel");
+                } finally {
+                  setCancelLoading(false);
+                  setShowCancelConfirm(false);
+                }
+              }}
+            >
+              {cancelLoading ? "Cancelling…" : "Yes, Cancel"}
+            </Button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
+  const bookingCard = coach ? (() => {
+    const myBookedTimeLabel =
+      selSlot ?? slots.find((s) => s.isMySession)?.t ?? null;
+    const showOnlyMyBookedSlot = Boolean(booked && myBookedTimeLabel);
+
+    return (
     <Card className="mb-4">
       <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-dim">Book a Session</div>
       <div className="mb-3 flex items-center gap-3">
@@ -222,6 +661,16 @@ export default function CoachingChatPage() {
         <p className="mb-4 text-sm text-mid">Coach not available today.</p>
       ) : slots.length === 0 ? (
         <p className="mb-4 text-sm text-dim">Loading availability…</p>
+      ) : showOnlyMyBookedSlot && myBookedTimeLabel ? (
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          <div
+            role="status"
+            className="col-span-2 cursor-default rounded-lg border-[1.5px] border-sage bg-sage-tint py-2 text-center text-[13px] font-semibold text-sage"
+          >
+            {myBookedTimeLabel}
+            <span> ✓ Your Session</span>
+          </div>
+        </div>
       ) : (
         <div className="mb-4 grid grid-cols-2 gap-2">
           {slots.map((s) => (
@@ -234,27 +683,53 @@ export default function CoachingChatPage() {
                 "rounded-lg border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card py-2 text-center text-[13px] font-semibold text-ink transition-colors",
                 !s.b && "hover:border-sage hover:bg-sage-soft",
                 selSlot === s.t && "border-sage bg-sage-tint text-sage",
-                s.b && !s.assignedToOther && "cursor-not-allowed border-dashed bg-[#EDE7DC] text-dim",
+                s.isMySession && "cursor-not-allowed border-sage bg-sage-tint text-sage",
+                s.b && !s.assignedToOther && !s.isMySession && "cursor-not-allowed border-dashed bg-[#EDE7DC] text-dim",
                 s.assignedToOther && "cursor-not-allowed border-dashed bg-[#F5E6E6] text-[#A0522D]"
               )}
             >
               {s.t}
-              {s.b && !s.assignedToOther ? " (Booked)" : ""}
-              {s.assignedToOther ? " (Already Assigned)" : ""}
+              {s.isMySession ? " ✓ Your Session" : ""}
+              {s.b && !s.isMySession ? " · Taken" : ""}
             </button>
           ))}
         </div>
       )}
       {booked ? (
-        <div className="flex items-center gap-2.5 rounded-[10px] bg-sage-tint px-4 py-3">
-          <span className="text-lg text-sage">✓</span>
-          <div>
-            <div className="font-semibold">Session confirmed!</div>
-            <div className="text-sm text-mid">
-              {coach.name} · {selSlot}
+        <>
+          <div className="flex items-center gap-2.5 rounded-[10px] bg-sage-tint px-4 py-3">
+            <span className="text-lg text-sage">✓</span>
+            <div>
+              <div className="font-semibold">Session confirmed!</div>
+              <div className="text-sm text-mid">
+                {coach.name} · {myBookedTimeLabel ?? selSlot}
+              </div>
             </div>
           </div>
-        </div>
+          <div className="mt-3 flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              fullWidth
+              title="Pick a new date and time (opens popup)"
+              onClick={() => {
+                setShowReschedule(true);
+              }}
+            >
+              Reschedule
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              fullWidth
+              onClick={() => setShowCancelConfirm(true)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </>
       ) : (
         <Button
           fullWidth
@@ -266,7 +741,8 @@ export default function CoachingChatPage() {
         </Button>
       )}
     </Card>
-  ) : null;
+    );
+  })() : null;
 
   if (coachLoading) {
     return (
@@ -292,6 +768,8 @@ export default function CoachingChatPage() {
             ← Back to Coaches
           </Button>
           {bookingCard}
+          {renderRescheduleModal()}
+          {renderCancelConfirmModal()}
         </div>
       </DashboardLayout>
     );
@@ -400,6 +878,8 @@ export default function CoachingChatPage() {
             </Card>
           </div>
         </div>
+        {renderRescheduleModal()}
+        {renderCancelConfirmModal()}
       </div>
     </DashboardLayout>
   );

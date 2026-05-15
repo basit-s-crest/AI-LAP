@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TableWrap } from "@/components/ui/Table";
 import { TableToolbar } from "@/components/tables/TableToolbar";
@@ -21,6 +22,19 @@ interface SessionRow {
 export default function CoachSessionsPage() {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reschedulingId, setReschedulingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [newDate, setNewDate] = useState("");
+  const [newTime, setNewTime] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     api
@@ -48,6 +62,54 @@ export default function CoachSessionsPage() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const cancelTargetRow =
+    cancelTargetId ? sessions.find((s) => s.id === cancelTargetId) : null;
+
+  const performCancelSession = async () => {
+    if (!cancelTargetId) return;
+    setCancelLoading(true);
+    setCancellingId(cancelTargetId);
+    setActionLoading(true);
+    try {
+      await api.patch(`/api/sessions/${cancelTargetId}/cancel`);
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === cancelTargetId ? { ...s, status: "cancelled" } : s
+        )
+      );
+      setShowCancelConfirm(false);
+      setCancelTargetId(null);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      alert(axiosErr?.response?.data?.message ?? "Failed to cancel");
+    } finally {
+      setCancelLoading(false);
+      setActionLoading(false);
+      setCancellingId(null);
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (!reschedulingId || !newDate || !newTime) return;
+    setActionLoading(true);
+    try {
+      const newScheduledAt = new Date(`${newDate}T${newTime}`).toISOString();
+      await api.patch(`/api/sessions/${reschedulingId}/reschedule`, {
+        newScheduledAt,
+      });
+      const { data } = await api.get<SessionRow[]>("/api/sessions/coach");
+      setSessions(data);
+      setReschedulingId(null);
+      setNewDate("");
+      setNewTime("");
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      alert(axiosErr?.response?.data?.message ?? "Failed to reschedule");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   return (
@@ -88,7 +150,11 @@ export default function CoachSessionsPage() {
                 </tr>
               ) : (
                 sessions.map((s) => (
-                  <tr key={s.id} className="group">
+                  <tr
+                    key={s.id}
+                    className="group"
+                    aria-busy={cancellingId === s.id}
+                  >
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-mono text-sm group-hover:bg-[#EDE7DC]">
                       {formatDate(s.date)}
                     </td>
@@ -102,17 +168,59 @@ export default function CoachSessionsPage() {
                       {s.duration} min
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      <Badge variant={s.status === "upcoming" ? "blue" : "sage"}>{s.status}</Badge>
+                      <Badge
+                        variant={
+                          s.status === "upcoming"
+                            ? "blue"
+                            : s.status === "cancelled"
+                              ? "red"
+                              : s.status === "rescheduled"
+                                ? "gold"
+                                : "sage"
+                        }
+                      >
+                        {s.status}
+                      </Badge>
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       {s.status === "completed" ? (
                         <Button variant="ghost" size="xs" type="button">
                           View Notes
                         </Button>
+                      ) : s.status === "cancelled" ? (
+                        <span className="text-xs text-dim">Cancelled</span>
                       ) : (
-                        <Button size="xs" type="button">
-                          Start
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button size="xs" type="button">
+                            Start
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            type="button"
+                            title="Open popup to pick a new date and time"
+                            onClick={() => {
+                              const d = new Date(s.date);
+                              setReschedulingId(s.id);
+                              setNewDate(d.toISOString().split("T")[0]);
+                              setNewTime(d.toTimeString().slice(0, 5));
+                            }}
+                          >
+                            Reschedule
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            type="button"
+                            disabled={actionLoading}
+                            onClick={() => {
+                              setCancelTargetId(s.id);
+                              setShowCancelConfirm(true);
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -121,6 +229,134 @@ export default function CoachSessionsPage() {
             </tbody>
           </table>
         </TableWrap>
+        {portalReady &&
+          reschedulingId &&
+          createPortal(
+            <div
+              className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="coach-reschedule-title"
+            >
+              <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 id="coach-reschedule-title" className="font-serif text-lg font-semibold">
+                    Reschedule Session
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setReschedulingId(null)}
+                    className="text-dim hover:text-ink"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1 block text-[12px] font-semibold uppercase tracking-wide text-dim">
+                      New Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newDate}
+                      min={new Date().toISOString().split("T")[0]}
+                      onChange={(e) => setNewDate(e.target.value)}
+                      className="w-full rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-[13.5px] outline-none focus:border-sage"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[12px] font-semibold uppercase tracking-wide text-dim">
+                      New Time
+                    </label>
+                    <input
+                      type="time"
+                      value={newTime}
+                      onChange={(e) => setNewTime(e.target.value)}
+                      className="w-full rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-[13.5px] outline-none focus:border-sage"
+                    />
+                  </div>
+                </div>
+                <div className="mt-5 flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    type="button"
+                    onClick={() => setReschedulingId(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    type="button"
+                    onClick={handleReschedule}
+                    disabled={actionLoading || !newDate || !newTime}
+                  >
+                    {actionLoading ? "Saving…" : "Confirm Reschedule"}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+        {portalReady &&
+          showCancelConfirm &&
+          cancelTargetId &&
+          createPortal(
+            <div
+              className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="coach-cancel-session-title"
+            >
+              <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3
+                    id="coach-cancel-session-title"
+                    className="font-serif text-lg font-semibold"
+                  >
+                    Cancel Session?
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCancelConfirm(false);
+                      setCancelTargetId(null);
+                    }}
+                    className="text-dim hover:text-ink"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p className="text-sm text-mid">
+                  {cancelTargetRow?.memberName
+                    ? `Are you sure you want to cancel the session with ${cancelTargetRow.memberName}?`
+                    : "Are you sure you want to cancel this session?"}
+                </p>
+                <div className="mt-5 flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    type="button"
+                    onClick={() => {
+                      setShowCancelConfirm(false);
+                      setCancelTargetId(null);
+                    }}
+                  >
+                    Keep Session
+                  </Button>
+                  <Button
+                    size="sm"
+                    type="button"
+                    disabled={cancelLoading}
+                    onClick={() => void performCancelSession()}
+                  >
+                    {cancelLoading ? "Cancelling…" : "Yes, Cancel"}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
       </div>
     </DashboardLayout>
   );
