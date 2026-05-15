@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
-import prisma from "../lib/prisma";
 import {
   getThread,
   markRead,
   getConversationList,
   toCoachMessageDTO,
 } from "../services/coachMessage.service";
+import { queryMessageRiskData } from "../lib/vaslDb";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -22,34 +22,34 @@ function tierToLabel(tier: RiskTier | null): string | null {
   return map[tier] ?? null;
 }
 
+export interface MessageRiskData {
+  risk_tier: RiskTier;
+  risk_score: number;
+  signal_codes: string[];
+}
+
 /**
- * Batch-fetch risk data from inference_events for a list of message ids.
- * Returns a map of messageId → { risk_tier, risk_score }.
- * Gracefully returns an empty map if the table doesn't exist.
+ * Batch-fetch risk data from the vasl DB for coach message ids.
+ * Returns a map of messageId → { risk_tier, risk_score, signal_codes }.
  */
 async function fetchRiskData(
   messageIds: string[]
-): Promise<Record<string, { risk_tier: RiskTier; risk_score: number }>> {
+): Promise<Record<string, MessageRiskData>> {
   if (messageIds.length === 0) return {};
   try {
-    const rows = await prisma.$queryRawUnsafe<
-      { original_source_id: string; risk_tier: string; risk_score: number }[]
-    >(
-      `SELECT original_source_id, risk_tier, risk_score::float
-       FROM inference_events
-       WHERE original_source_id = ANY($1::text[])`,
-      messageIds
-    );
-    const map: Record<string, { risk_tier: RiskTier; risk_score: number }> = {};
+    const rows = await queryMessageRiskData(messageIds);
+    const map: Record<string, MessageRiskData> = {};
     for (const row of rows) {
+      if (!row.original_source_id) continue;
       map[row.original_source_id] = {
         risk_tier: row.risk_tier as RiskTier,
         risk_score: row.risk_score,
+        signal_codes: row.signal_codes ?? [],
       };
     }
     return map;
-  } catch {
-    // Table doesn't exist yet — return empty map so the rest of the response works
+  } catch (err) {
+    console.error("[fetchRiskData]", err);
     return {};
   }
 }
@@ -86,7 +86,13 @@ export const getThreadHandler = async (
 
     const enriched = baseDTOs.map((msg) => {
       if (msg.senderRole !== "member") {
-        return { ...msg, risk_tier: null, risk_score: null, risk_label: null };
+        return {
+          ...msg,
+          risk_tier: null,
+          risk_score: null,
+          risk_label: null,
+          signal_codes: null,
+        };
       }
       const risk = riskMap[msg.id] ?? null;
       return {
@@ -94,6 +100,7 @@ export const getThreadHandler = async (
         risk_tier:  risk?.risk_tier  ?? null,
         risk_score: risk?.risk_score ?? null,
         risk_label: tierToLabel(risk?.risk_tier ?? null),
+        signal_codes: risk?.signal_codes ?? null,
       };
     });
 

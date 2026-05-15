@@ -48,7 +48,7 @@ const DEFAULT_SLOTS: SlotEntry[] = days.map((day) => ({
   day,
   start: "9:00 AM",
   end: "5:00 PM",
-  enabled: ["Monday", "Tuesday", "Thursday", "Friday"].includes(day),
+  enabled: false,
 }));
 
 /** Read the logged-in user's id from the azadi_user cookie. */

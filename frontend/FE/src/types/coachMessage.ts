@@ -9,6 +9,7 @@ export interface CoachMessageDTO {
   risk_tier?: "low" | "moderate" | "high" | "crisis" | null
   risk_score?: number | null
   risk_label?: "Analysed" | "Crisis" | "High Risk" | "Moderate" | "Low Risk" | null
+  signal_codes?: string[] | null
 }
 
 export interface ConversationSummary {

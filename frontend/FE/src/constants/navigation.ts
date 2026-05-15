@@ -44,11 +44,11 @@ export const USER_NAV: NavItem[] = [
 
 export const COACH_NAV: NavItem[] = [
   { href: "/dashboard", label: "My Dashboard", icon: LayoutDashboard },
+  { href: "/availability", label: "Availability", icon: Clock },
   { href: "/clients", label: "My Clients", icon: Users },
   { href: "/sessions", label: "Sessions", icon: Calendar },
   { href: "/messages", label: "Messages", icon: Mail, badge: "2" },
   { href: "/risk-dashboard", label: "Live Risk Dashboard", icon: Activity },
-  { href: "/availability", label: "Availability", icon: Clock },
   { href: "/notes", label: "Session Notes", icon: FileText },
 ];
 

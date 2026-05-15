@@ -13,12 +13,9 @@ export function useCoachesQuery() {
 }
 
 export function useCoachQuery(coachId: string, enabled = true) {
-  return useQuery<CoachPublicDTO | undefined>({
-    queryKey: queryKeys.coaches.detail(coachId as unknown as number),
-    queryFn: async () => {
-      const coaches = await coachService.list();
-      return coaches.find((c) => c.id === coachId);
-    },
+  return useQuery<CoachPublicDTO>({
+    queryKey: queryKeys.coaches.detail(coachId),
+    queryFn: () => coachService.getById(coachId),
     enabled: enabled && !!coachId,
   });
 }

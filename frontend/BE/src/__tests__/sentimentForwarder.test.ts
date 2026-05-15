@@ -30,13 +30,13 @@ describe("forwardToSentiment", () => {
   it("should return void synchronously without throwing", () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const message = makeCoachMessage();
-    expect(() => forwardToSentiment(message)).not.toThrow();
+    expect(() => forwardToSentiment(message, message.id)).not.toThrow();
   });
 
   it("should not throw even when fetch rejects", async () => {
     mockFetch.mockRejectedValue(new Error("Network error"));
     const message = makeCoachMessage();
-    expect(() => forwardToSentiment(message)).not.toThrow();
+    expect(() => forwardToSentiment(message, message.id)).not.toThrow();
     // Wait for the async chain to settle
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
@@ -46,7 +46,7 @@ describe("forwardToSentiment", () => {
     abortError.name = "AbortError";
     mockFetch.mockRejectedValue(abortError);
     const message = makeCoachMessage();
-    expect(() => forwardToSentiment(message)).not.toThrow();
+    expect(() => forwardToSentiment(message, message.id)).not.toThrow();
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
 
@@ -55,7 +55,7 @@ describe("forwardToSentiment", () => {
       json: () => Promise.reject(new Error("Invalid JSON")),
     });
     const message = makeCoachMessage();
-    expect(() => forwardToSentiment(message)).not.toThrow();
+    expect(() => forwardToSentiment(message, message.id)).not.toThrow();
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
 
@@ -65,7 +65,7 @@ describe("forwardToSentiment", () => {
   it("should call fetch when invoked (caller is responsible for gating coach messages)", async () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const message = makeCoachMessage({ senderRole: "member" });
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
@@ -74,7 +74,7 @@ describe("forwardToSentiment", () => {
   it("should POST to PYTHON_BACKEND_URL/v1/ingest/chat", async () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const message = makeCoachMessage();
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(mockFetch).toHaveBeenCalledWith(
       "http://localhost:8000/v1/ingest/chat",
@@ -85,7 +85,7 @@ describe("forwardToSentiment", () => {
   it("should include all required ChatIngestPayload fields", async () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const message = makeCoachMessage();
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const callArgs = mockFetch.mock.calls[0];
@@ -99,12 +99,13 @@ describe("forwardToSentiment", () => {
     expect(body).toHaveProperty("text");
     expect(body).toHaveProperty("timestamp");
     expect(body).toHaveProperty("consent_active");
+    expect(body).toHaveProperty("original_source_id", "msg-1");
   });
 
   it("should set role to 'member'", async () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const message = makeCoachMessage();
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -114,7 +115,7 @@ describe("forwardToSentiment", () => {
   it("should set consent_active to true", async () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const message = makeCoachMessage();
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -124,7 +125,7 @@ describe("forwardToSentiment", () => {
   it("should set member_token to message.userId", async () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const message = makeCoachMessage({ userId: "user-abc" });
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -134,7 +135,7 @@ describe("forwardToSentiment", () => {
   it("should set session_id to '{userId}_{coachId}'", async () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const message = makeCoachMessage({ userId: "user-abc", coachId: "coach-xyz" });
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -145,7 +146,7 @@ describe("forwardToSentiment", () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const createdAt = new Date("2024-01-15T10:30:00.000Z");
     const message = makeCoachMessage({ createdAt });
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -156,7 +157,7 @@ describe("forwardToSentiment", () => {
     process.env.PYTHON_ORG_ID = "org_custom";
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const message = makeCoachMessage();
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -167,7 +168,7 @@ describe("forwardToSentiment", () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const longContent = "x".repeat(1000);
     const message = makeCoachMessage({ content: longContent });
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -179,7 +180,7 @@ describe("forwardToSentiment", () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const exactContent = "y".repeat(500);
     const message = makeCoachMessage({ content: exactContent });
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -190,7 +191,7 @@ describe("forwardToSentiment", () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const shortContent = "Hello!";
     const message = makeCoachMessage({ content: shortContent });
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -201,7 +202,7 @@ describe("forwardToSentiment", () => {
     delete process.env.PYTHON_ORG_ID;
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const message = makeCoachMessage();
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -211,8 +212,8 @@ describe("forwardToSentiment", () => {
   it("should generate a unique event_id (UUID v4 format) for each call", async () => {
     mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
     const message = makeCoachMessage();
-    forwardToSentiment(message);
-    forwardToSentiment(message);
+    forwardToSentiment(message, message.id);
+    forwardToSentiment(message, message.id);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const body1 = JSON.parse(mockFetch.mock.calls[0][1].body);

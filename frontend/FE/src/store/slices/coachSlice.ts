@@ -5,7 +5,7 @@ interface CoachState {
 }
 
 const initialState: CoachState = {
-  onDemand: true,
+  onDemand: false,
 };
 
 const coachSlice = createSlice({

@@ -6,4 +6,9 @@ export const coachService = {
     const response = await api.get<{ coaches: CoachPublicDTO[] }>("/api/coach/list");
     return response.data.coaches;
   },
+
+  async getById(coachId: string): Promise<CoachPublicDTO> {
+    const response = await api.get<{ coach: CoachPublicDTO }>(`/api/coach/${encodeURIComponent(coachId)}`);
+    return response.data.coach;
+  },
 };
