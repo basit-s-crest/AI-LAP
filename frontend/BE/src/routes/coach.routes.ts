@@ -4,9 +4,11 @@ import {
   assignCoachHandler,
   getCoachPublicByIdHandler,
   getMyMembers,
+  getOnDemandStatus,
   listCoachesHandler,
   loginCoach,
   registerCoach,
+  setOnDemandStatus,
 } from "../controllers/coach.controller";
 import { authMiddleware, requireRole } from "../middleware/auth.middleware";
 
@@ -21,6 +23,10 @@ router.get("/list", authMiddleware, listCoachesHandler);
 
 // Protected — coach only (must be registered before /:coachId)
 router.get("/members", authMiddleware, requireRole("coach"), getMyMembers);
+
+// On-demand status — coach only (must be before /:coachId)
+router.get("/on-demand", authMiddleware, requireRole("coach"), getOnDemandStatus);
+router.patch("/on-demand", authMiddleware, requireRole("coach"), setOnDemandStatus);
 
 // Authenticated — public coach card for members / org / self-coach
 router.get("/:coachId", authMiddleware, getCoachPublicByIdHandler);

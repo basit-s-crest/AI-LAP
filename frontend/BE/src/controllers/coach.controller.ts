@@ -333,3 +333,62 @@ export const getMyMembers = async (
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+// ─── On-Demand Status ─────────────────────────────────────────────────────────
+
+/**
+ * GET /api/coach/on-demand
+ * Coach only. Returns the current on-demand (isActive) status.
+ */
+export const getOnDemandStatus = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId) return res.status(401).json({ message: "Unauthorized" });
+
+    const coach = await prisma.coach.findUnique({
+      where: { id: coachId },
+      select: { isActive: true },
+    });
+
+    if (!coach) return res.status(404).json({ message: "Coach not found" });
+
+    return res.status(200).json({ onDemand: coach.isActive });
+  } catch (error) {
+    console.error("[getOnDemandStatus]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * PATCH /api/coach/on-demand
+ * Coach only. Updates the on-demand (isActive) status.
+ * Body: { onDemand: boolean }
+ */
+export const setOnDemandStatus = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId) return res.status(401).json({ message: "Unauthorized" });
+
+    const { onDemand } = req.body as { onDemand: boolean };
+    if (typeof onDemand !== "boolean") {
+      return res.status(400).json({ message: "onDemand must be a boolean" });
+    }
+
+    const coach = await prisma.coach.update({
+      where: { id: coachId },
+      data: { isActive: onDemand },
+      select: { isActive: true },
+    });
+
+    return res.status(200).json({ onDemand: coach.isActive });
+  } catch (error) {
+    console.error("[setOnDemandStatus]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};

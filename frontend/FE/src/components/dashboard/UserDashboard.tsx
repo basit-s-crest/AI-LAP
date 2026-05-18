@@ -8,6 +8,7 @@ import { useAppSelector } from "@/hooks/redux";
 import { useCoachesQuery } from "@/hooks/api/use-coaches";
 import { useMoodTrend } from "@/hooks/api/use-mood";
 import { useGroups } from "@/hooks/groups/useGroups";
+import { cn } from "@/lib/cn";
 
 const QUICK_ACCESS = [
   { id: "empowerment-kit", l: "Empowerment Kit", d: "Videos & resources", e: "🎬", p: "/empowerment-kit" },
@@ -131,9 +132,15 @@ export function UserDashboard() {
                       {c.speciality?.split("·")[0]?.trim() ?? c.bio ?? ""}
                     </div>
                   </div>
-                  <span className="text-[11.5px] font-semibold text-[#2E7D4F]">
-                    <span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#2E7D4F]" />
-                    Available
+                  <span className={cn(
+                    "text-[11.5px] font-semibold",
+                    c.onDemand ? "text-[#2E7D4F]" : "text-dim"
+                  )}>
+                    <span className={cn(
+                      "mr-1 inline-block h-2 w-2 rounded-full",
+                      c.onDemand ? "bg-[#2E7D4F]" : "bg-[rgba(60,50,40,0.2)]"
+                    )} />
+                    {c.onDemand ? "Available" : "Unavailable"}
                   </span>
                 </div>
               </Card>
