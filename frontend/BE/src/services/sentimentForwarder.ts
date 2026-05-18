@@ -13,6 +13,7 @@ interface ChatIngestPayload {
   text: string;
   timestamp: string;
   consent_active: boolean;
+  original_source_id: string;
 }
 
 interface IngestResponse {
@@ -144,7 +145,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function forwardToSentiment(message: CoachMessage): void {
+export function forwardToSentiment(message: CoachMessage, messageId: string): void {
   void (async () => {
     const payload: ChatIngestPayload = {
       event_id: randomUUID(),
@@ -156,6 +157,7 @@ export function forwardToSentiment(message: CoachMessage): void {
       text: message.content.slice(0, 500),
       timestamp: message.createdAt.toISOString(),
       consent_active: true,
+      original_source_id: messageId,
     };
 
     try {
@@ -177,8 +179,12 @@ export function forwardToSentiment(message: CoachMessage): void {
         // non-critical
       }
 
+      const signalCodes =
+        resp.active_signals?.map((s) => s.signal_code).filter(Boolean) ?? [];
+
       const scoreUpdate = {
         event_id: resp.event_id ?? payload.event_id,
+        original_source_id: messageId,
         member_token: message.userId,
         client_name: clientName,
         risk_tier: resp.risk_tier ?? "low",
@@ -186,6 +192,7 @@ export function forwardToSentiment(message: CoachMessage): void {
         risk_trend: resp.risk_trend ?? "stable",
         recommended_action: resp.recommended_action ?? "no_action",
         active_signals: resp.active_signals ?? [],
+        signal_codes: signalCodes,
         processed_at: new Date().toISOString(),
       };
 

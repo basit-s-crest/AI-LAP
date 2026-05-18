@@ -22,4 +22,5 @@ export interface CoachPublicDTO {
   bio: string | null;      // org affiliation
   speciality: string | null;
   isActive: boolean;
+  onDemand: boolean;       // mirrors isActive — true = available for sessions
 }

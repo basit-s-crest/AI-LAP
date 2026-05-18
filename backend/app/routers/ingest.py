@@ -356,6 +356,7 @@ async def ingest_chat(
         background_tasks = background_tasks,
         session_id       = payload.session_id,
         role             = payload.role,
+        original_source_id = payload.original_source_id,
     )
 
 

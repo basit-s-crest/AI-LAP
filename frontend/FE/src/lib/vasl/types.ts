@@ -30,6 +30,8 @@ export interface ChatJobPayload {
 
 // SSE event pushed to the dashboard
 export interface ScoreUpdateEvent {
+  event_id?: string;
+  original_source_id?: string;
   member_token: string;
   client_name: string;
   risk_tier: "low" | "moderate" | "high" | "crisis";
@@ -37,5 +39,6 @@ export interface ScoreUpdateEvent {
   risk_trend: "stable" | "increasing" | "decreasing";
   recommended_action: string;
   active_signals: Signal[];
+  signal_codes?: string[];
   processed_at: string;
 }

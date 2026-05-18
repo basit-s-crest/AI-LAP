@@ -6,6 +6,10 @@ import {
   generateToken,
   hashPassword,
 } from "../services/auth.service";
+import {
+  getActiveCoachesForMemberOrganization,
+  memberOrganizationHasActiveCoach,
+} from "../services/member-org-coach.service";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -134,13 +138,21 @@ export const loginCoach = async (
 
 /**
  * GET /api/coach/list
- * Returns all active coaches, sorted by name, with password stripped.
+ * Members: active coaches in their org (OrganizationCoach only). No org → [].
+ * Other authenticated roles: all active coaches (unchanged for staff flows).
  */
 export const listCoachesHandler = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
   try {
+    const role = req.user?.role;
+
+    if (role === "member" && req.user?.id) {
+      const coaches = await getActiveCoachesForMemberOrganization(req.user.id);
+      return res.status(200).json({ coaches: coaches.map(sanitizeCoach) });
+    }
+
     const coaches = await prisma.coach.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -149,6 +161,61 @@ export const listCoachesHandler = async (
     return res.status(200).json({ coaches: coaches.map(sanitizeCoach) });
   } catch (error) {
     console.error("[listCoachesHandler]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * GET /api/coach/:coachId
+ * Member: coach must be in member's org (OrganizationCoach). No org → 403.
+ * Coach: only own profile. Organization: coach must be assigned to JWT orgId.
+ */
+export const getCoachPublicByIdHandler = async (
+  req: Request<{ coachId: string }>,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coachId = req.params.coachId;
+    const u = req.user;
+
+    if (!u?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (u.role === "member") {
+      const ok = await memberOrganizationHasActiveCoach(u.id, coachId);
+      if (!ok) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+    } else if (u.role === "coach") {
+      if (u.id !== coachId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+    } else if (u.role === "organization") {
+      if (!u.orgId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const link = await prisma.organizationCoach.findUnique({
+        where: {
+          organizationId_coachId: { organizationId: u.orgId, coachId },
+        },
+        include: { coach: true },
+      });
+      if (!link?.coach?.isActive) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+    }
+
+    const coach = await prisma.coach.findFirst({
+      where: { id: coachId, isActive: true },
+    });
+    if (!coach) {
+      return res.status(404).json({ message: "Coach not found" });
+    }
+
+    return res.status(200).json({ coach: sanitizeCoach(coach) });
+  } catch (error) {
+    console.error("[getCoachPublicByIdHandler]", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -181,6 +248,13 @@ export const assignCoachHandler = async (
     const coach = await prisma.coach.findUnique({ where: { id: coachId } });
     if (!coach || !coach.isActive) {
       return res.status(404).json({ message: "Coach not found" });
+    }
+
+    if (req.user?.role === "member") {
+      const inOrg = await memberOrganizationHasActiveCoach(userId, coachId);
+      if (!inOrg) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
     }
 
     // Verify the member's own User record still exists (guards against stale JWTs
@@ -256,6 +330,65 @@ export const getMyMembers = async (
     return res.status(200).json({ members });
   } catch (error) {
     console.error("[getMyMembers]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// ─── On-Demand Status ─────────────────────────────────────────────────────────
+
+/**
+ * GET /api/coach/on-demand
+ * Coach only. Returns the current on-demand (isActive) status.
+ */
+export const getOnDemandStatus = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId) return res.status(401).json({ message: "Unauthorized" });
+
+    const coach = await prisma.coach.findUnique({
+      where: { id: coachId },
+      select: { isActive: true },
+    });
+
+    if (!coach) return res.status(404).json({ message: "Coach not found" });
+
+    return res.status(200).json({ onDemand: coach.isActive });
+  } catch (error) {
+    console.error("[getOnDemandStatus]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * PATCH /api/coach/on-demand
+ * Coach only. Updates the on-demand (isActive) status.
+ * Body: { onDemand: boolean }
+ */
+export const setOnDemandStatus = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId) return res.status(401).json({ message: "Unauthorized" });
+
+    const { onDemand } = req.body as { onDemand: boolean };
+    if (typeof onDemand !== "boolean") {
+      return res.status(400).json({ message: "onDemand must be a boolean" });
+    }
+
+    const coach = await prisma.coach.update({
+      where: { id: coachId },
+      data: { isActive: onDemand },
+      select: { isActive: true },
+    });
+
+    return res.status(200).json({ onDemand: coach.isActive });
+  } catch (error) {
+    console.error("[setOnDemandStatus]", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -2,6 +2,9 @@ import { Request, Response } from "express";
 
 import prisma from "../lib/prisma";
 import {
+  getActiveCoachesForMemberOrganization,
+} from "../services/member-org-coach.service";
+import {
   compareOtp,
   comparePassword,
   generateToken,
@@ -295,14 +298,21 @@ export const forgotPassword = async (
 
 /**
  * GET /api/auth/coaches
- * Returns a minimal list of all coaches: [{ id, name }]
- * Auth-protected — any authenticated user may call this.
+ * Members: coaches in their org via OrganizationCoach only (id + name). No org → [].
+ * Other roles: all coaches (minimal fields) for admin/staff flows.
  */
 export const getCoaches = async (
-  _req: Request,
+  req: Request,
   res: Response
 ): Promise<Response> => {
   try {
+    if (req.user?.role === "member" && req.user.id) {
+      const coaches = await getActiveCoachesForMemberOrganization(req.user.id);
+      return res.status(200).json(
+        coaches.map((c) => ({ id: c.id, name: c.name }))
+      );
+    }
+
     const coaches = await prisma.coach.findMany({
       select: { id: true, name: true },
       orderBy: { name: "asc" },

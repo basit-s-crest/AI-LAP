@@ -1,10 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/Card";
 import { StatsCard } from "@/components/cards/StatsCard";
-import { useAppDispatch, useAppSelector } from "@/hooks/redux";
-import { setOnDemand } from "@/store/slices/coachSlice";
 import { cn } from "@/lib/cn";
 import api from "@/lib/api";
 import type { ConversationSummary } from "@/types/coachMessage";
@@ -44,8 +44,29 @@ function Toggle({ on }: { on: boolean }) {
 }
 
 export function CoachDashboardHome() {
-  const dispatch = useAppDispatch();
-  const onDemand = useAppSelector((s) => s.coach.onDemand);
+  const [onDemand, setOnDemandLocal] = useState(false);
+
+  // Load initial on-demand status from the API
+  useEffect(() => {
+    api
+      .get<{ onDemand: boolean }>("/api/coach/on-demand")
+      .then(({ data }) => setOnDemandLocal(data.onDemand))
+      .catch(() => { /* silently ignore — default stays false */ });
+  }, []);
+
+  const handleToggle = async () => {
+    const next = !onDemand;
+    try {
+      const { data } = await api.patch<{ onDemand: boolean }>("/api/coach/on-demand", {
+        onDemand: next,
+      });
+      setOnDemandLocal(data.onDemand);
+      toast.success("Status updated");
+    } catch {
+      toast.error("Failed to update");
+    }
+  };
+
   const { data: members = [], isLoading: membersLoading } = useQuery({
     queryKey: ["coach", "members"],
     queryFn: async (): Promise<CoachMember[]> => {
@@ -159,7 +180,7 @@ export function CoachDashboardHome() {
                 <div className="text-sm font-semibold">Available for sessions</div>
                 <div className="text-xs text-dim">Members can reach you now</div>
               </div>
-              <button type="button" onClick={() => dispatch(setOnDemand(!onDemand))}>
+              <button type="button" onClick={handleToggle}>
                 <Toggle on={onDemand} />
               </button>
             </div>

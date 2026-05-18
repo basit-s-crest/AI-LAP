@@ -10,6 +10,26 @@ import { useCoachMessages } from "@/hooks/useCoachMessages";
 import { useCoachSocket } from "@/hooks/useCoachSocket";
 import type { ConversationSummary, CoachMessageDTO } from "@/types/coachMessage";
 import type { ScoreUpdateEvent } from "@/lib/vasl/types";
+import {
+  loadRiskCache,
+  mergeRiskCache,
+  riskFromMessageDto,
+  type MessageRiskMeta,
+} from "@/lib/msgRiskCache";
+
+const TIER_EMOJI: Record<string, string> = {
+  crisis: "🔴",
+  high: "🟠",
+  moderate: "🟡",
+  low: "🟢",
+};
+
+const TIER_BADGE_PILL: Record<string, { bg: string; text: string }> = {
+  low: { bg: "#e8f5e9", text: "#2e7d32" },
+  moderate: { bg: "#fff8e1", text: "#f57f17" },
+  high: { bg: "#fff3e0", text: "#e65100" },
+  crisis: { bg: "#ffebee", text: "#c62828" },
+};
 
 // ── Tier colours ───────────────────────────────────────────────────────────
 const TIER_COLORS: Record<string, string> = {
@@ -36,6 +56,7 @@ export default function CoachMessagesPage() {
   const [showBanner, setShowBanner]     = useState(false);
   // Track unread counts locally so read_receipt can update them in real time
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [riskByMessageId, setRiskByMessageId] = useState<Record<string, MessageRiskMeta>>({});
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
 
@@ -100,6 +121,29 @@ export default function CoachMessagesPage() {
     },
   });
 
+  // ── Risk cache: load on partner change ───────────────────────────────────
+  useEffect(() => {
+    if (!selectedId) {
+      setRiskByMessageId({});
+      return;
+    }
+    setRiskByMessageId(loadRiskCache(selectedId));
+  }, [selectedId]);
+
+  // ── Merge API thread risk into cache when messages refresh ───────────────
+  useEffect(() => {
+    if (!selectedId || messages.length === 0) return;
+    const fromApi: Record<string, MessageRiskMeta> = {};
+    for (const msg of messages) {
+      if (msg.senderRole !== "member") continue;
+      const meta = riskFromMessageDto(msg);
+      if (meta) fromApi[msg.id] = meta;
+    }
+    if (Object.keys(fromApi).length === 0) return;
+    const merged = mergeRiskCache(selectedId, fromApi);
+    setRiskByMessageId(merged);
+  }, [selectedId, messages]);
+
   // ── Select conversation ────────────────────────────────────────────────
   const selectConversation = useCallback((partnerId: string) => {
     setSelectedId(partnerId);
@@ -124,12 +168,29 @@ export default function CoachMessagesPage() {
           setLatestUpdate(update);
           setShowBanner(true);
           setTimeout(() => setShowBanner(false), 8000);
+
+          const messageId = update.original_source_id;
+          if (messageId && selectedId && update.member_token === selectedId) {
+            const meta: MessageRiskMeta = {
+              risk_tier: update.risk_tier,
+              risk_score: update.risk_score,
+              signal_codes:
+                update.signal_codes ??
+                update.active_signals?.map((s) => s.signal_code).filter(Boolean) ??
+                [],
+            };
+            setRiskByMessageId((prev) => {
+              const merged = { ...prev, [messageId]: meta };
+              mergeRiskCache(selectedId, { [messageId]: meta });
+              return merged;
+            });
+          }
         }
       } catch { /* ignore */ }
     };
     es.onerror = () => { /* SSE auto-reconnects */ };
     return () => es.close();
-  }, []);
+  }, [selectedId]);
 
   // ── Auto-scroll ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -292,7 +353,13 @@ export default function CoachMessagesPage() {
                     <p className="text-sm text-dim">No messages yet. Start the conversation!</p>
                   </div>
                 ) : (
-                  messages.map((msg) => (
+                  messages.map((msg) => {
+                    const msgRisk =
+                      msg.senderRole === "member"
+                        ? riskByMessageId[msg.id] ?? riskFromMessageDto(msg)
+                        : null;
+                    const topSignals = msgRisk?.signal_codes?.slice(0, 2) ?? [];
+                    return (
                     <div
                       key={msg.id}
                       className={cn(
@@ -313,11 +380,31 @@ export default function CoachMessagesPage() {
                       >
                         {msg.content}
                       </div>
+                      {msgRisk && (() => {
+                        const pill =
+                          TIER_BADGE_PILL[msgRisk.risk_tier] ?? TIER_BADGE_PILL.low;
+                        return (
+                          <div
+                            className="risk-badge mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                            style={{ backgroundColor: pill.bg, color: pill.text }}
+                          >
+                            <span>{TIER_EMOJI[msgRisk.risk_tier] ?? "🟢"}</span>
+                            <span>
+                              {msgRisk.risk_tier.toUpperCase()} (
+                              {(msgRisk.risk_score * 100).toFixed(0)}%)
+                              {topSignals.length > 0 && (
+                                <> • {topSignals.join(" ")}</>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })()}
                       <div className={cn("mt-1 text-[10px] text-dim", msg.senderRole === "coach" && "text-right")}>
                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </>
             )}

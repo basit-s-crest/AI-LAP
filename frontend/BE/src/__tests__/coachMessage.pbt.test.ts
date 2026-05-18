@@ -209,7 +209,7 @@ describe("Property 13.5: Sentiment payload truncation", () => {
           mockFetch.mockClear();
           mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
           const message = makeMessage({ content });
-          forwardToSentiment(message);
+          forwardToSentiment(message, message.id);
           await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -230,7 +230,7 @@ describe("Property 13.5: Sentiment payload truncation", () => {
           mockFetch.mockClear();
           mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
           const message = makeMessage({ content });
-          forwardToSentiment(message);
+          forwardToSentiment(message, message.id);
           await new Promise((resolve) => setTimeout(resolve, 10));
 
           const body = JSON.parse(mockFetch.mock.calls[0][1].body);

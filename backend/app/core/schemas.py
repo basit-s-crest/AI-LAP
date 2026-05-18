@@ -118,6 +118,7 @@ class ChatIn(BaseModel):
     text:           str = Field(..., max_length=500)
     timestamp:      datetime
     consent_active: bool
+    original_source_id: Optional[str] = None
 
 
 class AssessmentIn(BaseModel):

@@ -227,15 +227,20 @@ model Mood {
 // ─── Sessions ─────────────────────────────────────────────────────────────────
 
 model Session {
-  id        String   @id @default(cuid())
-  coachId   String
-  memberId  String
-  date      DateTime
-  duration  Int      @default(50)
-  type      String   @default("Weekly Check-in")
-  status    String   @default("upcoming")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String    @id @default(cuid())
+  coachId           String
+  memberId          String
+  scheduledAt       DateTime
+  endAt             DateTime?
+  duration          Int       @default(50)
+  type              String    @default("Weekly Check-in")
+  status            String    @default("upcoming")
+  notes             String?
+  cancelledBy       String?
+  rescheduleRequest DateTime?
+  rescheduleBy      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 // ─── Coach Availability ───────────────────────────────────────────────────────

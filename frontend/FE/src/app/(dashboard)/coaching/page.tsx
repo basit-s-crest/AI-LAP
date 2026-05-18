@@ -29,14 +29,21 @@ export default function CoachingPage() {
           </div>
         )}
 
-        {!isLoading && !isError && coaches?.map((c) => (
-          <CoachCard
-            key={c.id}
-            coach={c}
-            onMessage={() => assignAndNavigate(c.id)}
-            disabled={isPending && pendingCoachId === c.id}
-          />
-        ))}
+        {!isLoading && !isError && coaches?.length === 0 && (
+          <div className="rounded-card border border-line bg-card/60 p-6 text-center text-sm text-mid">
+            No coaches available for your organization
+          </div>
+        )}
+
+        {!isLoading && !isError &&
+          coaches?.map((c) => (
+            <CoachCard
+              key={c.id}
+              coach={c}
+              onMessage={() => assignAndNavigate(c.id)}
+              disabled={isPending && pendingCoachId === c.id}
+            />
+          ))}
       </div>
     </DashboardLayout>
   );

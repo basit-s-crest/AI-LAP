@@ -12,7 +12,7 @@ export const queryKeys = {
   coaches: {
     all: coachesRoot,
     list: () => [...coachesRoot, "list"] as const,
-    detail: (id: number) => [...coachesRoot, "detail", id] as const,
+    detail: (id: string) => [...coachesRoot, "detail", id] as const,
   },
   organizations: {
     all: organizationsRoot,

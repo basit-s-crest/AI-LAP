@@ -6,6 +6,8 @@ import {
   getCoachSessions,
   bookSession,
   getMemberSessions,
+  cancelSession,
+  rescheduleSession,
 } from "../controllers/session.controller";
 
 const router = Router();
@@ -24,5 +26,8 @@ router.post("/book", authMiddleware, bookSession);
 
 // Any authenticated user — view their own sessions as a member
 router.get("/member", authMiddleware, getMemberSessions);
+
+router.patch("/:id/cancel", authMiddleware, cancelSession);
+router.patch("/:id/reschedule", authMiddleware, rescheduleSession);
 
 export default router;

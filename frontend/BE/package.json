@@ -38,6 +38,7 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
     "nodemailer": "^8.0.7",
+    "pg": "^8.20.0",
     "prisma": "^5.22.0",
     "socket.io": "^4.8.3"
   },
@@ -50,6 +51,7 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.6.2",
     "@types/nodemailer": "^8.0.0",
+    "@types/pg": "^8.20.0",
     "fast-check": "^4.7.0",
     "jest": "^30.4.2",
     "jest-mock-extended": "^4.0.1",

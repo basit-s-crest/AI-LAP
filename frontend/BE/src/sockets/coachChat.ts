@@ -61,7 +61,7 @@ export function registerCoachChatHandlers(io: Server, socket: Socket): void {
 
         // Sentiment — member messages only
         if (user.role === "member") {
-          forwardToSentiment(message);
+          forwardToSentiment(message, message.id);
         }
       } catch (err) {
         if (err instanceof ValidationError || err instanceof AssignmentError) {
