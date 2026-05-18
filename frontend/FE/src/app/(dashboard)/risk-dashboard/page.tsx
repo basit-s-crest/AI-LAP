@@ -41,22 +41,7 @@ const TIER_EMOJI: Record<string, string> = {
   crisis:   "🔴",
 };
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-function loadPersistedState(): PersistedState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as PersistedState;
-  } catch { /* ignore */ }
-  return {
-    scores:     {},
-    history:    {},
-    events:     [],
-    totalCount: 0,
-    tierTotals: { low: 0, moderate: 0, high: 0, crisis: 0 },
-  };
-}
-
-// ── Empty defaults (used for SSR and initial client render) ───────────────
+// ── Empty defaults ──────────────────────────────────────────────────────────
 const EMPTY_STATE: PersistedState = {
   scores:     {},
   history:    {},
@@ -67,8 +52,6 @@ const EMPTY_STATE: PersistedState = {
 
 // ── Page ───────────────────────────────────────────────────────────────────
 export default function RiskDashboardPage() {
-  // Always start with empty defaults so server and client render identically,
-  // then hydrate from localStorage in a useEffect (after mount).
   const [scores, setScores]         = useState<Record<string, ScoreUpdateEvent>>(EMPTY_STATE.scores);
   const [history, setHistory]       = useState<Record<string, HistoryEntry[]>>(EMPTY_STATE.history);
   const [events, setEvents]         = useState<Array<{ text: string; time: string; tier: string }>>(EMPTY_STATE.events);
@@ -77,23 +60,53 @@ export default function RiskDashboardPage() {
   const [totalCount, setTotalCount] = useState(EMPTY_STATE.totalCount);
   const [tierTotals, setTierTotals] = useState(EMPTY_STATE.tierTotals);
 
-  // Restore persisted state after mount (client-only, avoids SSR mismatch)
+  // Hydrate historical data from the Database on mount
   useEffect(() => {
-    const saved = loadPersistedState();
-    setScores(saved.scores);
-    setHistory(saved.history);
-    setEvents(saved.events);
-    setTotalCount(saved.totalCount);
-    setTierTotals(saved.tierTotals);
-  }, []);
+    const { default: api } = require("@/lib/api");
 
-  // ── Persist to localStorage whenever state changes ────────────────────────
-  useEffect(() => {
-    try {
-      const state: PersistedState = { scores, history, events, totalCount, tierTotals };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch { /* quota exceeded or SSR — ignore */ }
-  }, [scores, history, events, totalCount, tierTotals]);
+    api.get("/api/coach/scores/history")
+      .then(({ data }: { data: ScoreUpdateEvent[] }) => {
+        const nextScores: Record<string, ScoreUpdateEvent> = {};
+        const nextHistory: Record<string, HistoryEntry[]> = {};
+        const nextEvents: Array<{ text: string; time: string; tier: string }> = [];
+        let nextTotalCount = 0;
+        const nextTierTotals = { low: 0, moderate: 0, high: 0, crisis: 0 };
+
+        // Replay history events in chronological order to populate states
+        data.forEach((update) => {
+          nextTotalCount++;
+          if (update.risk_tier in nextTierTotals) {
+            nextTierTotals[update.risk_tier]++;
+          }
+
+          nextScores[update.member_token] = update;
+
+          if (!nextHistory[update.member_token]) {
+            nextHistory[update.member_token] = [];
+          }
+          nextHistory[update.member_token].push({
+            score: update.risk_score,
+            tier:  update.risk_tier,
+            time:  new Date(update.processed_at).toLocaleTimeString(),
+          });
+
+          nextEvents.unshift({
+            text: `${update.client_name} — ${update.risk_tier.toUpperCase()} (${(update.risk_score * 100).toFixed(0)}%)`,
+            time: new Date(update.processed_at).toLocaleTimeString(),
+            tier: update.risk_tier,
+          });
+        });
+
+        setScores(nextScores);
+        setHistory(nextHistory);
+        setEvents(nextEvents);
+        setTotalCount(nextTotalCount);
+        setTierTotals(nextTierTotals);
+      })
+      .catch((err: any) => {
+        console.error("Failed to load historical risk data:", err);
+      });
+  }, []);
 
   // ── SSE connection ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -159,7 +172,6 @@ export default function RiskDashboardPage() {
     setEvents([]);
     setTotalCount(0);
     setTierTotals({ low: 0, moderate: 0, high: 0, crisis: 0 });
-    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   }
 
   return (

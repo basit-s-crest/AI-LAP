@@ -21,7 +21,6 @@ Usage (from ingest.py):
         session_id   = payload.session_id,
         role         = payload.role,
         source_type  = "chat",
-        raw_text     = payload.text,
         stage_num    = 1,
         stage_name   = "fastapi_received",
         started_at   = t_received,
@@ -52,7 +51,6 @@ async def log_stage(
     member_token:  str,
     org_id:        str,
     source_type:   str,
-    raw_text:      str,
     stage_num:     int,
     stage_name:    str,
     started_at:    datetime,
@@ -85,7 +83,6 @@ async def log_stage(
                     "session_id":    session_id,
                     "role":          role,
                     "source_type":   source_type,
-                    "raw_text":      raw_text[:2000],   # cap at 2000 chars
                     "stage_num":     stage_num,
                     "stage_name":    stage_name,
                     "started_at":    started_at,
@@ -110,14 +107,14 @@ from sqlalchemy import text as _text
 _INSERT_SQL = _text("""
     INSERT INTO pipeline_stage_logs (
         event_id, request_id,
-        member_token, org_id, session_id, role, source_type, raw_text,
+        member_token, org_id, session_id, role, source_type,
         stage_num, stage_name,
         started_at, finished_at, duration_ms,
         status, error_message,
         risk_tier, risk_score, risk_trend
     ) VALUES (
         :event_id, :request_id,
-        :member_token, :org_id, :session_id, :role, :source_type, :raw_text,
+        :member_token, :org_id, :session_id, :role, :source_type,
         :stage_num, :stage_name,
         :started_at, :finished_at, :duration_ms,
         :status, :error_message,

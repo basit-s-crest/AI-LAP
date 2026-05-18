@@ -5,6 +5,7 @@ import prisma from "../lib/prisma";
 
 interface ChatIngestPayload {
   event_id: string;
+  message_id: string;
   org_id: string;
   member_token: string;
   session_id: string;
@@ -147,6 +148,7 @@ export function forwardToSentiment(message: CoachMessage): void {
   void (async () => {
     const payload: ChatIngestPayload = {
       event_id: randomUUID(),
+      message_id: message.id,
       org_id: process.env.PYTHON_ORG_ID ?? "org_default",
       member_token: message.userId,
       session_id: `${message.userId}_${message.coachId}`,

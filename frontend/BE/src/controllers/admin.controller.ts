@@ -1161,3 +1161,50 @@ export const adminGetMoodDistribution = async (
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const adminGetScoresHistory = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const orgId = process.env.PYTHON_ORG_ID ?? "org_default";
+    const pythonUrl = `${process.env.PYTHON_BACKEND_URL}/v1/admin/events/${orgId}?limit=100`;
+
+    const response = await fetch(pythonUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch from Python backend: ${response.statusText}`);
+    }
+    const rawEvents: any = await response.json();
+
+    const tokens = Array.from(new Set(rawEvents.map((e: any) => e.member_token))) as string[];
+
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: tokens }
+      },
+      select: {
+        id: true,
+        name: true
+      }
+    });
+
+    const nameMap = new Map(users.map(u => [u.id, u.name]));
+
+    const history = rawEvents.map((e: any) => ({
+      member_token: e.member_token,
+      client_name: nameMap.get(e.member_token) ?? "Member",
+      risk_tier: e.risk_tier,
+      risk_score: e.risk_score,
+      risk_trend: e.risk_trend ?? "stable",
+      recommended_action: e.recommended_action ?? "no_action",
+      active_signals: e.active_signals ?? [],
+      processed_at: e.event_timestamp
+    }));
+
+    return res.status(200).json(history);
+  } catch (error) {
+    console.error("[adminGetScoresHistory]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+

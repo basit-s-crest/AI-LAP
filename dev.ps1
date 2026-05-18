@@ -6,7 +6,7 @@
 #    1. FE        - Next.js dev server     http://localhost:3000
 #    2. FE Worker - BullMQ worker
 #    3. BE        - Node/Express API       http://localhost:5000
-#    4. Python    - FastAPI (uvicorn)      http://localhost:8000
+#    4. Python    - FastAPI (uvicorn)      http://localhost:8001
 #
 #  Usage:
 #    .\dev.ps1
@@ -81,7 +81,7 @@ Write-Host "  [4/4] Python    - FastAPI        (http://localhost:8000)" -Foregro
 Start-Process powershell -ArgumentList "-NoExit", "-Command", @"
     `$host.UI.RawUI.WindowTitle = 'VASL | Python - FastAPI'
     Write-Host '================================================' -ForegroundColor Blue
-    Write-Host '  Python - FastAPI  :8000  /docs' -ForegroundColor Blue
+    Write-Host '  Python - FastAPI  :8001  /docs' -ForegroundColor Blue
     Write-Host '================================================' -ForegroundColor Blue
     cd '$root\backend'
     if (Test-Path '.venv\Scripts\Activate.ps1') {
@@ -93,7 +93,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", @"
     } else {
         Write-Host '  [!!] No venv found - using system Python' -ForegroundColor Yellow
     }
-    uvicorn main:app --reload --loop asyncio --port 8000
+    uvicorn main:app --reload --loop asyncio --port 8001
 "@
 
 # Summary
@@ -103,7 +103,7 @@ Write-Host "   All 4 services launched!" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "   FE        ->  http://localhost:3000" -ForegroundColor Green
 Write-Host "   BE        ->  http://localhost:5000" -ForegroundColor Magenta
-Write-Host "   Python    ->  http://localhost:8000" -ForegroundColor Blue
-Write-Host "   API Docs  ->  http://localhost:8000/docs" -ForegroundColor Blue
+Write-Host "   Python    ->  http://localhost:8001" -ForegroundColor Blue
+Write-Host "   API Docs  ->  http://localhost:8001/docs" -ForegroundColor Blue
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""

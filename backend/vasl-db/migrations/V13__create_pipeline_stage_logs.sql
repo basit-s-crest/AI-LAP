@@ -25,7 +25,6 @@ CREATE TABLE pipeline_stage_logs (
     session_id      VARCHAR(64),
     role            VARCHAR(16),
     source_type     VARCHAR(32)  NOT NULL,
-    raw_text        TEXT,
 
     -- ── Stage identity ────────────────────────────────────────
     stage_num       SMALLINT     NOT NULL,

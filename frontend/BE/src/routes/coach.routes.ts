@@ -7,6 +7,7 @@ import {
   loginCoach,
   registerCoach,
 } from "../controllers/coach.controller";
+import { adminGetScoresHistory } from "../controllers/admin.controller";
 import { authMiddleware, requireRole } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -21,7 +22,8 @@ router.get("/list", listCoachesHandler);
 // Protected — member assigns themselves to a coach
 router.post("/assign", authMiddleware, assignCoachHandler);
 
-// Protected — coach only
+// Protected — coach / admin only
 router.get("/members", authMiddleware, requireRole("coach"), getMyMembers);
+router.get("/scores/history", authMiddleware, requireRole("coach", "superadmin"), adminGetScoresHistory);
 
 export default router;

@@ -130,6 +130,10 @@ class RequestLoggerMiddleware(BaseHTTPMiddleware):
                 "session_id":   request_body.get("session_id"),
                 "role":         request_body.get("role"),
             }
+            
+            # Do not store raw text in the database logs
+            request_body.pop("text", None)
+            request_body.pop("response_text", None)
 
         # ── Call the actual route ───────────────────────────────────────────
         status_code    = 500

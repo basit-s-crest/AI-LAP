@@ -209,3 +209,16 @@ class AdminSummaryOut(BaseModel):
     pending_reviews:     int
     overdue_reviews:     int
     top_signals:         List[TopSignalOut] = []
+
+
+class AdminRecentEventOut(BaseModel):
+    member_token:       str
+    event_id:           str
+    source_type:        str
+    event_timestamp:    datetime
+    risk_tier:          str
+    risk_score:         float
+    risk_trend:         Optional[str]
+    recommended_action: Optional[str]
+    active_signals:     List[SignalOut] = []
+

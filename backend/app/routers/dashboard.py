@@ -16,7 +16,7 @@ from typing import Optional
 from app.core.database import get_db
 from app.core.schemas import (
     MemberResultOut, EventOut, SignalOut, ShapOut,
-    AdminSummaryOut, TopSignalOut, RiskDistribution,
+    AdminSummaryOut, TopSignalOut, RiskDistribution, AdminRecentEventOut,
 )
 from app.core import crud
 from app.core.cache import (
@@ -137,4 +137,45 @@ async def get_admin_summary(
 
     await set_admin_cache(org_id, result.model_dump())
 
+    return result
+
+
+@router.get("/admin/events/{org_id}", response_model=list[AdminRecentEventOut])
+async def get_admin_recent_events(
+    org_id: str,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns the most recent risk events across an organization.
+    Useful for hydrating the live dashboard on page reload.
+    """
+    rows = await crud.get_admin_recent_events(db, org_id, limit)
+    
+    result = []
+    for row in rows:
+        event = row["event"]
+        token = row["member_token"]
+        
+        result.append(
+            AdminRecentEventOut(
+                member_token       = token,
+                event_id           = event.event_id,
+                source_type        = event.source_type,
+                event_timestamp    = event.event_timestamp,
+                risk_tier          = event.risk_tier,
+                risk_score         = float(event.risk_score),
+                risk_trend         = event.risk_trend,
+                recommended_action = event.recommended_action,
+                active_signals     = [
+                    SignalOut(
+                        signal_code  = s.signal_code,
+                        signal_label = s.signal_label,
+                        confidence   = float(s.confidence),
+                        dimension    = s.dimension,
+                    ) for s in event.signals
+                ] if event.signals else []
+            )
+        )
+        
     return result

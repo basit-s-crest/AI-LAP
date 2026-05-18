@@ -234,3 +234,28 @@ async def get_admin_summary(db: AsyncSession, org_id: str):
         "top_signals":       top_signals,
         "distribution":      distribution,
     }
+
+
+# ── Dashboard: admin recent events ────────────────────────────────────────────
+
+async def get_admin_recent_events(db: AsyncSession, org_id: str, limit: int = 50):
+    query = (
+        select(InferenceEvent, Member.member_token)
+        .join(Member, Member.id == InferenceEvent.member_id)
+        .where(Member.org_id == org_id)
+        .order_by(InferenceEvent.event_timestamp.asc()) # Ascending so we can replay history in order
+        .limit(limit)
+        .options(
+            selectinload(InferenceEvent.signals)
+        )
+    )
+    result = await db.execute(query)
+    rows = result.all()
+    
+    events = []
+    for event, token in rows:
+        events.append({
+            "event": event,
+            "member_token": token
+        })
+    return events
