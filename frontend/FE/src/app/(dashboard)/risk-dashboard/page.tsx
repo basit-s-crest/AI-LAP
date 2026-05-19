@@ -3,8 +3,24 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import type { ScoreUpdateEvent } from "@/lib/vasl/types";
-import { useRiskScoreStream } from "@/hooks/useRiskScoreStream";
-import { clearRiskDashboard, loadRiskDashboardState } from "@/lib/riskEventStore";
+
+// ── Types ──────────────────────────────────────────────────────────────────
+interface HistoryEntry {
+  score: number;
+  tier:  string;
+  time:  string;
+}
+
+interface PersistedState {
+  scores:     Record<string, ScoreUpdateEvent>;
+  history:    Record<string, HistoryEntry[]>;
+  events:     Array<{ text: string; time: string; tier: string }>;
+  totalCount: number;
+  tierTotals: { low: number; moderate: number; high: number; crisis: number };
+}
+
+// ── Constants ──────────────────────────────────────────────────────────────
+const STORAGE_KEY = "vasl_risk_dashboard_v1";
 
 const TIER_COLORS: Record<string, string> = {
   low:      "#4E8C58",
@@ -25,25 +41,138 @@ const TIER_EMOJI: Record<string, string> = {
   crisis:   "🔴",
 };
 
-export default function RiskDashboardPage() {
-  const { dashboard, connected, lastPing } = useRiskScoreStream();
-  const [hydrated, setHydrated] = useState(false);
+// ── Empty defaults ──────────────────────────────────────────────────────────
+const EMPTY_STATE: PersistedState = {
+  scores:     {},
+  history:    {},
+  events:     [],
+  totalCount: 0,
+  tierTotals: { low: 0, moderate: 0, high: 0, crisis: 0 },
+};
 
+// ── Page ───────────────────────────────────────────────────────────────────
+export default function RiskDashboardPage() {
+  const [scores, setScores]         = useState<Record<string, ScoreUpdateEvent>>(EMPTY_STATE.scores);
+  const [history, setHistory]       = useState<Record<string, HistoryEntry[]>>(EMPTY_STATE.history);
+  const [events, setEvents]         = useState<Array<{ text: string; time: string; tier: string }>>(EMPTY_STATE.events);
+  const [connected, setConnected]   = useState(false);
+  const [lastPing, setLastPing]     = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(EMPTY_STATE.totalCount);
+  const [tierTotals, setTierTotals] = useState(EMPTY_STATE.tierTotals);
+
+  // Hydrate historical data from the Database on mount
   useEffect(() => {
-    setHydrated(true);
+    const { default: api } = require("@/lib/api");
+
+    api.get("/api/coach/scores/history")
+      .then(({ data }: { data: ScoreUpdateEvent[] }) => {
+        const nextScores: Record<string, ScoreUpdateEvent> = {};
+        const nextHistory: Record<string, HistoryEntry[]> = {};
+        const nextEvents: Array<{ text: string; time: string; tier: string }> = [];
+        let nextTotalCount = 0;
+        const nextTierTotals = { low: 0, moderate: 0, high: 0, crisis: 0 };
+
+        // Replay history events in chronological order to populate states
+        data.forEach((update) => {
+          nextTotalCount++;
+          if (update.risk_tier in nextTierTotals) {
+            nextTierTotals[update.risk_tier]++;
+          }
+
+          nextScores[update.member_token] = update;
+
+          if (!nextHistory[update.member_token]) {
+            nextHistory[update.member_token] = [];
+          }
+          nextHistory[update.member_token].push({
+            score: update.risk_score,
+            tier:  update.risk_tier,
+            time:  new Date(update.processed_at).toLocaleTimeString(),
+          });
+
+          nextEvents.unshift({
+            text: `${update.client_name} — ${update.risk_tier.toUpperCase()} (${(update.risk_score * 100).toFixed(0)}%)`,
+            time: new Date(update.processed_at).toLocaleTimeString(),
+            tier: update.risk_tier,
+          });
+        });
+
+        setScores(nextScores);
+        setHistory(nextHistory);
+        setEvents(nextEvents);
+        setTotalCount(nextTotalCount);
+        setTierTotals(nextTierTotals);
+      })
+      .catch((err: any) => {
+        console.error("Failed to load historical risk data:", err);
+      });
   }, []);
 
-  const { scores, history, events, totalCount, tierTotals } = hydrated
-    ? dashboard
-    : loadRiskDashboardState();
+  // ── SSE connection ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const es = new EventSource("/api/scores/stream");
+
+    es.onopen = () => setConnected(true);
+
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+
+        if (data.type === "connected") {
+          setConnected(true);
+          setLastPing(new Date().toLocaleTimeString());
+          return;
+        }
+
+        if (data.type === "score_update" && data.payload) {
+          const update: ScoreUpdateEvent = data.payload;
+
+          setTotalCount((n) => n + 1);
+          setTierTotals((prev) => ({
+            ...prev,
+            [update.risk_tier]: (prev[update.risk_tier] ?? 0) + 1,
+          }));
+          setScores((prev) => ({ ...prev, [update.member_token]: update }));
+          setHistory((prev) => {
+            const existing = prev[update.member_token] ?? [];
+            return {
+              ...prev,
+              [update.member_token]: [
+                ...existing.slice(-19),
+                {
+                  score: update.risk_score,
+                  tier:  update.risk_tier,
+                  time:  new Date(update.processed_at).toLocaleTimeString(),
+                },
+              ],
+            };
+          });
+          setEvents((prev) => [
+            {
+              text: `${update.client_name} — ${update.risk_tier.toUpperCase()} (${(update.risk_score * 100).toFixed(0)}%)`,
+              time: new Date().toLocaleTimeString(),
+              tier: update.risk_tier,
+            },
+            ...prev.slice(0, 49),
+          ]);
+          setLastPing(new Date().toLocaleTimeString());
+        }
+      } catch { /* ignore parse errors */ }
+    };
+
+    es.onerror = () => setConnected(false);
+    return () => es.close();
+  }, []);
+
+  const scoreList = Object.values(scores).sort((a, b) => b.risk_score - a.risk_score);
 
   function clearHistory() {
-    clearRiskDashboard();
+    setScores({});
+    setHistory({});
+    setEvents([]);
+    setTotalCount(0);
+    setTierTotals({ low: 0, moderate: 0, high: 0, crisis: 0 });
   }
-
-  const scoreList = Object.values(scores).sort(
-    (a, b) => b.risk_score - a.risk_score
-  ) as ScoreUpdateEvent[];
 
   return (
     <DashboardLayout
@@ -77,13 +206,14 @@ export default function RiskDashboardPage() {
         </div>
       }
     >
+      {/* ── Stats row ── */}
       <div className="mb-5 grid grid-cols-5 gap-4">
         {[
-          { label: "Total Analysed", value: totalCount,          color: "#4E8C58" },
-          { label: "Crisis",         value: tierTotals.crisis,   color: "#C0392B" },
-          { label: "High Risk",      value: tierTotals.high,     color: "#B35A38" },
-          { label: "Moderate",       value: tierTotals.moderate, color: "#B8832A" },
-          { label: "Low Risk",       value: tierTotals.low,      color: "#4E8C58" },
+          { label: "Total Analysed", value: totalCount,          color: "#4E8C58", bg: "#D4EDD7" },
+          { label: "Crisis",         value: tierTotals.crisis,   color: "#C0392B", bg: "#FAE0DC" },
+          { label: "High Risk",      value: tierTotals.high,     color: "#B35A38", bg: "#F5DDD4" },
+          { label: "Moderate",       value: tierTotals.moderate, color: "#B8832A", bg: "#F5E6C8" },
+          { label: "Low Risk",       value: tierTotals.low,      color: "#4E8C58", bg: "#D4EDD7" },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -104,6 +234,8 @@ export default function RiskDashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-5">
+
+        {/* ── Member score cards ── */}
         <div>
           <h2 className="mb-3 font-serif text-lg font-semibold text-ink">Member Risk Scores</h2>
 
@@ -112,8 +244,8 @@ export default function RiskDashboardPage() {
               <div className="mb-3 text-4xl">📡</div>
               <div className="mb-2 font-serif text-lg text-ink">Waiting for inference results</div>
               <p className="text-sm leading-relaxed text-dim">
-                Go to <strong>Messages</strong>, select a client, and have them send a message.
-                <br />Scores appear here in real time and persist after refresh.
+                Go to <strong>Messages</strong>, select Amara, and send a message.
+                <br />Scores will appear here in real-time via SSE.
               </p>
             </div>
           ) : (
@@ -146,6 +278,7 @@ export default function RiskDashboardPage() {
                     </div>
                   </div>
 
+                  {/* Sparkline */}
                   {hist.length > 1 && (
                     <div className="mb-3 flex h-10 items-end gap-0.5">
                       {hist.map((h, i) => (
@@ -194,6 +327,7 @@ export default function RiskDashboardPage() {
           )}
         </div>
 
+        {/* ── Activity log ── */}
         <div>
           <h2 className="mb-3 font-serif text-lg font-semibold text-ink">Live Activity Log</h2>
           <div className="overflow-hidden rounded-card border border-line bg-card">
@@ -210,7 +344,7 @@ export default function RiskDashboardPage() {
             <div className="max-h-[420px] overflow-y-auto">
               {events.length === 0 ? (
                 <div className="p-8 text-center text-sm text-dim">
-                  No events yet. Member messages in Messages update this log.
+                  No events yet. Go to Messages and send a message to Amara.
                 </div>
               ) : (
                 events.map((ev, i) => (
@@ -240,17 +374,18 @@ export default function RiskDashboardPage() {
             </div>
           </div>
 
+          {/* Pipeline explanation */}
           <div className="mt-4 rounded-card bg-sidebar p-5">
             <div className="mb-3 text-xs font-bold uppercase tracking-wider text-sage">
               How it works
             </div>
             {[
-              "Member sends a message in Messages (coach chat)",
-              "Node forwards to Python POST /v1/ingest/chat",
-              "OpenRouter LLM returns risk tier + signals",
-              "Result saved to PostgreSQL (vasl DB)",
-              "Node publishes to Redis → SSE → Messages + this dashboard",
-              "Data persists in browser storage across refresh",
+              "Coach sends a message in Messages page",
+              "POST /api/chat enqueues job into BullMQ",
+              "worker.mjs dequeues → calls Python FastAPI /v1/ingest/chat",
+              "FastAPI calls OpenRouter LLM → returns risk tier + signals",
+              "Result saved to PostgreSQL (background task)",
+              "Worker publishes to Redis → SSE → this dashboard updates",
             ].map((step, i) => (
               <div key={i} className="mb-2 flex gap-2.5">
                 <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sage text-[10px] font-bold text-white">
@@ -265,4 +400,3 @@ export default function RiskDashboardPage() {
     </DashboardLayout>
   );
 }
-

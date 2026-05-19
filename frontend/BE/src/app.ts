@@ -13,6 +13,7 @@ import moodRouter from "./routes/mood.routes";
 import orgRouter from "./routes/org.routes";
 import sessionRouter from "./routes/session.routes";
 import sessionNoteRouter from "./routes/sessionNote.routes";
+import onboardingRouter from "./routes/onboarding.routes";
 
 const app = express();
 
@@ -33,6 +34,8 @@ app.use("/api/mood", moodRouter);
 app.use("/api/org", orgRouter);
 app.use("/api/sessions", sessionRouter);
 app.use("/api/session-notes", sessionNoteRouter);
+app.use("/api/onboarding", onboardingRouter);
+
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_, res) => {

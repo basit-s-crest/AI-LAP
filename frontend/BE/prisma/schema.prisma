@@ -34,6 +34,7 @@ model User {
   organizationId   String?
   organization     Organization?     @relation(fields: [organizationId], references: [id])
   sessionNotes     SessionNote[]
+  onboardingAssessment OnboardingAssessment?
 }
 
 // ─── Email Verification OTP ───────────────────────────────────────────────────
@@ -271,3 +272,23 @@ model SessionNote {
   @@index([memberId])
   @@index([coachId, createdAt(sort: Desc)])
 }
+
+// ─── Onboarding Assessment ─────────────────────────────────────────────────────
+
+model OnboardingAssessment {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  age        String?
+  identity   String?
+  gender     String?
+  orient     String?
+  phqAnswers Int[]
+  phqScore   Int
+  gadAnswers Int[]
+  gadScore   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+

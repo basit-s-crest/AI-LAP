@@ -10,6 +10,8 @@ import { logout } from "@/store/slices/authSlice";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
+import { useQuery } from "@tanstack/react-query";
+import { onboardingService } from "@/services/onboarding.service";
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
@@ -42,6 +44,34 @@ export default function ProfilePage() {
     { l: "Daily Check-in", d: "Morning reminder at 9am", on: false },
     { l: "Weekly Summary", d: "Your weekly wellbeing report", on: true },
   ]);
+
+  const { data: assessment, isLoading } = useQuery({
+    queryKey: ["onboarding-assessment"],
+    queryFn: () => onboardingService.getMyAssessment(),
+  });
+
+  const getPhqLabel = (score: number, taken: boolean) => {
+    if (!taken) return { label: "Not taken", variant: "dim" as const };
+    if (score <= 4) return { label: "Minimal", variant: "sage" as const };
+    if (score <= 9) return { label: "Mild", variant: "gold" as const };
+    if (score <= 14) return { label: "Moderate", variant: "terra" as const };
+    if (score <= 19) return { label: "Mod. Severe", variant: "red" as const };
+    return { label: "Severe", variant: "red" as const };
+  };
+
+  const getGadLabel = (score: number, taken: boolean) => {
+    if (!taken) return { label: "Not taken", variant: "dim" as const };
+    if (score <= 4) return { label: "Minimal", variant: "sage" as const };
+    if (score <= 9) return { label: "Mild", variant: "gold" as const };
+    if (score <= 14) return { label: "Moderate", variant: "terra" as const };
+    return { label: "Severe", variant: "red" as const };
+  };
+
+  const hasPhq = !!(assessment && assessment.phqAnswers && assessment.phqAnswers.length > 0);
+  const hasGad = !!(assessment && assessment.gadAnswers && assessment.gadAnswers.length > 0);
+
+  const phqInfo = getPhqLabel(assessment?.phqScore ?? 0, hasPhq);
+  const gadInfo = getGadLabel(assessment?.gadScore ?? 0, hasGad);
 
   return (
     <DashboardLayout title="My Profile">
@@ -78,6 +108,8 @@ export default function ProfilePage() {
                   if (it.l === "Sign Out") {
                     dispatch(logout());
                     router.push("/");
+                  } else if (it.l === "Retake Assessments") {
+                    router.push("/onboarding");
                   }
                 }}
               >
@@ -120,19 +152,40 @@ export default function ProfilePage() {
             <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-dim">
               Assessment Scores
             </div>
-            {[
-              { l: "PHQ-8 (Depression)", v: "7/24", tag: "Mild", tc: "gold" as const },
-              { l: "GAD-7 (Anxiety)", v: "5/21", tag: "Mild", tc: "gold" as const },
-            ].map((a) => (
-              <div key={a.l} className="mb-3 flex items-center justify-between">
-                <div className="text-[13px] font-semibold">{a.l}</div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[15px] font-bold text-sage">{a.v}</span>
-                  <Badge variant={a.tc}>{a.tag}</Badge>
-                </div>
-              </div>
-            ))}
-            <Button variant="outline" size="sm" className="mt-1">
+            {isLoading ? (
+              <div className="py-4 text-center text-xs text-mid">Loading assessment scores...</div>
+            ) : (
+              <>
+                {[
+                  {
+                    l: "PHQ-8 (Depression)",
+                    v: hasPhq ? `${assessment?.phqScore}/24` : "—",
+                    tag: phqInfo.label,
+                    tc: phqInfo.variant,
+                  },
+                  {
+                    l: "GAD-7 (Anxiety)",
+                    v: hasGad ? `${assessment?.gadScore}/21` : "—",
+                    tag: gadInfo.label,
+                    tc: gadInfo.variant,
+                  },
+                ].map((a) => (
+                  <div key={a.l} className="mb-3 flex items-center justify-between">
+                    <div className="text-[13px] font-semibold">{a.l}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[15px] font-bold text-sage">{a.v}</span>
+                      <Badge variant={a.tc}>{a.tag}</Badge>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-1"
+              onClick={() => router.push("/onboarding")}
+            >
               Retake assessments →
             </Button>
           </Card>

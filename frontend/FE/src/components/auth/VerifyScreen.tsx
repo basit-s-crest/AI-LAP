@@ -34,7 +34,7 @@ export function VerifyScreen() {
       dispatch(setSession(session));
       toast.success("Email verified — welcome!");
       // Full navigation so the browser sends the new cookies to the middleware
-      window.location.href = "/dashboard";
+      window.location.href = "/onboarding";
     },
     onError: (e: Error) => {
       toast.error(e.message ?? "Invalid or expired code");

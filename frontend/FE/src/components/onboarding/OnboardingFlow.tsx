@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
 import { useAppSelector } from "@/hooks/redux";
 import { cn } from "@/lib/cn";
+import { onboardingService } from "@/services/onboarding.service";
 
 const PHQ_QS = [
   "Little interest or pleasure in doing things?",
@@ -53,26 +54,67 @@ export function OnboardingFlow() {
   const [qIdx, setQIdx] = useState(0);
   const [sel, setSel] = useState<number | null>(null);
   const [demos, setDemos] = useState<Record<string, string>>({});
+  const [phqAnswers, setPhqAnswers] = useState<number[]>([]);
+  const [gadAnswers, setGadAnswers] = useState<number[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const qs = assessType === "PHQ" ? PHQ_QS : GAD_QS;
+
+  const submitAssessmentResults = async (
+    finalDemos = demos,
+    finalPhq = phqAnswers,
+    finalGad = gadAnswers
+  ) => {
+    try {
+      await onboardingService.submit({
+        age: finalDemos.age || undefined,
+        identity: finalDemos.identity || undefined,
+        gender: finalDemos.gender || undefined,
+        orient: finalDemos.orient || undefined,
+        phqAnswers: finalPhq,
+        gadAnswers: finalGad,
+      });
+    } catch (error) {
+      console.error("Failed to submit onboarding assessment:", error);
+    }
+  };
 
   const advanceLikert = useCallback(
     (i: number) => {
       setSel(i);
-      setTimeout(() => {
+      setTimeout(async () => {
         setSel(null);
         if (qIdx + 1 < qs.length) {
+          if (assessType === "PHQ") {
+            setPhqAnswers((prev) => [...prev, i]);
+          } else {
+            setGadAnswers((prev) => [...prev, i]);
+          }
           setQIdx((x) => x + 1);
         } else if (assessType === "PHQ") {
+          setPhqAnswers((prev) => [...prev, i]);
           setAssessType("GAD");
           setQIdx(0);
         } else {
+          // GAD completed
+          const finalGad = [...gadAnswers, i];
+          setGadAnswers(finalGad);
+          setIsSubmitting(true);
+          await submitAssessmentResults(demos, phqAnswers, finalGad);
+          setIsSubmitting(false);
           setOnboardStep(2);
         }
       }, 360);
     },
-    [assessType, qIdx, qs.length]
+    [assessType, qIdx, qs.length, demos, phqAnswers, gadAnswers]
   );
+
+  const handleSkipAssessments = useCallback(async () => {
+    setIsSubmitting(true);
+    await submitAssessmentResults(demos, phqAnswers, gadAnswers);
+    setIsSubmitting(false);
+    setOnboardStep(2);
+  }, [demos, phqAnswers, gadAnswers]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-canvas px-6 py-10">
@@ -154,10 +196,12 @@ export function OnboardingFlow() {
                 <button
                   key={l}
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => advanceLikert(i)}
                   className={cn(
                     "flex-1 rounded-[11px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-1.5 py-3 text-center transition-all hover:border-sage hover:bg-sage-soft",
-                    sel === i && "border-sage bg-sage-tint"
+                    sel === i && "border-sage bg-sage-tint",
+                    isSubmitting && "pointer-events-none opacity-60"
                   )}
                 >
                   <div className={cn("text-xl font-bold text-ink", sel === i && "text-sage")}>
@@ -168,10 +212,10 @@ export function OnboardingFlow() {
               ))}
             </div>
             <p
-              className="mt-4 cursor-pointer text-center text-xs text-dim"
-              onClick={() => setOnboardStep(2)}
+              className="mt-4 cursor-pointer text-center text-xs text-dim hover:underline"
+              onClick={isSubmitting ? undefined : handleSkipAssessments}
             >
-              Skip assessments
+              {isSubmitting ? "Saving assessments..." : "Skip assessments"}
             </p>
           </Card>
         ) : null}
