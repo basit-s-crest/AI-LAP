@@ -9,13 +9,14 @@ import api from "@/lib/api";
 import { useCoachMessages } from "@/hooks/useCoachMessages";
 import { useCoachSocket } from "@/hooks/useCoachSocket";
 import type { ConversationSummary, CoachMessageDTO } from "@/types/coachMessage";
-import type { ScoreUpdateEvent } from "@/lib/vasl/types";
 import {
   loadRiskCache,
   mergeRiskCache,
   riskFromMessageDto,
   type MessageRiskMeta,
 } from "@/lib/msgRiskCache";
+import { subscribeRiskDashboard } from "@/lib/riskEventStore";
+import { useRiskScoreStream } from "@/hooks/useRiskScoreStream";
 
 const TIER_EMOJI: Record<string, string> = {
   crisis: "🔴",
@@ -51,9 +52,9 @@ export default function CoachMessagesPage() {
   const [selectedId, setSelectedId]     = useState<string | null>(null);
   const [inputText, setInputText]       = useState("");
   const [sending, setSending]           = useState(false);
-  const [scoreUpdates, setScoreUpdates] = useState<Record<string, ScoreUpdateEvent>>({});
-  const [latestUpdate, setLatestUpdate] = useState<ScoreUpdateEvent | null>(null);
   const [showBanner, setShowBanner]     = useState(false);
+  const { dashboard, latestUpdate } = useRiskScoreStream(selectedId);
+  const scoreUpdates = dashboard.scores;
   // Track unread counts locally so read_receipt can update them in real time
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [riskByMessageId, setRiskByMessageId] = useState<Record<string, MessageRiskMeta>>({});
@@ -156,41 +157,20 @@ export default function CoachMessagesPage() {
     }).catch(() => { /* ignore */ });
   }, [queryClient]);
 
-  // ── SSE: subscribe to score updates ──────────────────────────────────────
+  // Reload per-message badges when shared store updates (SSE or other tab)
   useEffect(() => {
-    const es = new EventSource("/api/scores/stream");
-    es.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (data.type === "score_update" && data.payload) {
-          const update: ScoreUpdateEvent = data.payload;
-          setScoreUpdates((prev) => ({ ...prev, [update.member_token]: update }));
-          setLatestUpdate(update);
-          setShowBanner(true);
-          setTimeout(() => setShowBanner(false), 8000);
-
-          const messageId = update.original_source_id;
-          if (messageId && selectedId && update.member_token === selectedId) {
-            const meta: MessageRiskMeta = {
-              risk_tier: update.risk_tier,
-              risk_score: update.risk_score,
-              signal_codes:
-                update.signal_codes ??
-                update.active_signals?.map((s) => s.signal_code).filter(Boolean) ??
-                [],
-            };
-            setRiskByMessageId((prev) => {
-              const merged = { ...prev, [messageId]: meta };
-              mergeRiskCache(selectedId, { [messageId]: meta });
-              return merged;
-            });
-          }
-        }
-      } catch { /* ignore */ }
-    };
-    es.onerror = () => { /* SSE auto-reconnects */ };
-    return () => es.close();
+    return subscribeRiskDashboard(() => {
+      if (selectedId) setRiskByMessageId(loadRiskCache(selectedId));
+    });
   }, [selectedId]);
+
+  useEffect(() => {
+    if (!latestUpdate) return;
+    setShowBanner(true);
+    const t = setTimeout(() => setShowBanner(false), 8000);
+    if (selectedId) setRiskByMessageId(loadRiskCache(selectedId));
+    return () => clearTimeout(t);
+  }, [latestUpdate, selectedId]);
 
   // ── Auto-scroll ───────────────────────────────────────────────────────────
   useEffect(() => {

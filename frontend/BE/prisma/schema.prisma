@@ -33,6 +33,7 @@ model User {
   moods            Mood[]
   organizationId   String?
   organization     Organization?     @relation(fields: [organizationId], references: [id])
+  sessionNotes     SessionNote[]
 }
 
 // ─── Email Verification OTP ───────────────────────────────────────────────────
@@ -69,6 +70,7 @@ model Coach {
   organizationId    String?
   organization      Organization?       @relation(fields: [organizationId], references: [id])
   orgAssignments    OrganizationCoach[]
+  sessionNotes      SessionNote[]
 }
 
 model Organization {
@@ -251,4 +253,25 @@ model CoachAvailability {
   slots     Json
   duration  Int      @default(50)
   updatedAt DateTime @updatedAt
+}
+
+// ─── Session Notes ────────────────────────────────────────────────────────────
+
+model SessionNote {
+  id              String   @id @default(cuid())
+  coachId         String
+  memberId        String
+  sessionType     String
+  notes           String   @default("")
+  nextSessionGoal String   @default("")
+  status          String   @default("draft")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  coach  Coach @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  member User  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([coachId])
+  @@index([memberId])
+  @@index([coachId, createdAt(sort: Desc)])
 }
