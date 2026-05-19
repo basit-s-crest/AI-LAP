@@ -81,7 +81,6 @@ model Organization {
   primaryContactName     String
   primaryContactEmail    String   @unique
   primaryContactPassword String
-  logo                   String?
   domain                 String?
   monthlySpend           Float    @default(0)
   status                 String   @default("active")
@@ -148,7 +147,6 @@ model CommunityGroup {
   name        String
   emoji       String   @default("👥")
   description String?
-  color       String   @default("#4E8C58")
   tags        String[]
   mod         String?
   status      String   @default("active")
@@ -169,7 +167,6 @@ model CoachMessage {
   senderRole String
   read       Boolean  @default(false)
   createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
 
   user       User     @relation("CoachMessages", fields: [userId], references: [id], onDelete: Cascade)
   coach      Coach    @relation("CoachMessages", fields: [coachId], references: [id], onDelete: Cascade)
@@ -233,7 +230,6 @@ model Session {
   coachId           String
   memberId          String
   scheduledAt       DateTime
-  endAt             DateTime?
   duration          Int       @default(50)
   type              String    @default("Weekly Check-in")
   status            String    @default("upcoming")

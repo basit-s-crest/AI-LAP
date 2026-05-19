@@ -1,0 +1,4 @@
+ALTER TABLE "Organization" DROP COLUMN IF EXISTS "logo";
+ALTER TABLE "CommunityGroup" DROP COLUMN IF EXISTS "color";
+ALTER TABLE "CoachMessage" DROP COLUMN IF EXISTS "updatedAt";
+ALTER TABLE "Session" DROP COLUMN IF EXISTS "endAt";

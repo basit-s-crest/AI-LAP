@@ -243,14 +243,12 @@ export const bookSession = async (
     }
 
     const dur = avail?.duration ?? 50;
-    const endAt = new Date(requestedDate.getTime() + dur * 60 * 1000);
 
     const session = await prisma.session.create({
       data: {
         coachId,
         memberId,
         scheduledAt: requestedDate,
-        endAt,
         duration: dur,
         type: "Weekly Check-in",
         status: "upcoming",
@@ -378,13 +376,11 @@ export const rescheduleSession = async (
     }
 
     const dur = session.duration ?? 50;
-    const newEndAt = new Date(newDate.getTime() + dur * 60 * 1000);
 
     const updated = await prisma.session.update({
       where: { id },
       data: {
         scheduledAt: newDate,
-        endAt: newEndAt,
         status: "rescheduled",
         rescheduleBy: userRole === "coach" ? "coach" : "member",
         rescheduleRequest: newDate,

@@ -1,8 +1,25 @@
 "use client";
-
 import { Button } from "@/components/ui/Button";
 import type { CommunityGroup } from "@/types/group";
 import { cn } from "@/lib/cn";
+
+// Fixed calm palette — cycles based on group id
+const BAND_COLORS = [
+  "#D4EDD7", // sage green
+  "#C8DFF5", // sky blue
+  "#F5DDD4", // warm peach
+  "#E8D5F0", // soft lavender
+  "#F5E6C8", // warm gold
+  "#D4EAE8", // teal mint
+  "#F0D4D4", // soft rose
+  "#D4E8D4", // light green
+];
+
+function getBandColor(id: string): string {
+  // Sum char codes of id to pick a color — deterministic, never changes
+  const sum = id.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return BAND_COLORS[sum % BAND_COLORS.length];
+}
 
 export function GroupCard({
   group,
@@ -37,7 +54,7 @@ export function GroupCard({
     >
       <div
         className="flex h-20 items-center justify-center text-[34px]"
-        style={{ background: group.color }}
+        style={{ background: getBandColor(group.id) }}
       >
         {group.emoji}
       </div>
