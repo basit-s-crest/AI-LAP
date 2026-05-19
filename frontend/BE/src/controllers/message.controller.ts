@@ -61,9 +61,12 @@ export const getMessages = async (req: Request, res: Response): Promise<Response
     if (!req.user?.id) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-
     const myUserId = req.user.id;
     const otherUserId = req.params.userId as string;
+
+    // Pagination params
+    const limit = Math.min(parseInt((req.query.limit as string) ?? "10", 10), 50);
+    const cursor = req.query.cursor as string | undefined;
 
     const messages = await prisma.message.findMany({
       where: {
@@ -71,8 +74,11 @@ export const getMessages = async (req: Request, res: Response): Promise<Response
           { senderId: myUserId, receiverId: otherUserId },
           { senderId: otherUserId, receiverId: myUserId },
         ],
+        // If cursor provided, fetch messages OLDER than that message
+        ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" }, // newest first, we'll reverse on frontend
+      take: limit + 1, // fetch one extra to know if there's a next page
       select: {
         id: true,
         senderId: true,
@@ -83,7 +89,19 @@ export const getMessages = async (req: Request, res: Response): Promise<Response
       },
     });
 
-    return res.status(200).json(messages);
+    // Check if there are more older messages
+    const hasMore = messages.length > limit;
+    if (hasMore) messages.pop(); // remove the extra one
+
+    // nextCursor = createdAt of the oldest message in this batch
+    const nextCursor = hasMore
+      ? messages[messages.length - 1].createdAt.toISOString()
+      : null;
+
+    return res.status(200).json({
+      messages,   // newest-first; hook will reverse to oldest-first for display
+      nextCursor,
+    });
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
   }

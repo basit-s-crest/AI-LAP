@@ -46,8 +46,28 @@ const TIER_BG: Record<string, string> = {
   crisis:   "#FAE0DC",
 };
 
+
+// ── Date separator helpers ─────────────────────────────────────────────────
+function getDayKey(dateStr: string): string {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function formatDateLabel(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((today.getTime() - msgDay.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return date.toLocaleDateString("en-US", { weekday: "long" });
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
 // ── Component ──────────────────────────────────────────────────────────────
 export default function CoachMessagesPage() {
+  const chatScrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId]     = useState<string | null>(null);
   const [inputText, setInputText]       = useState("");
@@ -183,11 +203,35 @@ export default function CoachMessagesPage() {
     return () => clearTimeout(hideBanner);
   }, [latestUpdate, selectedId, queryClient]);
 
-  // ── Auto-scroll ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, selectedId]);
+ // ── Scroll: instant on initial load, smooth for new socket messages ──────────
+const prevSelectedId = useRef<string | null>(null);
 
+useEffect(() => {
+  if (!chatEndRef.current || messages.length === 0) return;
+  const conversationChanged = prevSelectedId.current !== selectedId;
+  prevSelectedId.current = selectedId;
+  if (conversationChanged) {
+      // Instant jump when switching conversations or initial load
+    chatEndRef.current.scrollIntoView({ behavior: "instant" });
+  } else {
+      // Smooth scroll only for new incoming messages
+    chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+  }
+}, [messages, selectedId]);
+
+  const handleChatScroll = useCallback(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    if (el.scrollTop < 60 && hasNextPage && !isFetchingNextPage) {
+      const prevScrollHeight = el.scrollHeight;
+      fetchNextPage();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.scrollTop = el.scrollHeight - prevScrollHeight;
+        });
+      });
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
   // ── Send message ──────────────────────────────────────────────────────────
   const handleSend = useCallback(() => {
     const text = inputText.trim();
@@ -316,23 +360,20 @@ export default function CoachMessagesPage() {
           )}
 
           {/* Messages */}
-          <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-4">
+          <div
+            ref={chatScrollRef}
+            onScroll={handleChatScroll}
+            className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-4"
+          >
             {!selectedId ? (
               <div className="flex flex-1 items-center justify-center">
                 <p className="text-sm text-dim">Select a conversation to start messaging.</p>
               </div>
             ) : (
               <>
-                {hasNextPage && (
-                  <div className="flex justify-center">
-                    <button
-                      type="button"
-                      onClick={() => fetchNextPage()}
-                      disabled={isFetchingNextPage}
-                      className="rounded-full border border-line bg-card px-4 py-1.5 text-xs text-mid hover:bg-canvas disabled:opacity-50"
-                    >
-                      {isFetchingNextPage ? "Loading..." : "Load older messages"}
-                    </button>
+                {isFetchingNextPage && (
+                  <div className="flex justify-center py-2">
+                    <p className="text-xs text-dim">Loading older messages...</p>
                   </div>
                 )}
                 {messagesLoading ? (
@@ -344,57 +385,65 @@ export default function CoachMessagesPage() {
                     <p className="text-sm text-dim">No messages yet. Start the conversation!</p>
                   </div>
                 ) : (
-                  messages.map((msg) => {
+                  messages.flatMap((msg, i) => {
                     const msgRisk =
                       msg.senderRole === "member"
                         ? riskByMessageId[msg.id] ?? riskFromMessageDto(msg)
                         : null;
                     const topSignals = msgRisk?.signal_codes?.slice(0, 2) ?? [];
-                    return (
-                    <div
-                      key={msg.id}
-                      className={cn(
-                        "max-w-[72%]",
-                        msg.senderRole === "coach" ? "self-end" : "self-start"
-                      )}
-                    >
-                      {msg.senderRole === "member" && selectedConv && (
-                        <div className="mb-1 ml-1 text-[11px] text-dim">{selectedConv.partnerName}</div>
-                      )}
+                    const showSeparator =
+                      i === 0 || getDayKey(msg.createdAt) !== getDayKey(messages[i - 1].createdAt);
+                    return [
+                      showSeparator && (
+                        <div key={`sep-${msg.id}`} className="my-3 flex items-center gap-3">
+                          <div className="h-px flex-1 bg-line" />
+                          <span className="px-2 text-[11px] font-medium text-dim">
+                            {formatDateLabel(msg.createdAt)}
+                          </span>
+                          <div className="h-px flex-1 bg-line" />
+                        </div>
+                      ),
                       <div
+                        key={msg.id}
                         className={cn(
-                          "rounded-[14px] px-4 py-2.5 text-[13.5px] leading-relaxed",
-                          msg.senderRole === "coach"
-                            ? "rounded-br-sm bg-sage text-white"
-                            : "rounded-bl-sm border border-line bg-card text-ink shadow-sm"
+                          "max-w-[72%]",
+                          msg.senderRole === "coach" ? "self-end" : "self-start"
                         )}
                       >
-                        {msg.content}
-                      </div>
-                      {msgRisk && (() => {
-                        const pill =
-                          TIER_BADGE_PILL[msgRisk.risk_tier] ?? TIER_BADGE_PILL.low;
-                        return (
-                          <div
-                            className="risk-badge mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
-                            style={{ backgroundColor: pill.bg, color: pill.text }}
-                          >
-                            <span>{TIER_EMOJI[msgRisk.risk_tier] ?? "🟢"}</span>
-                            <span>
-                              {msgRisk.risk_tier.toUpperCase()} (
-                              {(msgRisk.risk_score * 100).toFixed(0)}%)
-                              {topSignals.length > 0 && (
-                                <> • {topSignals.join(" ")}</>
-                              )}
-                            </span>
-                          </div>
-                        );
-                      })()}
-                      <div className={cn("mt-1 text-[10px] text-dim", msg.senderRole === "coach" && "text-right")}>
-                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </div>
-                    </div>
-                    );
+                        <div
+                          className={cn(
+                            "rounded-[14px] px-4 py-2.5 text-[13.5px] leading-relaxed",
+                            msg.senderRole === "coach"
+                              ? "rounded-br-sm bg-sage text-white"
+                              : "rounded-bl-sm border border-line bg-card text-ink shadow-sm"
+                          )}
+                        >
+                          {msg.content}
+                        </div>
+                        {msgRisk && (() => {
+                          const pill =
+                            TIER_BADGE_PILL[msgRisk.risk_tier] ?? TIER_BADGE_PILL.low;
+                          return (
+                            <div
+                              className="risk-badge mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                              style={{ backgroundColor: pill.bg, color: pill.text }}
+                            >
+                              <span>{TIER_EMOJI[msgRisk.risk_tier] ?? "🟢"}</span>
+                              <span>
+                                {msgRisk.risk_tier.toUpperCase()} (
+                                {(msgRisk.risk_score * 100).toFixed(0)}%)
+                                {topSignals.length > 0 && (
+                                  <> • {topSignals.join(" ")}</>
+                                )}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                        <div className={cn("mt-1 text-[10px] text-dim", msg.senderRole === "coach" && "text-right")}>
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </div>,
+                    ].filter(Boolean);
                   })
                 )}
               </>

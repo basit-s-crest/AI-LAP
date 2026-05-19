@@ -25,7 +25,6 @@ const MOODS_DATA = moods.options as MoodOption[];
 type AvailSlot = { day: string; start: string; end: string; enabled: boolean };
 type TimeSlot = { t: string; b: boolean; assignedToOther?: boolean; isMySession?: boolean };
 
-/** Parse "9:00 AM" → total minutes since midnight */
 function parseTime(t: string): number {
   const [timePart, meridiem] = t.trim().split(" ");
   const [hStr, mStr] = timePart.split(":");
@@ -36,7 +35,6 @@ function parseTime(t: string): number {
   return h * 60 + m;
 }
 
-/** Format total minutes since midnight → "9:00 AM" */
 function formatTime(mins: number): string {
   const h24 = Math.floor(mins / 60);
   const m   = mins % 60;
@@ -45,7 +43,6 @@ function formatTime(mins: number): string {
   return `${h12}:${String(m).padStart(2, "0")} ${meridiem}`;
 }
 
-/** Generate slot times from start → end with `duration` minute steps */
 function generateSlotTimes(start: string, end: string, duration: number): string[] {
   const startMins = parseTime(start);
   const endMins   = parseTime(end);
@@ -56,7 +53,6 @@ function generateSlotTimes(start: string, end: string, duration: number): string
   return times;
 }
 
-/** Combine today's date with a time string like "9:00 AM" → ISO string */
 function todayAt(timeStr: string): string {
   const now = new Date();
   const mins = parseTime(timeStr);
@@ -65,19 +61,16 @@ function todayAt(timeStr: string): string {
   return d.toISOString();
 }
 
-/** Today's day name e.g. "Monday" */
 function todayDayName(): string {
   return new Date().toLocaleDateString("en-US", { weekday: "long" });
 }
 
-/** Same instant always maps to one key (UTC calendar parts) — avoids local/UTC mismatch vs API ISO strings */
 function utcSlotInstantKey(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
   return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}-${d.getUTCHours()}-${d.getUTCMinutes()}`;
 }
 
-/** True if `iso` parses to the same local calendar day as `ref` (local 00:00:00–23:59:59.999). */
 function isScheduledAtLocalCalendarToday(iso: string, ref: Date): boolean {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return false;
@@ -88,7 +81,6 @@ function isScheduledAtLocalCalendarToday(iso: string, ref: Date): boolean {
   );
 }
 
-/** Only today through the next 6 days (one rolling week), not multi-month. */
 const RESCHEDULE_HORIZON_DAYS = 7;
 
 function formatYmdLocal(d: Date): string {
@@ -102,7 +94,6 @@ function dayNameLongLocal(d: Date): string {
   return d.toLocaleDateString("en-US", { weekday: "long" });
 }
 
-/** Today through `horizonDays` ahead, only dates whose weekday matches coach portal enabled days. */
 function listCoachAvailableDates(availSlots: AvailSlot[], from: Date, horizonDays: number): { ymd: string; label: string }[] {
   const enabled = new Set(availSlots.filter((s) => s.enabled).map((s) => s.day));
   if (enabled.size === 0) return [];
@@ -126,7 +117,6 @@ function listCoachAvailableDates(availSlots: AvailSlot[], from: Date, horizonDay
   return out;
 }
 
-/** Coach slot times for a calendar day (YYYY-MM-DD local) from weekly template + duration. */
 function getTimesForYmd(ymd: string, availSlots: AvailSlot[], duration: number): string[] {
   const [y, mo, d] = ymd.split("-").map((x) => parseInt(x, 10));
   if (!y || !mo || !d) return [];
@@ -137,7 +127,6 @@ function getTimesForYmd(ymd: string, availSlots: AvailSlot[], duration: number):
   return generateSlotTimes(slot.start, slot.end, duration || 50);
 }
 
-/** Local wall time on a calendar day from "9:00 AM" style string. */
 function dateTimeOnCalendarDay(ymd: string, timeStr: string): Date {
   const [y, mo, d] = ymd.split("-").map((x) => parseInt(x, 10));
   const mins = parseTime(timeStr);
@@ -150,7 +139,6 @@ function filterTimesAfterNowIfToday(ymd: string, times: string[], now: Date): st
   return times.filter((t) => dateTimeOnCalendarDay(ymd, t).getTime() > t0);
 }
 
-/** Like `listCoachAvailableDates` but drops days with no bookable slot left (e.g. today all past). */
 function listRescheduleDateOptions(
   availSlots: AvailSlot[],
   duration: number,
@@ -165,7 +153,29 @@ function listRescheduleDateOptions(
   });
 }
 
+// ── Date separator helpers ────────────────────────────────────────────────────
+function getDayKey(dateStr: string): string {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function formatDateLabel(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((today.getTime() - msgDay.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return date.toLocaleDateString("en-US", { weekday: "long" });
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
 export default function CoachingChatPage() {
+  // ── Refs ── MUST be inside the component
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const params = useParams();
   const router = useRouter();
   const search = useSearchParams();
@@ -180,7 +190,6 @@ export default function CoachingChatPage() {
   const [selSlot, setSelSlot] = useState<string | null>(null);
   const [booked, setBooked] = useState(false);
   const [booking, setBooking] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState("");
@@ -230,7 +239,6 @@ export default function CoachingChatPage() {
     setRescheduleTime((prev) => (times.includes(prev) ? prev : times[0]));
   }, [showReschedule, rescheduleDate, availabilityTemplate, availabilityDuration]);
 
-  /** After reload, restore "Session confirmed" + actions from slots or member API */
   const syncMyBookingState = useCallback(
     async (generated: TimeSlot[]) => {
       const mine = generated.find((x) => x.isMySession);
@@ -397,9 +405,34 @@ export default function CoachingChatPage() {
     },
   });
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // ── Scroll: instant on initial load, smooth for new socket messages ──────────
+const prevCoachId = useRef<string | null>(null);
+
+useEffect(() => {
+  if (!messagesEndRef.current || messages.length === 0) return;
+  const coachChanged = prevCoachId.current !== coachIdStr;
+  prevCoachId.current = coachIdStr;
+  if (coachChanged) {
+    messagesEndRef.current.scrollIntoView({ behavior: "instant" });
+  } else {
+    messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+  }
+}, [messages, coachIdStr]);
+
+  // Load older messages when user scrolls to top
+  const handleChatScroll = useCallback(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    if (el.scrollTop < 60 && hasNextPage && !isFetchingNextPage) {
+      const prevScrollHeight = el.scrollHeight;
+      fetchNextPage();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.scrollTop = el.scrollHeight - prevScrollHeight;
+        });
+      });
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const send = () => {
     const t = input.trim();
@@ -795,17 +828,14 @@ export default function CoachingChatPage() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-[18px]">
-              {hasNextPage && (
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => fetchNextPage()}
-                    disabled={isFetchingNextPage}
-                    className="rounded-full border border-line bg-card px-4 py-1.5 text-xs text-mid hover:bg-canvas disabled:opacity-50"
-                  >
-                    {isFetchingNextPage ? "Loading..." : "Load older messages"}
-                  </button>
+            <div
+              ref={chatScrollRef}
+              onScroll={handleChatScroll}
+              className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-[18px]"
+            >
+              {isFetchingNextPage && (
+                <div className="flex justify-center py-2">
+                  <p className="text-xs text-dim">Loading older messages...</p>
                 </div>
               )}
               {messagesLoading ? (
@@ -817,31 +847,44 @@ export default function CoachingChatPage() {
                   <p className="text-sm text-dim">Start the conversation!</p>
                 </div>
               ) : (
-                messages.map((m) => (
-                  <div
-                    key={m.id}
-                    className={cn("max-w-[72%]", m.senderRole === "member" ? "self-end" : "self-start")}
-                  >
+                messages.flatMap((m, i) => {
+                  const showSeparator =
+                    i === 0 || getDayKey(m.createdAt) !== getDayKey(messages[i - 1].createdAt);
+                  return [
+                    showSeparator && (
+                      <div key={`sep-${m.id}`} className="my-3 flex items-center gap-3">
+                        <div className="h-px flex-1 bg-line" />
+                        <span className="px-2 text-[11px] font-medium text-dim">
+                          {formatDateLabel(m.createdAt)}
+                        </span>
+                        <div className="h-px flex-1 bg-line" />
+                      </div>
+                    ),
                     <div
-                      className={cn(
-                        "rounded-[14px] px-[15px] py-2.5 text-[13.5px] leading-relaxed",
-                        m.senderRole === "member"
-                          ? "rounded-br bg-sage text-white"
-                          : "rounded-bl border border-line bg-card text-ink shadow-[0_2px_6px_rgba(60,50,40,0.07)]"
-                      )}
+                      key={m.id}
+                      className={cn("max-w-[72%]", m.senderRole === "member" ? "self-end" : "self-start")}
                     >
-                      {m.content}
-                    </div>
-                    <div
-                      className={cn(
-                        "mt-0.5 text-[10px] text-dim",
-                        m.senderRole === "member" && "text-right"
-                      )}
-                    >
-                      {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </div>
-                  </div>
-                ))
+                      <div
+                        className={cn(
+                          "rounded-[14px] px-[15px] py-2.5 text-[13.5px] leading-relaxed",
+                          m.senderRole === "member"
+                            ? "rounded-br bg-sage text-white"
+                            : "rounded-bl border border-line bg-card text-ink shadow-[0_2px_6px_rgba(60,50,40,0.07)]"
+                        )}
+                      >
+                        {m.content}
+                      </div>
+                      <div
+                        className={cn(
+                          "mt-0.5 text-[10px] text-dim",
+                          m.senderRole === "member" && "text-right"
+                        )}
+                      >
+                        {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </div>,
+                  ].filter(Boolean);
+                })
               )}
               <div ref={messagesEndRef} />
             </div>
