@@ -5,7 +5,6 @@ import prisma from "../lib/prisma";
 
 interface ChatIngestPayload {
   event_id: string;
-  message_id: string;
   org_id: string;
   member_token: string;
   session_id: string;
@@ -129,6 +128,10 @@ async function safePublish(channel: string, payload: unknown): Promise<void> {
   }
 }
 
+function pythonBaseUrl(): string {
+  return (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
     method: "POST",
@@ -149,7 +152,6 @@ export function forwardToSentiment(message: CoachMessage, messageId: string): vo
   void (async () => {
     const payload: ChatIngestPayload = {
       event_id: randomUUID(),
-      message_id: message.id,
       org_id: process.env.PYTHON_ORG_ID ?? "org_default",
       member_token: message.userId,
       session_id: `${message.userId}_${message.coachId}`,
@@ -162,7 +164,7 @@ export function forwardToSentiment(message: CoachMessage, messageId: string): vo
 
     try {
       const resp = await postJson<IngestResponse>(
-        `${process.env.PYTHON_BACKEND_URL}/v1/ingest/chat`,
+        `${pythonBaseUrl()}/v1/ingest/chat`,
         payload
       );
 
@@ -206,7 +208,12 @@ export function forwardToSentiment(message: CoachMessage, messageId: string): vo
             ? err.message
             : String(err);
 
-      console.error("[sentiment] forward failed:", reason);
+      console.error(
+        "[sentiment] forward failed:",
+        reason,
+        "| url=",
+        `${pythonBaseUrl()}/v1/ingest/chat`
+      );
     }
   })();
 }
@@ -228,7 +235,7 @@ export function forwardPeerPostToSentiment(
 
     try {
       const resp = await postJson<IngestResponse>(
-        `${process.env.PYTHON_BACKEND_URL}/v1/ingest/peer-post`,
+        `${pythonBaseUrl()}/v1/ingest/peer-post`,
         payload
       );
 

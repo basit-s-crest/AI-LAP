@@ -147,6 +147,7 @@ export default function CoachMessagesPage() {
 
   // ── Select conversation ────────────────────────────────────────────────
   const selectConversation = useCallback((partnerId: string) => {
+    if (!partnerId) return;
     setSelectedId(partnerId);
     setInputText("");
     // Mark as read
@@ -167,10 +168,20 @@ export default function CoachMessagesPage() {
   useEffect(() => {
     if (!latestUpdate) return;
     setShowBanner(true);
-    const t = setTimeout(() => setShowBanner(false), 8000);
-    if (selectedId) setRiskByMessageId(loadRiskCache(selectedId));
-    return () => clearTimeout(t);
-  }, [latestUpdate, selectedId]);
+    const hideBanner = setTimeout(() => setShowBanner(false), 8000);
+    if (selectedId) {
+      setRiskByMessageId(loadRiskCache(selectedId));
+      // Refetch thread after vasl DB save completes (background task ~1–2s)
+      const refetchThread = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["coach-messages", selectedId] });
+      }, 2500);
+      return () => {
+        clearTimeout(hideBanner);
+        clearTimeout(refetchThread);
+      };
+    }
+    return () => clearTimeout(hideBanner);
+  }, [latestUpdate, selectedId, queryClient]);
 
   // ── Auto-scroll ───────────────────────────────────────────────────────────
   useEffect(() => {

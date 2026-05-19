@@ -40,6 +40,7 @@ export interface UseCoachMessagesReturn {
 
 export function useCoachMessages(partnerId: string): UseCoachMessagesReturn {
   const queryClient = useQueryClient()
+  const enabled = Boolean(partnerId)
 
   const {
     data,
@@ -52,6 +53,7 @@ export function useCoachMessages(partnerId: string): UseCoachMessagesReturn {
     queryFn: ({ pageParam }) => fetchThread(partnerId, pageParam),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled,
   })
 
   // Flatten all pages into a single messages array
@@ -60,20 +62,22 @@ export function useCoachMessages(partnerId: string): UseCoachMessagesReturn {
     [data]
   )
 
-  // Mark as read on mount and on window focus
+  // Mark as read on mount and on window focus (skip when no partner selected)
   const markRead = useCallback(() => {
+    if (!partnerId) return
     markThreadRead(partnerId).catch(() => {
       // Silently ignore read errors
     })
   }, [partnerId])
 
   useEffect(() => {
+    if (!enabled) return
     markRead()
 
     const handleFocus = () => markRead()
     window.addEventListener("focus", handleFocus)
     return () => window.removeEventListener("focus", handleFocus)
-  }, [markRead])
+  }, [enabled, markRead])
 
   // Prepend a new socket message to the cache without triggering a refetch.
   // Despite the name "prependMessage" (per spec), new messages are appended to
