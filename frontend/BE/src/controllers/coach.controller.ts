@@ -392,3 +392,123 @@ export const setOnDemandStatus = async (
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+// ─── Coach profile & settings ─────────────────────────────────────────────────
+
+/** GET /api/coach/profile */
+export const getCoachProfile = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId || req.user?.role !== "coach") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const coach = await prisma.coach.findUnique({ where: { id: coachId } });
+    if (!coach) return res.status(404).json({ message: "Coach not found" });
+
+    return res.status(200).json({
+      coach: sanitizeCoach(coach),
+      notifications: {
+        notifySessionReminders: coach.notifySessionReminders,
+        notifyNewClientAssigned: coach.notifyNewClientAssigned,
+        notifyMessageAlerts: coach.notifyMessageAlerts,
+      },
+    });
+  } catch (error) {
+    console.error("[getCoachProfile]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/** PATCH /api/coach/profile */
+export const updateCoachProfile = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId || req.user?.role !== "coach") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const { name, bio, speciality, avatar, newPassword, confirmPassword } = req.body as {
+      name?: string;
+      bio?: string;
+      speciality?: string;
+      avatar?: string;
+      newPassword?: string;
+      confirmPassword?: string;
+    };
+
+    if (newPassword !== undefined) {
+      if (!newPassword || newPassword !== confirmPassword) {
+        return res.status(400).json({ message: "Passwords do not match" });
+      }
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+    }
+
+    const coach = await prisma.coach.update({
+      where: { id: coachId },
+      data: {
+        ...(name !== undefined ? { name: name.trim() } : {}),
+        ...(bio !== undefined ? { bio } : {}),
+        ...(speciality !== undefined ? { speciality } : {}),
+        ...(avatar !== undefined ? { avatar } : {}),
+        ...(newPassword ? { password: await hashPassword(newPassword) } : {}),
+      },
+    });
+
+    return res.status(200).json({ coach: sanitizeCoach(coach) });
+  } catch (error) {
+    console.error("[updateCoachProfile]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/** PATCH /api/coach/notifications */
+export const updateCoachNotifications = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId || req.user?.role !== "coach") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const {
+      notifySessionReminders,
+      notifyNewClientAssigned,
+      notifyMessageAlerts,
+    } = req.body as Record<string, boolean>;
+
+    const coach = await prisma.coach.update({
+      where: { id: coachId },
+      data: {
+        ...(notifySessionReminders !== undefined
+          ? { notifySessionReminders: Boolean(notifySessionReminders) }
+          : {}),
+        ...(notifyNewClientAssigned !== undefined
+          ? { notifyNewClientAssigned: Boolean(notifyNewClientAssigned) }
+          : {}),
+        ...(notifyMessageAlerts !== undefined
+          ? { notifyMessageAlerts: Boolean(notifyMessageAlerts) }
+          : {}),
+      },
+    });
+
+    return res.status(200).json({
+      notifySessionReminders: coach.notifySessionReminders,
+      notifyNewClientAssigned: coach.notifyNewClientAssigned,
+      notifyMessageAlerts: coach.notifyMessageAlerts,
+    });
+  } catch (error) {
+    console.error("[updateCoachNotifications]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};

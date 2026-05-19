@@ -3,9 +3,12 @@ import { Router } from "express";
 import {
   forgotPassword,
   getCoaches,
+  getMemberProfile,
   login,
   register,
   resendOtp,
+  updateMemberNotifications,
+  updateMemberProfile,
   verifyOtp,
 } from "../controllers/auth.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
@@ -21,5 +24,10 @@ router.post("/forgot-password", forgotPassword);
 
 // Coaches list (auth-protected)
 router.get("/coaches", authMiddleware, getCoaches);
+
+// Member profile & settings
+router.get("/profile", authMiddleware, getMemberProfile);
+router.patch("/profile", authMiddleware, updateMemberProfile);
+router.patch("/notifications", authMiddleware, updateMemberNotifications);
 
 export default router;

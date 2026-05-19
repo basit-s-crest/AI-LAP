@@ -1,15 +1,26 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card } from "@/components/ui/Card";
 import { ProfileCard } from "@/components/cards/ProfileCard";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Label } from "@/components/ui/Label";
+import { Input } from "@/components/ui/Input";
 import { useAppSelector, useAppDispatch } from "@/hooks/redux";
-import { logout } from "@/store/slices/authSlice";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { setSession } from "@/store/slices/authSlice";
+import { useLogout } from "@/hooks/auth/useLogout";
+import {
+  useMemberProfile,
+  useUpdateMemberProfile,
+  useUpdateMemberNotifications,
+} from "@/hooks/settings/useMemberSettings";
+import { useCoachesQuery } from "@/hooks/api/use-coaches";
 import { cn } from "@/lib/cn";
+
+const AVATAR_EMOJIS = ["🌿", "😊", "🌸", "💚", "🦋", "☀️", "🌊", "⭐", "🌙", "🍀"];
 import { useQuery } from "@tanstack/react-query";
 import { onboardingService } from "@/services/onboarding.service";
 
@@ -33,9 +44,109 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   );
 }
 
+function assessmentBadgeVariant(label: string): "gold" | "sage" | "terra" | "blue" {
+  if (label === "Severe" || label === "Moderate") return "terra";
+  if (label === "Mild") return "gold";
+  return "sage";
+}
+
 export default function ProfilePage() {
-  const user = useAppSelector((s) => s.auth.user);
   const dispatch = useAppDispatch();
+  const logout = useLogout();
+  const token = useAppSelector((s) => s.auth.token);
+  const { data, isPending, isError, error } = useMemberProfile();
+  const { data: coaches = [] } = useCoachesQuery();
+  const updateProfile = useUpdateMemberProfile();
+  const updateNotifications = useUpdateMemberNotifications();
+  const [editing, setEditing] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [avatar, setAvatar] = useState("🌿");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  useEffect(() => {
+    if (data) {
+      setFirstName(data.firstName);
+      setLastName(data.lastName);
+      setAvatar(data.avatar ?? "🌿");
+    }
+  }, [data]);
+
+  const assignedCoach = coaches[0] ?? null;
+
+  const saveProfile = () => {
+    updateProfile.mutate(
+      {
+        firstName,
+        lastName,
+        avatar,
+        ...(newPassword ? { newPassword, confirmPassword } : {}),
+      },
+      {
+        onSuccess: (res) => {
+          toast.success("Profile updated");
+          setEditing(false);
+          setNewPassword("");
+          setConfirmPassword("");
+          if (token) {
+            dispatch(
+              setSession({
+                token,
+                user: {
+                  id: res.id,
+                  email: res.email,
+                  firstName: res.firstName,
+                  lastName: res.lastName,
+                  role: "user",
+                  avatarEmoji: res.avatar ?? "🌿",
+                },
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+              })
+            );
+          }
+        },
+        onError: (err) => toast.error(err.message || "Failed to update profile"),
+      }
+    );
+  };
+
+  const toggleNotif = (
+    key: keyof NonNullable<typeof data>["notifications"],
+    value: boolean
+  ) => {
+    if (!data) return;
+    updateNotifications.mutate(
+      { [key]: value },
+      {
+        onSuccess: () => toast.success("Notification updated"),
+        onError: (err) => toast.error(err.message || "Failed to update"),
+      }
+    );
+  };
+
+  if (isPending) {
+    return (
+      <DashboardLayout title="My Profile">
+        <div className="h-48 animate-pulse rounded-card border border-line bg-[#F0EBE1]" />
+      </DashboardLayout>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <DashboardLayout title="My Profile">
+        <Card className="text-sm text-danger">{error?.message ?? "Failed to load profile"}</Card>
+      </DashboardLayout>
+    );
+  }
+
+  const notifRows = [
+    { key: "notifyGroupActivity" as const, l: "Group Activity", d: "New posts in your groups" },
+    { key: "notifySessionReminders" as const, l: "Session Reminders", d: "24h before your session" },
+    { key: "notifyDailyCheckin" as const, l: "Daily Check-in", d: "Morning reminder at 9am" },
+    { key: "notifyWeeklySummary" as const, l: "Weekly Summary", d: "Your weekly wellbeing report" },
+  ];
   const router = useRouter();
   const name = user?.firstName ?? "Amara";
   const [notifs, setNotifs] = useState([
@@ -78,21 +189,103 @@ export default function ProfilePage() {
       <div className="grid animate-fadeIn grid-cols-1 gap-5 lg:grid-cols-2">
         <div>
           <ProfileCard
-            emoji="🌿"
-            name={`${name} J.`}
-            subtitle="Member since January 2025"
+            emoji={data.avatar ?? "🌿"}
+            name={`${data.firstName} ${data.lastName}`.trim()}
+            subtitle={`Member since ${data.memberSince}`}
             stats={[
-              { value: "6", label: "Day Streak" },
-              { value: "22", label: "Check-ins" },
-              { value: "2", label: "Groups" },
-              { value: "8", label: "Sessions" },
+              { value: String(data.stats.dayStreak), label: "Day Streak" },
+              { value: String(data.stats.checkIns), label: "Check-ins" },
+              { value: String(data.stats.groups), label: "Groups" },
+              { value: String(data.stats.sessions), label: "Sessions" },
             ]}
             className="mb-4"
           />
-          <Card>
+          <Card className="mb-4">
             <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-dim">
               Account Settings
             </div>
+            {!editing ? (
+              <>
+                {[
+                  { e: "👤", bg: "#D4EDD7", l: "Edit Profile", action: () => setEditing(true) },
+                  { e: "🔒", bg: "#D4EDD7", l: "Privacy & Data", action: () => { } },
+                  { e: "❓", bg: "#F5E6C8", l: "Help & Support", action: () => { } },
+                  { e: "🚪", bg: "#FAE0DC", l: "Sign Out", action: logout },
+                ].map((it) => (
+                  <button
+                    key={it.l}
+                    type="button"
+                    className="flex w-full items-center gap-3 border-b border-[rgba(60,50,40,0.08)] py-3 text-left last:border-b-0"
+                    onClick={it.action}
+                  >
+                    <div
+                      className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[9px] text-base"
+                      style={{ background: it.bg }}
+                    >
+                      {it.e}
+                    </div>
+                    <span className="flex-1 text-[13px] font-semibold">{it.l}</span>
+                    <span className="text-dim">›</span>
+                  </button>
+                ))}
+              </>
+            ) : (
+              <div className="space-y-3 pt-1">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>First Name</Label>
+                    <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>Last Name</Label>
+                    <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <Label>Avatar</Label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {AVATAR_EMOJIS.map((em) => (
+                      <button
+                        key={em}
+                        type="button"
+                        onClick={() => setAvatar(em)}
+                        className={cn(
+                          "flex h-10 w-10 items-center justify-center rounded-lg text-xl",
+                          avatar === em ? "bg-sage-soft ring-2 ring-sage" : "bg-canvas"
+                        )}
+                      >
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label>New Password</Label>
+                  <Input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Leave blank to keep current"
+                  />
+                </div>
+                <div>
+                  <Label>Confirm Password</Label>
+                  <Input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="button" onClick={saveProfile} disabled={updateProfile.isPending}>
+                    Save Profile
+                  </Button>
+                </div>
+              </div>
+            )}
             {[
               { e: "👤", bg: "#D4EDD7", l: "Edit Profile" },
               { e: "📋", bg: "#D4E8F5", l: "Retake Assessments" },
@@ -124,15 +317,38 @@ export default function ProfilePage() {
               </button>
             ))}
           </Card>
+
+          {assignedCoach && (
+            <Card>
+              <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-dim">
+                Your Coach
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] bg-[#D4E8F5] text-2xl">
+                  {assignedCoach.avatar ?? "🧑‍⚕️"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-semibold text-ink">{assignedCoach.name}</div>
+                  {assignedCoach.speciality && (
+                    <div className="mt-0.5 text-xs text-dim">{assignedCoach.speciality}</div>
+                  )}
+                  {assignedCoach.bio && (
+                    <div className="mt-1 text-xs text-mid">{assignedCoach.bio}</div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
+
         <div>
           <Card className="mb-4">
             <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-dim">
               Notifications
             </div>
-            {notifs.map((n, i) => (
+            {notifRows.map((n) => (
               <div
-                key={n.l}
+                key={n.key}
                 className="flex items-center gap-3 border-b border-[rgba(60,50,40,0.08)] py-3 last:border-b-0"
               >
                 <div className="min-w-0 flex-1">
@@ -140,10 +356,8 @@ export default function ProfilePage() {
                   <div className="mt-0.5 text-xs text-dim">{n.d}</div>
                 </div>
                 <Toggle
-                  on={n.on}
-                  onToggle={() =>
-                    setNotifs((xs) => xs.map((x, j) => (j === i ? { ...x, on: !x.on } : x)))
-                  }
+                  on={data.notifications[n.key]}
+                  onToggle={() => toggleNotif(n.key, !data.notifications[n.key])}
                 />
               </div>
             ))}
@@ -152,6 +366,27 @@ export default function ProfilePage() {
             <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-dim">
               Assessment Scores
             </div>
+            {[
+              { key: "phq8" as const, label: "PHQ-8 (Depression)" },
+              { key: "gad7" as const, label: "GAD-7 (Anxiety)" },
+            ].map((item) => {
+              const score = data.assessments[item.key];
+              return (
+                <div key={item.key} className="mb-3 flex items-center justify-between">
+                  <div className="text-[13px] font-semibold">{item.label}</div>
+                  {score ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[15px] font-bold text-sage">
+                        {score.score}/{score.max}
+                      </span>
+                      <Badge variant={assessmentBadgeVariant(score.label)}>{score.label}</Badge>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-dim">Not yet assessed</span>
+                  )}
+                </div>
+              );
+            })}
             {isLoading ? (
               <div className="py-4 text-center text-xs text-mid">Loading assessment scores...</div>
             ) : (

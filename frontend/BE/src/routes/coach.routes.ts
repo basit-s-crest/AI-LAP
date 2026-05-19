@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   assignCoachHandler,
+  getCoachProfile,
   getCoachPublicByIdHandler,
   getMyMembers,
   getOnDemandStatus,
@@ -9,6 +10,8 @@ import {
   loginCoach,
   registerCoach,
   setOnDemandStatus,
+  updateCoachNotifications,
+  updateCoachProfile,
 } from "../controllers/coach.controller";
 import { adminGetScoresHistory } from "../controllers/admin.controller";
 import { authMiddleware, requireRole } from "../middleware/auth.middleware";
@@ -28,6 +31,11 @@ router.get("/members", authMiddleware, requireRole("coach"), getMyMembers);
 // On-demand status — coach only (must be before /:coachId)
 router.get("/on-demand", authMiddleware, requireRole("coach"), getOnDemandStatus);
 router.patch("/on-demand", authMiddleware, requireRole("coach"), setOnDemandStatus);
+
+// Coach profile & settings (must be before /:coachId)
+router.get("/profile", authMiddleware, requireRole("coach"), getCoachProfile);
+router.patch("/profile", authMiddleware, requireRole("coach"), updateCoachProfile);
+router.patch("/notifications", authMiddleware, requireRole("coach"), updateCoachNotifications);
 
 // Authenticated — public coach card for members / org / self-coach
 router.get("/:coachId", authMiddleware, getCoachPublicByIdHandler);

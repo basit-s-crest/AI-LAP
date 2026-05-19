@@ -13,6 +13,10 @@ import {
   type UserRole,
 } from "../services/auth.service";
 import { generateOtp, sendVerificationEmail } from "../services/email.service";
+import {
+  getMemberAssessments,
+  getMemberStats,
+} from "../services/memberProfile.service";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -320,6 +324,171 @@ export const getCoaches = async (
     return res.status(200).json(coaches);
   } catch (error) {
     console.error("[getCoaches]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// ─── Member profile & settings ────────────────────────────────────────────────
+
+function splitName(fullName: string): { firstName: string; lastName: string } {
+  const parts = fullName.trim().split(/\s+/);
+  return {
+    firstName: parts[0] ?? "",
+    lastName: parts.slice(1).join(" "),
+  };
+}
+
+function formatMemberSince(date: Date): string {
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+/** GET /api/auth/profile — member profile, stats, notifications, assessments. */
+export const getMemberProfile = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId || req.user?.role !== "member") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const { firstName, lastName } = splitName(user.name);
+    const [stats, assessments] = await Promise.all([
+      getMemberStats(userId),
+      getMemberAssessments(userId),
+    ]);
+
+    return res.status(200).json({
+      id: user.id,
+      email: user.email,
+      firstName,
+      lastName,
+      avatar: user.avatar,
+      memberSince: formatMemberSince(user.createdAt),
+      stats,
+      notifications: {
+        notifyGroupActivity: user.notifyGroupActivity,
+        notifySessionReminders: user.notifySessionReminders,
+        notifyDailyCheckin: user.notifyDailyCheckin,
+        notifyWeeklySummary: user.notifyWeeklySummary,
+      },
+      assessments,
+    });
+  } catch (error) {
+    console.error("[getMemberProfile]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/** PATCH /api/auth/profile — member name, avatar, password. */
+export const updateMemberProfile = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId || req.user?.role !== "member") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const { firstName, lastName, avatar, newPassword, confirmPassword } = req.body as {
+      firstName?: string;
+      lastName?: string;
+      avatar?: string;
+      newPassword?: string;
+      confirmPassword?: string;
+    };
+
+    if (newPassword !== undefined) {
+      if (!newPassword || newPassword !== confirmPassword) {
+        return res.status(400).json({ message: "Passwords do not match" });
+      }
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+    }
+
+    const data: {
+      name?: string;
+      avatar?: string;
+      password?: string;
+    } = {};
+
+    if (firstName !== undefined || lastName !== undefined) {
+      const existing = await prisma.user.findUnique({ where: { id: userId } });
+      const current = splitName(existing?.name ?? "");
+      data.name = `${firstName ?? current.firstName} ${lastName ?? current.lastName}`.trim();
+    }
+    if (avatar !== undefined) data.avatar = avatar;
+    if (newPassword) data.password = await hashPassword(newPassword);
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data,
+    });
+
+    const { firstName: fn, lastName: ln } = splitName(user.name);
+    return res.status(200).json({
+      id: user.id,
+      email: user.email,
+      firstName: fn,
+      lastName: ln,
+      avatar: user.avatar,
+    });
+  } catch (error) {
+    console.error("[updateMemberProfile]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/** PATCH /api/auth/notifications — member notification preferences. */
+export const updateMemberNotifications = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId || req.user?.role !== "member") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const {
+      notifyGroupActivity,
+      notifySessionReminders,
+      notifyDailyCheckin,
+      notifyWeeklySummary,
+    } = req.body as Record<string, boolean>;
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(notifyGroupActivity !== undefined
+          ? { notifyGroupActivity: Boolean(notifyGroupActivity) }
+          : {}),
+        ...(notifySessionReminders !== undefined
+          ? { notifySessionReminders: Boolean(notifySessionReminders) }
+          : {}),
+        ...(notifyDailyCheckin !== undefined
+          ? { notifyDailyCheckin: Boolean(notifyDailyCheckin) }
+          : {}),
+        ...(notifyWeeklySummary !== undefined
+          ? { notifyWeeklySummary: Boolean(notifyWeeklySummary) }
+          : {}),
+      },
+    });
+
+    return res.status(200).json({
+      notifyGroupActivity: user.notifyGroupActivity,
+      notifySessionReminders: user.notifySessionReminders,
+      notifyDailyCheckin: user.notifyDailyCheckin,
+      notifyWeeklySummary: user.notifyWeeklySummary,
+    });
+  } catch (error) {
+    console.error("[updateMemberNotifications]", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

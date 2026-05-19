@@ -50,6 +50,7 @@ export const COACH_NAV: NavItem[] = [
   { href: "/messages", label: "Messages", icon: Mail, badge: "2" },
   { href: "/risk-dashboard", label: "Live Risk Dashboard", icon: Activity },
   { href: "/notes", label: "Session Notes", icon: FileText },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export const ORG_NAV: NavItem[] = [

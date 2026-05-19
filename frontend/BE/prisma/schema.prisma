@@ -35,6 +35,10 @@ model User {
   organization     Organization?     @relation(fields: [organizationId], references: [id])
   sessionNotes     SessionNote[]
   onboardingAssessment OnboardingAssessment?
+  notifyGroupActivity    Boolean @default(true)
+  notifySessionReminders Boolean @default(true)
+  notifyDailyCheckin     Boolean @default(false)
+  notifyWeeklySummary    Boolean @default(true)
 }
 
 // ─── Email Verification OTP ───────────────────────────────────────────────────
@@ -72,6 +76,9 @@ model Coach {
   organization      Organization?       @relation(fields: [organizationId], references: [id])
   orgAssignments    OrganizationCoach[]
   sessionNotes      SessionNote[]
+  notifySessionReminders  Boolean @default(true)
+  notifyNewClientAssigned Boolean @default(true)
+  notifyMessageAlerts     Boolean @default(true)
 }
 
 model Organization {
