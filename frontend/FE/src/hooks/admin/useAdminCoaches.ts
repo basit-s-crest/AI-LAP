@@ -26,6 +26,7 @@ export function useCreateAdminCoach() {
       bio?: string;
       speciality?: string;
       avatar?: string;
+      organizationIds?: string[];
     }) => {
       const { data } = await api.post("/api/admin/coaches", payload);
       return data;
@@ -48,6 +49,7 @@ export function useUpdateAdminCoach() {
         speciality?: string | null;
         avatar?: string | null;
         isActive?: boolean;
+        organizationIds?: string[];
       };
     }) => {
       const { data } = await api.put(`/api/admin/coaches/${payload.id}`, payload.data);

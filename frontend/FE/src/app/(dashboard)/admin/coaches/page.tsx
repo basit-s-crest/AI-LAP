@@ -17,6 +17,8 @@ import {
   useUpdateAdminCoach,
 } from "@/hooks/admin/useAdminCoaches";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
 import type { AdminCoach } from "@/types/admin";
 import { toast } from "sonner";
 
@@ -25,20 +27,84 @@ type EditState = {
   name: string;
   spec: string;
   bio: string;
+  organizationIds: string[];
 };
+
+function useOrganizations() {
+  return useQuery({
+    queryKey: ["admin", "orgs"],
+    queryFn: async () => {
+      const { data } = await api.get<{ id: string; name: string }[]>("/api/admin/orgs");
+      return data;
+    },
+  });
+}
+
+// Multi-select checkboxes for organizations
+function OrgMultiSelect({
+  value,
+  onChange,
+  organizations,
+}: {
+  value: string[];
+  onChange: (ids: string[]) => void;
+  organizations: { id: string; name: string }[];
+}) {
+  const toggle = (id: string) => {
+    if (value.includes(id)) {
+      onChange(value.filter((v) => v !== id));
+    } else {
+      onChange([...value, id]);
+    }
+  };
+
+  return (
+    <div>
+      <Label>Organizations</Label>
+      <div className="max-h-[160px] overflow-y-auto rounded-lg border border-[rgba(60,50,40,0.15)] bg-white p-2">
+        {organizations.length === 0 ? (
+          <div className="px-2 py-1 text-xs text-dim">No organizations found</div>
+        ) : (
+          organizations.map((o) => (
+            <label
+              key={o.id}
+              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-[#F5F0E8]"
+            >
+              <input
+                type="checkbox"
+                checked={value.includes(o.id)}
+                onChange={() => toggle(o.id)}
+                className="accent-[#4E8C58]"
+              />
+              <span className="text-sm text-ink">{o.name}</span>
+            </label>
+          ))
+        )}
+      </div>
+      {value.length > 0 && (
+        <div className="mt-1 text-[10px] text-dim">
+          {value.length} organization{value.length > 1 ? "s" : ""} selected
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminCoachesPage() {
   const dispatch = useAppDispatch();
   const { data: coaches = [], isPending } = useAdminCoaches();
+  const { data: organizations = [] } = useOrganizations();
   const createCoach = useCreateAdminCoach();
   const updateCoach = useUpdateAdminCoach();
   const removeCoach = useRemoveAdminCoach();
   const modal = useAppSelector((s) => s.ui.modal);
+
   const [name, setName] = useState("");
   const [spec, setSpec] = useState("");
-  const [org, setOrg] = useState("Azadi Health Staff");
+  const [bio, setBio] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("coach1234");
+  const [addOrgIds, setAddOrgIds] = useState<string[]>([]);
 
   const [editState, setEditState] = useState<EditState | null>(null);
   const [viewingCoach, setViewingCoach] = useState<AdminCoach | null>(null);
@@ -55,16 +121,18 @@ export default function AdminCoachesPage() {
         email: email.trim(),
         password: password.trim(),
         speciality: spec || undefined,
-        bio: org || undefined,
+        bio: bio || undefined,
+        organizationIds: addOrgIds,
       },
       {
         onSuccess: () => {
           dispatch(closeModal());
           setName("");
           setSpec("");
-          setOrg("Azadi Health Staff");
+          setBio("");
           setEmail("");
           setPassword("coach1234");
+          setAddOrgIds([]);
           toast.success("Coach added");
         },
         onError: () => toast.error("Failed to add coach"),
@@ -81,10 +149,14 @@ export default function AdminCoachesPage() {
           name: editState.name,
           speciality: editState.spec || null,
           bio: editState.bio || null,
+          organizationIds: editState.organizationIds,
         },
       },
       {
-        onSuccess: () => { toast.success("Coach updated"); setEditState(null); },
+        onSuccess: () => {
+          toast.success("Coach updated");
+          setEditState(null);
+        },
         onError: () => toast.error("Failed to update coach"),
       }
     );
@@ -104,16 +176,14 @@ export default function AdminCoachesPage() {
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                {["Coach", "Specialty", "Availability", "Members", "Org", ""].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
-                    >
-                      {h}
-                    </th>
-                  )
-                )}
+                {["Coach", "Specialty", "Availability", "Members", "Orgs", ""].map((h) => (
+                  <th
+                    key={h}
+                    className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -146,7 +216,9 @@ export default function AdminCoachesPage() {
                       {c.memberCount}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-xs text-mid group-hover:bg-[#EDE7DC]">
-                      {c.bio ?? "—"}
+                      {c.organizations?.length > 0
+                        ? c.organizations.map((o) => o.name).join(", ")
+                        : "—"}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <Button
@@ -163,7 +235,15 @@ export default function AdminCoachesPage() {
                         size="xs"
                         type="button"
                         className="mr-1"
-                        onClick={() => setEditState({ id: c.id, name: c.name, spec: c.speciality ?? "", bio: c.bio ?? "" })}
+                        onClick={() =>
+                          setEditState({
+                            id: c.id,
+                            name: c.name,
+                            spec: c.speciality ?? "",
+                            bio: c.bio ?? "",
+                            organizationIds: c.organizations?.map((o) => o.id) ?? [],
+                          })
+                        }
                       >
                         Edit
                       </Button>
@@ -207,8 +287,16 @@ export default function AdminCoachesPage() {
               <p className="text-[13.5px] text-ink">{viewingCoach.speciality ?? "—"}</p>
             </div>
             <div>
-              <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Bio / Organization</p>
+              <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Bio</p>
               <p className="text-[13.5px] text-ink">{viewingCoach.bio ?? "—"}</p>
+            </div>
+            <div>
+              <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Organizations</p>
+              <p className="text-[13.5px] text-ink">
+                {viewingCoach.organizations?.length > 0
+                  ? viewingCoach.organizations.map((o) => o.name).join(", ")
+                  : "—"}
+              </p>
             </div>
             <div>
               <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Status</p>
@@ -255,9 +343,14 @@ export default function AdminCoachesPage() {
             <Input value={spec} onChange={(e) => setSpec(e.target.value)} placeholder="e.g. CBT · Trauma" />
           </div>
           <div>
-            <Label>Organization</Label>
-            <Input value={org} onChange={(e) => setOrg(e.target.value)} placeholder="Azadi Health Staff" />
+            <Label>Bio</Label>
+            <Input value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Short bio..." />
           </div>
+          <OrgMultiSelect
+            value={addOrgIds}
+            onChange={setAddOrgIds}
+            organizations={organizations}
+          />
           <div>
             <Label>Email</Label>
             <Input
@@ -312,13 +405,18 @@ export default function AdminCoachesPage() {
               />
             </div>
             <div>
-              <Label>Organization / Bio</Label>
+              <Label>Bio</Label>
               <Input
                 value={editState.bio}
                 onChange={(e) => setEditState({ ...editState, bio: e.target.value })}
-                placeholder="Azadi Health Staff"
+                placeholder="Short bio..."
               />
             </div>
+            <OrgMultiSelect
+              value={editState.organizationIds}
+              onChange={(ids) => setEditState({ ...editState, organizationIds: ids })}
+              organizations={organizations}
+            />
             <div className="flex gap-3 pt-2">
               <Button variant="ghost" className="flex-1" type="button" onClick={() => setEditState(null)}>
                 Cancel

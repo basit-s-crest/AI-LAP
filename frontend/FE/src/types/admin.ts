@@ -22,14 +22,13 @@ export interface AdminCoach {
   isActive: boolean;
   createdAt: string;
   memberCount: number;
+  organizations: { id: string; name: string }[];
 }
 
 export interface AdminGroup {
   id: string;
   name: string;
   emoji: string;
-  description: string | null;
-  color: string;
   tags: string[];
   mod: string | null;
   status: string;

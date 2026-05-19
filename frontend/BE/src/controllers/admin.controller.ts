@@ -287,6 +287,11 @@ export const getAllCoaches = async (
       orderBy: { createdAt: "desc" },
       include: {
         _count: { select: { members: true } },
+        orgAssignments: {
+          include: {
+            organization: { select: { id: true, name: true } },
+          },
+        },
       },
     });
 
@@ -301,6 +306,10 @@ export const getAllCoaches = async (
         isActive: c.isActive,
         createdAt: c.createdAt,
         memberCount: c._count.members,
+        organizations: c.orgAssignments.map((a) => ({
+          id: a.organization.id,
+          name: a.organization.name,
+        })),
       }))
     );
   } catch (error) {
@@ -314,7 +323,7 @@ export const createCoach = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const { email, name, password, bio, speciality, avatar } = req.body;
+    const { email, name, password, bio, speciality, avatar, organizationIds } = req.body;
 
     if (!email || !name || !password) {
       return res.status(400).json({ message: "Email, name and password required" });
@@ -339,6 +348,23 @@ export const createCoach = async (
       },
     });
 
+    // Assign organizations if provided
+    if (Array.isArray(organizationIds) && organizationIds.length > 0) {
+      await prisma.organizationCoach.createMany({
+        data: organizationIds.map((orgId: string) => ({
+          coachId: coach.id,
+          organizationId: orgId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Fetch org assignments to return
+    const orgAssignments = await prisma.organizationCoach.findMany({
+      where: { coachId: coach.id },
+      include: { organization: { select: { id: true, name: true } } },
+    });
+
     return res.status(201).json({
       id: coach.id,
       email: coach.email,
@@ -348,6 +374,10 @@ export const createCoach = async (
       avatar: coach.avatar,
       isActive: coach.isActive,
       createdAt: coach.createdAt,
+      organizations: orgAssignments.map((a) => ({
+        id: a.organization.id,
+        name: a.organization.name,
+      })),
     });
   } catch (error) {
     console.error(error);
@@ -360,7 +390,7 @@ export const updateCoach = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const { name, email, bio, speciality, avatar, isActive } = req.body;
+    const { name, email, bio, speciality, avatar, isActive, organizationIds } = req.body;
 
     const coach = await prisma.coach.update({
       where: { id: req.params.id },
@@ -374,7 +404,33 @@ export const updateCoach = async (
       },
     });
 
-    return res.status(200).json(coach);
+    // Sync org assignments if provided
+    if (Array.isArray(organizationIds)) {
+      await prisma.organizationCoach.deleteMany({ where: { coachId: req.params.id } });
+      if (organizationIds.length > 0) {
+        await prisma.organizationCoach.createMany({
+          data: organizationIds.map((orgId: string) => ({
+            coachId: req.params.id,
+            organizationId: orgId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    // Fetch updated org assignments to return
+    const orgAssignments = await prisma.organizationCoach.findMany({
+      where: { coachId: req.params.id },
+      include: { organization: { select: { id: true, name: true } } },
+    });
+
+    return res.status(200).json({
+      ...coach,
+      organizations: orgAssignments.map((a) => ({
+        id: a.organization.id,
+        name: a.organization.name,
+      })),
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Internal server error" });
