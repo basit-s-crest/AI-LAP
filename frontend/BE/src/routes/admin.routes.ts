@@ -4,7 +4,7 @@ import {
   getAllUsers, getUserById, createUser, updateUser, deleteUser,
   getAllCoaches, createCoach, updateCoach, removeCoach,
   adminGetGroups, adminCreateGroup, adminUpdateGroup, adminArchiveGroup,
-  adminGetOrgStats, adminGetOrgs, adminCreateOrg, adminUpdateOrg,
+  adminGetOrgStats, adminGetOrgs, adminCreateOrg, adminUpdateOrg, adminGetOrgOverview,
   adminGetActivity, adminGetMoodDistribution,
 } from "../controllers/admin.controller";
 
@@ -39,6 +39,7 @@ router.patch("/groups/:id/archive", adminArchiveGroup);
 router.get("/orgs/stats", adminGetOrgStats);
 router.get("/orgs", adminGetOrgs);
 router.post("/orgs", adminCreateOrg);
+router.get("/orgs/:id/overview", adminGetOrgOverview);
 router.put("/orgs/:id", adminUpdateOrg);
 
 export default router;

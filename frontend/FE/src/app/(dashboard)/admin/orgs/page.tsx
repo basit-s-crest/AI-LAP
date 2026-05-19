@@ -454,7 +454,7 @@ export default function AdminOrgsPage() {
                         size="xs"
                         type="button"
                         className="mr-1"
-                        onClick={() => router.push("/org/dashboard")}
+                        onClick={() => router.push(`/admin/orgs/${org.id}/dashboard`)}
                       >
                         Dashboard
                       </Button>

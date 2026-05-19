@@ -763,6 +763,43 @@ export const adminUpdateOrg = async (
   }
 };
 
+export const adminGetOrgOverview = async (
+  req: Request<IdParam>,
+  res: Response
+): Promise<Response> => {
+  try {
+    const orgId = req.params.id;
+    if (!orgId) return res.status(400).json({ message: "Organization ID is required" });
+
+    const organization = await prisma.organization.findUnique({ where: { id: orgId } });
+    if (!organization) return res.status(404).json({ message: "Organization not found" });
+
+    const [totalMembers, activeMembers, totalCoaches] = await Promise.all([
+      prisma.user.count({ where: { organizationId: orgId } }),
+      prisma.user.count({ where: { organizationId: orgId, isVerified: true } }),
+      prisma.organizationCoach.count({ where: { organizationId: orgId } }),
+    ]);
+
+    const engagementRate = totalMembers > 0 ? (activeMembers / totalMembers) * 100 : 0;
+
+    return res.status(200).json({
+      orgName: organization.name,
+      type: organization.type,
+      plan: organization.plan,
+      status: organization.status,
+      totalMembers,
+      activeMembers,
+      totalCoaches,
+      engagementRate: Number(engagementRate.toFixed(2)),
+      sessionsThisMonth: 0,
+      avgPhqScore: null,
+    });
+  } catch (error) {
+    console.error("[adminGetOrgOverview]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 // ─── DASHBOARD AGGREGATES (superadmin home) ───────────────────────────────────
 
 const ACTIVITY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;

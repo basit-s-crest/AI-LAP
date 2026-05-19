@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { authService } from "@/services/auth.service";
 import { useAppDispatch } from "@/hooks/redux";
 import { setSession } from "@/store/slices/authSlice";
+import { getDashboardRoute } from "@/hooks/auth/useLogin";
 
 type FormValues = { code: string };
 
@@ -34,7 +35,11 @@ export function VerifyScreen() {
       dispatch(setSession(session));
       toast.success("Email verified — welcome!");
       // Full navigation so the browser sends the new cookies to the middleware
-      window.location.href = "/onboarding";
+      if (session.user.role === "superadmin") {
+        window.location.href = getDashboardRoute(session.user.role);
+      } else {
+        window.location.href = "/onboarding";
+      }
     },
     onError: (e: Error) => {
       toast.error(e.message ?? "Invalid or expired code");

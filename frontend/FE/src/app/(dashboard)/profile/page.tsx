@@ -19,6 +19,7 @@ import {
 } from "@/hooks/settings/useMemberSettings";
 import { useCoachesQuery } from "@/hooks/api/use-coaches";
 import { cn } from "@/lib/cn";
+import { useRouter } from "next/navigation";
 
 const AVATAR_EMOJIS = ["🌿", "😊", "🌸", "💚", "🦋", "☀️", "🌊", "⭐", "🌙", "🍀"];
 import { useQuery } from "@tanstack/react-query";
@@ -64,6 +65,12 @@ export default function ProfilePage() {
   const [avatar, setAvatar] = useState("🌿");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const router = useRouter();
+
+  const { data: assessment, isLoading } = useQuery({
+    queryKey: ["onboarding-assessment"],
+    queryFn: () => onboardingService.getMyAssessment(),
+  });
 
   useEffect(() => {
     if (data) {
@@ -147,19 +154,6 @@ export default function ProfilePage() {
     { key: "notifyDailyCheckin" as const, l: "Daily Check-in", d: "Morning reminder at 9am" },
     { key: "notifyWeeklySummary" as const, l: "Weekly Summary", d: "Your weekly wellbeing report" },
   ];
-  const router = useRouter();
-  const name = user?.firstName ?? "Amara";
-  const [notifs, setNotifs] = useState([
-    { l: "Group Activity", d: "New posts in your groups", on: true },
-    { l: "Session Reminders", d: "24h before your session", on: true },
-    { l: "Daily Check-in", d: "Morning reminder at 9am", on: false },
-    { l: "Weekly Summary", d: "Your weekly wellbeing report", on: true },
-  ]);
-
-  const { data: assessment, isLoading } = useQuery({
-    queryKey: ["onboarding-assessment"],
-    queryFn: () => onboardingService.getMyAssessment(),
-  });
 
   const getPhqLabel = (score: number, taken: boolean) => {
     if (!taken) return { label: "Not taken", variant: "dim" as const };
