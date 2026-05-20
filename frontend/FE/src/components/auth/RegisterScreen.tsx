@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
@@ -20,6 +20,9 @@ import { getAuthRoleOption, parseAuthRole } from "@/lib/auth-roles";
 import type { RegisterPayload } from "@/types/auth";
 import type { Role } from "@/types/role";
 import { toast } from "sonner";
+import { useEffect } from "react";
+import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
+import { useMaintenanceRedirect } from "@/hooks/useMaintenanceRedirect";
 
 type RoleRegisterConfig = {
   role: Role;
@@ -105,6 +108,8 @@ function buildDefaultValues(role: Role): FormValues {
 }
 
 function RoleRegisterScreen({ role }: { role: Role }) {
+  const router = useRouter();
+  const { data: platformSettings } = usePublicPlatformSettings();
   const registerMutation = useRegisterMutation(role);
   const config = REGISTER_CONFIG[role];
   const roleOption = getAuthRoleOption(role);
@@ -113,6 +118,12 @@ function RoleRegisterScreen({ role }: { role: Role }) {
     resolver: zodResolver(config.schema),
     defaultValues: buildDefaultValues(role),
   });
+
+  useEffect(() => {
+    if (role === "user" && platformSettings?.allowSelfRegistration === false) {
+      router.replace("/login?role=user");
+    }
+  }, [platformSettings?.allowSelfRegistration, role, router]);
 
   const onSubmit = methods.handleSubmit(async (data) => {
     try {

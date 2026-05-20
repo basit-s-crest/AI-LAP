@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { forwardPeerPostToSentiment } from "../services/sentimentForwarder";
+import { notifyMembers } from "../lib/realtime";
 
 export const getGroups = async (req: Request, res: Response): Promise<Response> => {
   try {
@@ -131,11 +132,32 @@ export const joinGroup = async (req: Request, res: Response): Promise<Response> 
       return res.status(403).json({ message: "Archived groups cannot be joined" });
     }
 
-    await prisma.groupMembership.upsert({
+    const membership = await prisma.groupMembership.upsert({
       where: { memberId_groupId: { memberId: userId, groupId } },
       update: { isActive: true },
       create: { memberId: userId, groupId, isActive: true },
+      include: {
+        group: { select: { id: true, name: true, emoji: true } },
+        member: { select: { id: true, name: true } },
+      },
     });
+
+    const otherMembers = await prisma.groupMembership.findMany({
+      where: { groupId, isActive: true, memberId: { not: userId } },
+      select: { memberId: true },
+    });
+    notifyMembers(
+      otherMembers.map((m) => m.memberId),
+      "group_join",
+      {
+        id: membership.id,
+        groupId,
+        groupName: membership.group.name,
+        groupEmoji: membership.group.emoji,
+        memberName: membership.member.name,
+        joinedAt: membership.joinedAt.toISOString(),
+      }
+    );
 
     return res.status(200).json({ message: "Joined group", joined: true });
   } catch (error) {
@@ -236,11 +258,32 @@ export const createPost = async (req: Request, res: Response): Promise<Response>
 
     const post = await prisma.peerGroupPost.create({
       data: { groupId, memberId: userId, body: body.trim() },
-      include: { member: { select: { id: true, name: true } } },
+      include: {
+        member: { select: { id: true, name: true } },
+        group: { select: { id: true, name: true, emoji: true } },
+      },
     });
 
     // Fire-and-forget: forward post text to Python sentiment backend
     forwardPeerPostToSentiment(post);
+
+    const otherMembers = await prisma.groupMembership.findMany({
+      where: { groupId, isActive: true, memberId: { not: userId } },
+      select: { memberId: true },
+    });
+    notifyMembers(
+      otherMembers.map((m) => m.memberId),
+      "group_post",
+      {
+        id: post.id,
+        groupId: post.groupId,
+        groupName: post.group.name,
+        groupEmoji: post.group.emoji,
+        memberName: post.member.name,
+        body: post.body,
+        createdAt: post.createdAt.toISOString(),
+      }
+    );
 
     return res.status(201).json({
       id: post.id,

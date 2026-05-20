@@ -13,6 +13,10 @@ import moods from "@/mock/moods.json";
 import type { MoodOption } from "@/types/mood";
 import { MoodValue, MoodTrendRecord } from "@/services/mood.service";
 import { useMoodTrend, useSubmitMood } from "@/hooks/api/use-mood";
+import { useAppDispatch, useAppSelector } from "@/hooks/redux";
+import { markRead } from "@/store/slices/notificationSlice";
+import { markNotificationRead } from "@/lib/notificationReadStore";
+import { localTodayKey } from "@/hooks/useNotifications";
 
 const MOODS_DATA = moods.options as MoodOption[];
 
@@ -95,6 +99,8 @@ function buildInsightText(records: MoodTrendRecord[]) {
 }
 
 export default function MoodMappingPage() {
+  const dispatch = useAppDispatch();
+  const userId = useAppSelector((s) => s.auth.user?.id);
   const [moodSel, setMoodSel] = useState<number | null>(null);
   const [moodLogged, setMoodLogged] = useState(false);
   const [moodComment, setMoodComment] = useState("");
@@ -116,6 +122,9 @@ export default function MoodMappingPage() {
     try {
       await submitMoodMutation.mutateAsync(MOOD_MAP[moodSel]);
       setMoodLogged(true);
+      const moodNotifId = `mood-reminder-${localTodayKey()}`;
+      if (userId) markNotificationRead(userId, moodNotifId);
+      dispatch(markRead(moodNotifId));
     } catch {
       setMoodLogged(false);
     }

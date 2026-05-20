@@ -1,24 +1,28 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAppDispatch } from "@/hooks/redux";
 import { clearAllReadNotifications } from "@/lib/notificationReadStore";
+import { setActiveCoachMessagesPartner } from "@/lib/activeView";
 import { logout } from "@/store/slices/authSlice";
+import { clearNotifications } from "@/store/slices/notificationSlice";
 
 export function useLogout() {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   return () => {
-    // Clear vasl_ localStorage keys
     localStorage.removeItem("vasl_token");
     localStorage.removeItem("vasl_user");
     clearAllReadNotifications();
+    setActiveCoachMessagesPartner(null);
 
-    // Dispatch Redux logout (also clears azadi_ cookies via authSlice)
+    dispatch(clearNotifications());
     dispatch(logout());
+    queryClient.clear();
 
-    // Redirect to login
-    router.push("/login");
+    router.replace("/login");
   };
 }

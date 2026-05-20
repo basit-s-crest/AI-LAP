@@ -299,3 +299,21 @@ model OnboardingAssessment {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// ─── Platform Settings (single-row config) ───────────────────────────────────
+
+model PlatformSettings {
+  id                     String   @id @default("platform")
+  brandTitle             String   @default("Azadi Health")
+  brandTagline           String   @default("Mental Wellness Platform")
+  logoUrl                String?
+  loaderUrl              String?
+  primaryColor           String   @default("#4E8C58")
+  supportEmail           String   @default("support@azadihealth.com")
+  maxMembersPerCoach     Int      @default(20)
+  sessionDurationDefault Int      @default(50)
+  allowSelfRegistration  Boolean  @default(true)
+  maintenanceMode        Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+

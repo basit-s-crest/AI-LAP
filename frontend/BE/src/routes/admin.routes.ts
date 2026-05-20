@@ -7,6 +7,12 @@ import {
   adminGetOrgStats, adminGetOrgs, adminCreateOrg, adminUpdateOrg, adminGetOrgOverview,
   adminGetActivity, adminGetMoodDistribution,
 } from "../controllers/admin.controller";
+import {
+  getPlatformSettings,
+  updatePlatformSettings,
+  uploadLogo,
+  uploadLoader,
+} from "../controllers/platformSettings.controller";
 
 const router = Router();
 
@@ -41,5 +47,11 @@ router.get("/orgs", adminGetOrgs);
 router.post("/orgs", adminCreateOrg);
 router.get("/orgs/:id/overview", adminGetOrgOverview);
 router.put("/orgs/:id", adminUpdateOrg);
+
+// Platform settings
+router.get("/settings", getPlatformSettings);
+router.patch("/settings", updatePlatformSettings);
+router.post("/settings/upload-logo", uploadLogo);
+router.post("/settings/upload-loader", uploadLoader);
 
 export default router;

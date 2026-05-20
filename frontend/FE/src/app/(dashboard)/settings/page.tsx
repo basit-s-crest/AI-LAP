@@ -130,96 +130,102 @@ function CoachSettings() {
   ];
 
   return (
-    <div className="max-w-[640px] animate-fadeIn space-y-4">
-      <Card className="border-0 bg-sidebar p-6 text-[#FDFAF5]">
-        <div className="flex items-start gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[14px] bg-sage text-3xl">
-            {avatar}
-          </div>
-          <div>
-            <div className="font-serif text-xl font-semibold">{name}</div>
-            {speciality && <div className="mt-1 text-sm text-white/60">{speciality}</div>}
-            {bio && <p className="mt-2 text-xs leading-relaxed text-white/50">{bio}</p>}
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <h3 className="mb-4 font-serif text-lg font-semibold">Profile</h3>
-        <div className="mb-4">
-          <Label>Name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="mb-4">
-          <Label>Organization / Bio</Label>
-          <Input value={bio} onChange={(e) => setBio(e.target.value)} />
-        </div>
-        <div className="mb-4">
-          <Label>Speciality</Label>
-          <Input value={speciality} onChange={(e) => setSpeciality(e.target.value)} />
-        </div>
-        <div className="mb-4">
-          <Label>Avatar</Label>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {AVATAR_EMOJIS.map((em) => (
-              <button
-                key={em}
-                type="button"
-                onClick={() => setAvatar(em)}
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-lg text-xl",
-                  avatar === em ? "bg-sage-soft ring-2 ring-sage" : "bg-canvas"
-                )}
-              >
-                {em}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="mb-4">
-          <Label>New Password</Label>
-          <Input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Leave blank to keep current"
-          />
-        </div>
-        <div className="mb-4">
-          <Label>Confirm Password</Label>
-          <Input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-        </div>
-        <Button type="button" onClick={saveProfile} disabled={updateProfile.isPending}>
-          Save Profile
-        </Button>
-      </Card>
-
-      <Card>
-        <h3 className="mb-3 font-serif text-lg font-semibold">Notifications</h3>
-        {notifRows.map((n) => (
-          <div
-            key={n.key}
-            className="flex items-center gap-3 border-b border-[rgba(60,50,40,0.08)] py-3 last:border-b-0"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-semibold">{n.l}</div>
-              <div className="mt-0.5 text-xs text-dim">{n.d}</div>
+    <div className="w-full">
+      <div className="grid animate-fadeIn grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+        <div className="space-y-4">
+          <Card className="border-0 bg-sidebar p-6 text-[#FDFAF5]">
+            <div className="flex items-start gap-4">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[14px] bg-sage text-3xl">
+                {avatar}
+              </div>
+              <div>
+                <div className="font-serif text-xl font-semibold">{name}</div>
+                {speciality && <div className="mt-1 text-sm text-white/60">{speciality}</div>}
+                {bio && <p className="mt-2 text-xs leading-relaxed text-white/50">{bio}</p>}
+              </div>
             </div>
-            <Toggle
-              on={data.notifications[n.key]}
-              onToggle={() => toggleNotif(n.key, !data.notifications[n.key])}
-            />
-          </div>
-        ))}
-      </Card>
+          </Card>
 
-      <Button type="button" variant="ghost" onClick={logout}>
-        Sign Out
-      </Button>
+          <Card>
+            <h3 className="mb-4 font-serif text-lg font-semibold">Profile</h3>
+            <div className="mb-4">
+              <Label>Name</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="mb-4">
+              <Label>Organization / Bio</Label>
+              <Input value={bio} onChange={(e) => setBio(e.target.value)} />
+            </div>
+            <div className="mb-4">
+              <Label>Speciality</Label>
+              <Input value={speciality} onChange={(e) => setSpeciality(e.target.value)} />
+            </div>
+            <div className="mb-4">
+              <Label>Avatar</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {AVATAR_EMOJIS.map((em) => (
+                  <button
+                    key={em}
+                    type="button"
+                    onClick={() => setAvatar(em)}
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-lg text-xl",
+                      avatar === em ? "bg-sage-soft ring-2 ring-sage" : "bg-canvas"
+                    )}
+                  >
+                    {em}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mb-4">
+              <Label>New Password</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Leave blank to keep current"
+              />
+            </div>
+            <div className="mb-4">
+              <Label>Confirm Password</Label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+            <Button type="button" onClick={saveProfile} disabled={updateProfile.isPending}>
+              Save Profile
+            </Button>
+          </Card>
+
+          <Button type="button" variant="ghost" onClick={logout}>
+            Sign Out
+          </Button>
+        </div>
+
+        <div className="space-y-4">
+          <Card>
+            <h3 className="mb-3 font-serif text-lg font-semibold">Notifications</h3>
+            {notifRows.map((n) => (
+              <div
+                key={n.key}
+                className="flex items-center gap-3 border-b border-[rgba(60,50,40,0.08)] py-3 last:border-b-0"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-semibold">{n.l}</div>
+                  <div className="mt-0.5 text-xs text-dim">{n.d}</div>
+                </div>
+                <Toggle
+                  on={data.notifications[n.key]}
+                  onToggle={() => toggleNotif(n.key, !data.notifications[n.key])}
+                />
+              </div>
+            ))}
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

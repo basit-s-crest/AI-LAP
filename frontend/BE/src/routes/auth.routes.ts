@@ -11,6 +11,7 @@ import {
   updateMemberProfile,
   verifyOtp,
 } from "../controllers/auth.controller";
+import { getPublicPlatformSettings } from "../controllers/platformSettings.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -21,6 +22,7 @@ router.post("/verify-otp", verifyOtp);       // submit OTP → get JWT
 router.post("/resend-otp", resendOtp);       // request a fresh OTP
 router.post("/login", login);                // login → get JWT
 router.post("/forgot-password", forgotPassword);
+router.get("/platform-settings", getPublicPlatformSettings);
 
 // Coaches list (auth-protected)
 router.get("/coaches", authMiddleware, getCoaches);

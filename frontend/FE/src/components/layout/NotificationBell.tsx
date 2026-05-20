@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
 import {
@@ -9,7 +10,8 @@ import {
   markNotificationRead,
 } from "@/lib/notificationReadStore";
 import { markAllRead, markRead } from "@/store/slices/notificationSlice";
-import { useNotifications } from "@/hooks/useNotifications";
+import { useNotifications, localTodayKey } from "@/hooks/useNotifications";
+import { useCoachNotifications } from "@/hooks/useCoachNotifications";
 import { cn } from "@/lib/cn";
 
 function timeAgo(iso: string): string {
@@ -25,17 +27,36 @@ function timeAgo(iso: string): string {
 
 export function NotificationBell() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
   const role = useAppSelector((s) => s.auth.user?.role);
   const userId = useAppSelector((s) => s.auth.user?.id);
   const items = useAppSelector((s) => s.notification.items);
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const moodAutoOpenedRef = useRef(false);
 
-  const enabled = role === "user";
-  useNotifications(enabled);
+  const isMember = role === "user";
+  const isCoach = role === "coach";
+  const enabled = isMember || isCoach;
+
+  useNotifications(isMember);
+  useCoachNotifications(isCoach);
 
   const unreadCount = items.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    if (!isMember || !userId || moodAutoOpenedRef.current) return;
+    const dayKey = localTodayKey();
+    const moodId = `mood-reminder-${dayKey}`;
+    const moodDue = items.some((n) => n.id === moodId && !n.read);
+    if (!moodDue) return;
+    const sessionKey = `mood_panel_auto_${dayKey}`;
+    if (typeof window !== "undefined" && sessionStorage.getItem(sessionKey)) return;
+    moodAutoOpenedRef.current = true;
+    sessionStorage.setItem(sessionKey, "1");
+    setOpen(true);
+  }, [isMember, userId, items]);
 
   useEffect(() => {
     if (!open) return;
@@ -54,7 +75,29 @@ export function NotificationBell() {
     if (userId) markNotificationRead(userId, id);
     dispatch(markRead(id));
     setOpen(false);
-    if (link) router.push(link);
+    if (!link) return;
+
+    const coachMatch = link.match(/^\/coaching\/([^/?#]+)/);
+    if (coachMatch) {
+      void queryClient.invalidateQueries({
+        queryKey: ["coach-messages", coachMatch[1]],
+      });
+    }
+
+    const messagesMatch = link.match(/^\/messages\?partner=([^&]+)/);
+    if (messagesMatch) {
+      void queryClient.invalidateQueries({
+        queryKey: ["coach-messages", decodeURIComponent(messagesMatch[1])],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["coach-conversations"] });
+    }
+
+    const groupMatch = link.match(/^\/community-groups\/([^/?#]+)/);
+    if (groupMatch) {
+      void queryClient.invalidateQueries({ queryKey: ["group", groupMatch[1]] });
+    }
+
+    router.push(link);
   };
 
   const handleMarkAllRead = () => {

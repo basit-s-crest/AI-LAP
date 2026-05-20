@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { buildAppEmailHtml, type AppEmailContent } from "./emailTemplates";
 
 /**
  * Gmail SMTP transporter.
@@ -13,6 +14,10 @@ import nodemailer from "nodemailer";
  *   3. Create a new app password → copy the 16-char code
  *   4. Paste it as GMAIL_PASS in your .env
  */
+export function isEmailConfigured(): boolean {
+  return Boolean(process.env.GMAIL_USER && process.env.GMAIL_PASS);
+}
+
 const createTransporter = () => {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_PASS;
@@ -26,6 +31,58 @@ const createTransporter = () => {
     auth: { user, pass },
   });
 };
+
+function appBaseUrl(): string {
+  return (process.env.FRONTEND_URL ?? "http://localhost:3000").replace(/\/$/, "");
+}
+
+/**
+ * Branded transactional email (Azadi / VASL styling).
+ */
+export async function sendAppEmail(
+  toEmail: string,
+  subject: string,
+  content: AppEmailContent
+): Promise<void> {
+  const transporter = createTransporter();
+  const from = `"Azadi Health" <${process.env.GMAIL_USER}>`;
+  const textBody = [
+    content.title,
+    content.greeting ?? "",
+    ...content.lines,
+    content.ctaUrl ? `\n${content.ctaLabel ?? "Open"}: ${content.ctaUrl}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  await transporter.sendMail({
+    from,
+    to: toEmail,
+    subject,
+    text: textBody,
+    html: buildAppEmailHtml({
+      ...content,
+      ctaUrl: content.ctaUrl ? content.ctaUrl : undefined,
+    }),
+  });
+}
+
+/** Fire-and-forget; skips when Gmail is not configured. */
+export function sendAppEmailSafe(
+  toEmail: string,
+  subject: string,
+  content: AppEmailContent
+): void {
+  if (!isEmailConfigured() || !toEmail) return;
+  void sendAppEmail(toEmail, subject, content).catch((err) => {
+    console.error("[sendAppEmailSafe]", subject, err);
+  });
+}
+
+export function portalUrl(path: string): string {
+  const base = appBaseUrl();
+  return path.startsWith("/") ? `${base}${path}` : `${base}/${path}`;
+}
 
 /**
  * Generates a cryptographically random 6-digit OTP string.

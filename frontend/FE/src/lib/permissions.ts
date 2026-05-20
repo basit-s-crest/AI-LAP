@@ -44,6 +44,7 @@ const SUPERADMIN_PATHS = [
   "/admin/coaches",
   "/admin/groups",
   "/admin/orgs",
+  "/admin/settings",
 ] as const;
 
 const ROLE_PATHS: Record<Role, readonly string[]> = {

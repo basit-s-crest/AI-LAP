@@ -7,6 +7,7 @@ import { Server } from "socket.io";
 import app from "./app";
 import { socketAuthMiddleware } from "./middleware/socketAuth.middleware";
 import { registerCoachChatHandlers } from "./sockets/coachChat";
+import { initRealtime } from "./lib/realtime";
 
 const PORT = Number(process.env.PORT) || 4000;
 
@@ -27,6 +28,8 @@ const io = new Server(httpServer, {
     credentials: true,
   },
 });
+
+initRealtime(io);
 
 // Register /coach-chat namespace
 const coachChat = io.of("/coach-chat");

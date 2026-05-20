@@ -8,6 +8,7 @@ import {
   AssignmentError,
 } from "../services/coachMessage.service";
 import { forwardToSentiment } from "../services/sentimentForwarder";
+import { maybeEmailCoachUnreadMessages } from "../services/notificationEmail.service";
 
 export function registerCoachChatHandlers(io: Server, socket: Socket): void {
   const user = socket.data.user as { id: string; role: "member" | "coach" };
@@ -62,6 +63,7 @@ export function registerCoachChatHandlers(io: Server, socket: Socket): void {
         // Sentiment — member messages only
         if (user.role === "member") {
           forwardToSentiment(message, message.id);
+          void maybeEmailCoachUnreadMessages(coachId, userId);
         }
       } catch (err) {
         if (err instanceof ValidationError || err instanceof AssignmentError) {

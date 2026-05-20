@@ -13,6 +13,8 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useLogin } from "@/hooks/auth/useLogin";
 import { getAuthRoleOption, parseAuthRole } from "@/lib/auth-roles";
 import { useEffect } from "react";
+import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
+import { useMaintenanceRedirect } from "@/hooks/useMaintenanceRedirect";
 
 type FormValues = { email: string; password: string };
 
@@ -22,6 +24,8 @@ export function LoginScreen() {
   const role = parseAuthRole(search.get("role"));
   const roleOption = getAuthRoleOption(role);
   const justRegistered = search.get("registered") === "1";
+  const { data: platformSettings } = usePublicPlatformSettings();
+  useMaintenanceRedirect();
 
   // Pass role so the hook hits the right backend endpoint (coach vs member)
   const login = useLogin(role);
@@ -149,15 +153,17 @@ export function LoginScreen() {
               <span className="h-px flex-1 bg-line" />
             </div>
 
-            <p className="text-center text-sm text-mid">
-              New to Azadi?{" "}
-              <Link
-                href={`/register?role=${role}`}
-                className="font-bold text-sage hover:underline"
-              >
-                Create account
-              </Link>
-            </p>
+            {role !== "user" || platformSettings?.allowSelfRegistration !== false ? (
+              <p className="text-center text-sm text-mid">
+                New to Azadi?{" "}
+                <Link
+                  href={`/register?role=${role}`}
+                  className="font-bold text-sage hover:underline"
+                >
+                  Create account
+                </Link>
+              </p>
+            ) : null}
             <p className="mt-3 text-center text-xs text-dim">
               Organization admin?{" "}
               <Link href="/org-login" className="font-semibold text-sage hover:underline">

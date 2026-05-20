@@ -3,6 +3,7 @@ import { Playfair_Display, Nunito, JetBrains_Mono } from "next/font/google";
 import { StoreProvider } from "@/store/provider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthHydrator } from "@/components/auth/AuthHydrator";
+import { SessionGuard } from "@/components/auth/SessionGuard";
 import { NavigationProgress } from "@/components/layout/NavigationProgress";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -55,6 +56,7 @@ export default function RootLayout({
           <QueryProvider>
             <NavigationProgress />
             <AuthHydrator />
+            <SessionGuard />
             {children}
             <Toaster richColors position="top-center" />
           </QueryProvider>

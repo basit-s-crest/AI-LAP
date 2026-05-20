@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { navForRole, roleAccent, roleSidebarLabel, type NavItem } from "@/constants/navigation";
@@ -43,12 +44,18 @@ export function RoleSidebar({
   const label = roleSidebarLabel(role);
   const items = navForRole(role);
   const groups = groupItems(items);
+  const [brandTitle, setBrandTitle] = useState("Azadi Health");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("platform_brand_title");
+    if (saved?.trim()) setBrandTitle(saved.trim());
+  }, []);
 
   const inner = (
     <>
       <div className="border-b border-white/[0.08] px-[22px] pb-[18px] pt-6">
         <div className="font-serif text-[21px] font-bold tracking-wide text-[#FDFAF5]">
-          Azadi Health
+          {brandTitle}
         </div>
         <div
           className="mt-0.5 text-[9.5px] uppercase tracking-[2px] text-white/30"

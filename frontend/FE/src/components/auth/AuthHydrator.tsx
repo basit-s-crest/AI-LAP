@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useAppDispatch } from "@/hooks/redux";
 import { hydrateFromStorage, setSession } from "@/store/slices/authSlice";
+import { logout } from "@/store/slices/authSlice";
 import type { AuthUser } from "@/types/auth";
 import { AUTH_TOKEN_KEY, AUTH_USER_JSON_KEY } from "@/constants/storage";
 import api from "@/lib/api";
@@ -21,14 +22,17 @@ export function AuthHydrator() {
   useEffect(() => {
     const token = readCookie(AUTH_TOKEN_KEY);
     const raw = readCookie(AUTH_USER_JSON_KEY);
-    if (!token || !raw) return;
-
+    if (!token || !raw) {
+      dispatch(logout());
+      return;
+    }
     let user: AuthUser;
     try {
       user = JSON.parse(raw) as AuthUser;
       // Hydrate immediately from cookie so UI is not blank
       dispatch(hydrateFromStorage({ token, user }));
     } catch {
+      dispatch(logout());
       return;
     }
 

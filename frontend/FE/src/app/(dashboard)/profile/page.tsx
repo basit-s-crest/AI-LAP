@@ -80,7 +80,7 @@ export default function ProfilePage() {
     }
   }, [data]);
 
-  const assignedCoach = coaches[0] ?? null;
+  const coachList = coaches ?? [];
 
   const saveProfile = () => {
     updateProfile.mutate(
@@ -280,55 +280,34 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
-            {[
-              { e: "👤", bg: "#D4EDD7", l: "Edit Profile" },
-              { e: "📋", bg: "#D4E8F5", l: "Retake Assessments" },
-              { e: "🔒", bg: "#D4EDD7", l: "Privacy & Data" },
-              { e: "❓", bg: "#F5E6C8", l: "Help & Support" },
-              { e: "🚪", bg: "#FAE0DC", l: "Sign Out" },
-            ].map((it) => (
-              <button
-                key={it.l}
-                type="button"
-                className="flex w-full items-center gap-3 border-b border-[rgba(60,50,40,0.08)] py-3 text-left last:border-b-0"
-                onClick={() => {
-                  if (it.l === "Sign Out") {
-                    dispatch(logout());
-                    router.push("/");
-                  } else if (it.l === "Retake Assessments") {
-                    router.push("/onboarding");
-                  }
-                }}
-              >
-                <div
-                  className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[9px] text-base"
-                  style={{ background: it.bg }}
-                >
-                  {it.e}
-                </div>
-                <span className="flex-1 text-[13px] font-semibold">{it.l}</span>
-                <span className="text-dim">›</span>
-              </button>
-            ))}
           </Card>
 
-          {assignedCoach && (
+          {coachList.length > 0 && (
             <Card>
               <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-dim">
-                Your Coach
+                Your Coaches
               </div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] bg-[#D4E8F5] text-2xl">
-                  {assignedCoach.avatar ?? "🧑‍⚕️"}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-semibold text-ink">{assignedCoach.name}</div>
-                  {assignedCoach.speciality && (
-                    <div className="mt-0.5 text-xs text-dim">{assignedCoach.speciality}</div>
-                  )}
-                  {assignedCoach.bio && (
-                    <div className="mt-1 text-xs text-mid">{assignedCoach.bio}</div>
-                  )}
+              <div className="space-y-3">
+                {coachList.map((coach) => (
+                  <div key={coach.id} className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] bg-[#D4E8F5] text-2xl">
+                      {coach.avatar ?? "🧑‍⚕️"}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-semibold text-ink">{coach.name}</div>
+                      {coach.speciality && (
+                        <div className="mt-0.5 text-xs text-dim">{coach.speciality}</div>
+                      )}
+                      {coach.bio && (
+                        <div className="mt-1 text-xs text-mid">{coach.bio}</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <div>
+                  <Button size="sm" variant="outline" onClick={() => router.push("/coaching")}>
+                    View all coaches
+                  </Button>
                 </div>
               </div>
             </Card>

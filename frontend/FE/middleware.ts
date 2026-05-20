@@ -12,13 +12,29 @@ const PUBLIC_PATHS = new Set([
   "/verify",
   "/forgot-password",
   "/onboarding",
+  "/maintenance",
 ]);
+
+/** Login entry points only — maintenance blocks new sign-in, not active sessions. */
+const MAINTENANCE_GATE_PATHS = new Set(["/login", "/register", "/org-login"]);
 
 function isPublic(path: string): boolean {
   return PUBLIC_PATHS.has(path);
 }
 
-export function middleware(request: NextRequest) {
+async function fetchMaintenanceMode(): Promise<boolean> {
+  const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+  try {
+    const res = await fetch(`${base}/api/auth/platform-settings`, { cache: "no-store" });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { maintenanceMode?: boolean };
+    return Boolean(data.maintenanceMode);
+  } catch {
+    return false;
+  }
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const path = normalizePath(pathname);
 
@@ -34,6 +50,14 @@ export function middleware(request: NextRequest) {
   const roleCookie = request.cookies.get(AUTH_ROLE_KEY)?.value as Role | undefined;
 
   if (isPublic(path)) {
+    if (
+      !token &&
+      MAINTENANCE_GATE_PATHS.has(path) &&
+      (await fetchMaintenanceMode())
+    ) {
+      return NextResponse.redirect(new URL("/maintenance", request.url));
+    }
+
     if (token && roleCookie && ["/login", "/org-login", "/register"].includes(path)) {
       const next = request.nextUrl.searchParams.get("next");
       return NextResponse.redirect(new URL(next || getDefaultPathForRole(roleCookie), request.url));
@@ -55,7 +79,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(getDefaultPathForRole(roleCookie), request.url));
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  response.headers.set("Cache-Control", "no-store, must-revalidate");
+  return response;
 }
 
 export const config = {

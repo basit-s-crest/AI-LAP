@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAppSelector } from "@/hooks/redux";
+import { resolveMemberCoachMessageLink } from "@/lib/memberCoachChat";
+import { setActiveCoachMessagesPartner } from "@/lib/activeView";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { cn } from "@/lib/cn";
@@ -67,8 +71,17 @@ function formatDateLabel(dateStr: string): string {
 
 // ── Component ──────────────────────────────────────────────────────────────
 export default function CoachMessagesPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const partnerFromUrl = searchParams.get("partner");
+  const role = useAppSelector((s) => s.auth.user?.role);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (role !== "user") return;
+    void resolveMemberCoachMessageLink().then((href) => router.replace(href));
+  }, [role, router]);
   const [selectedId, setSelectedId]     = useState<string | null>(null);
   const [inputText, setInputText]       = useState("");
   const [sending, setSending]           = useState(false);
@@ -90,18 +103,27 @@ export default function CoachMessagesPage() {
     },
   });
 
-  // Sync unread counts from API data
+  // Sync unread counts from API data; honor ?partner= from notifications
   useEffect(() => {
     const counts: Record<string, number> = {};
     for (const c of conversations) {
       counts[c.partnerId] = c.unreadCount;
     }
     setUnreadCounts(counts);
-    // Auto-select first conversation
+
+    if (partnerFromUrl && conversations.some((c) => c.partnerId === partnerFromUrl)) {
+      setSelectedId(partnerFromUrl);
+      return;
+    }
     if (!selectedId && conversations.length > 0) {
       setSelectedId(conversations[0].partnerId);
     }
-  }, [conversations, selectedId]);
+  }, [conversations, selectedId, partnerFromUrl]);
+
+  useEffect(() => {
+    setActiveCoachMessagesPartner(selectedId);
+    return () => setActiveCoachMessagesPartner(null);
+  }, [selectedId]);
 
   // ── Active thread messages ─────────────────────────────────────────────
   const {
@@ -170,13 +192,12 @@ export default function CoachMessagesPage() {
     if (!partnerId) return;
     setSelectedId(partnerId);
     setInputText("");
-    // Mark as read
+    router.replace(`/messages?partner=${encodeURIComponent(partnerId)}`, { scroll: false });
     api.post(`/api/coach-messages/${partnerId}/read`).then(() => {
       setUnreadCounts((prev) => ({ ...prev, [partnerId]: 0 }));
-      // Invalidate conversations to refresh unread counts
       queryClient.invalidateQueries({ queryKey: ["coach-conversations"] });
     }).catch(() => { /* ignore */ });
-  }, [queryClient]);
+  }, [queryClient, router]);
 
   // Reload per-message badges when shared store updates (SSE or other tab)
   useEffect(() => {
@@ -276,6 +297,14 @@ useEffect(() => {
   };
 
   const selectedConv = conversations.find((c) => c.partnerId === selectedId);
+
+  if (role === "user") {
+    return (
+      <DashboardLayout title="Messages">
+        <p className="text-sm text-dim">Opening your coach chat…</p>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Messages">

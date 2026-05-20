@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import path from "path";
 
 import authRoutes from "./routes/auth.routes";
 import adminRouter from "./routes/admin.routes";
@@ -22,6 +23,7 @@ app.use(cors());
 app.use(helmet());
 app.use(express.json());
 app.use(morgan("dev")); // logs: POST /api/auth/register 201 45ms
+app.use("/uploads", express.static(path.resolve(process.cwd(), "public", "uploads")));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);

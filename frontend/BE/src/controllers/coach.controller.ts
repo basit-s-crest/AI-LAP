@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 
 import prisma from "../lib/prisma";
+import { emailOrgMembersCoachOnDemand } from "../services/notificationEmail.service";
 import {
   comparePassword,
   generateToken,
@@ -99,6 +100,14 @@ export const loginCoach = async (
 ): Promise<Response> => {
   try {
     const { email, password } = req.body;
+
+    const platform = await prisma.platformSettings.findUnique({
+      where: { id: "platform" },
+      select: { maintenanceMode: true },
+    });
+    if (platform?.maintenanceMode) {
+      return res.status(503).json({ message: "Site is under maintenance" });
+    }
 
     if (!email || !password) {
       return res
@@ -393,11 +402,20 @@ export const setOnDemandStatus = async (
       return res.status(400).json({ message: "onDemand must be a boolean" });
     }
 
+    const previous = await prisma.coach.findUnique({
+      where: { id: coachId },
+      select: { isActive: true },
+    });
+
     const coach = await prisma.coach.update({
       where: { id: coachId },
       data: { isActive: onDemand },
       select: { isActive: true },
     });
+
+    if (onDemand && previous && !previous.isActive) {
+      void emailOrgMembersCoachOnDemand(coachId);
+    }
 
     return res.status(200).json({ onDemand: coach.isActive });
   } catch (error) {

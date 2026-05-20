@@ -6,8 +6,15 @@ import api from "@/lib/api";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
 import { getReadNotificationIds } from "@/lib/notificationReadStore";
 import { addNotification, setNotifications } from "@/store/slices/notificationSlice";
+import { mergeFetchedNotifications } from "@/lib/notificationMerge";
 import type { AppNotification } from "@/types/notification";
 import type { CoachMessageDTO } from "@/types/coachMessage";
+import { resolveMemberCoachMessageLink } from "@/lib/memberCoachChat";
+import {
+  isViewingCoachChat,
+  isViewingCommunityGroup,
+} from "@/lib/activeView";
+import { useActiveView } from "@/hooks/useActiveView";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -18,8 +25,12 @@ function readCookie(name: string): string | null {
   return match ? decodeURIComponent(match.slice(encoded.length)) : null;
 }
 
-function todayKey(): string {
-  return new Date().toISOString().split("T")[0];
+export function localTodayKey(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function formatSessionDate(iso: string): string {
@@ -41,16 +52,46 @@ interface MemberSession {
 
 interface RecentPost {
   id: string;
+  groupId: string;
   groupName: string;
+  groupEmoji?: string;
   memberName: string;
+  body?: string;
   createdAt: string;
 }
 
 interface RecentJoin {
   id: string;
+  groupId: string;
+  groupName: string;
+  groupEmoji?: string;
+  memberName: string;
+  joinedAt: string;
+}
+
+interface GroupPostEvent {
+  id: string;
+  groupId: string;
+  groupName: string;
+  groupEmoji?: string;
+  memberName: string;
+  body: string;
+  createdAt: string;
+}
+
+interface GroupJoinEvent {
+  id: string;
+  groupId: string;
   groupName: string;
   memberName: string;
   joinedAt: string;
+}
+
+interface MemberNotificationPrefs {
+  notifyGroupActivity: boolean;
+  notifySessionReminders: boolean;
+  notifyDailyCheckin: boolean;
+  notifyWeeklySummary: boolean;
 }
 
 function applyPersistedReadState(
@@ -66,68 +107,87 @@ function applyPersistedReadState(
   }));
 }
 
+function groupLink(groupId: string): string {
+  return `/community-groups/${groupId}`;
+}
+
+async function markMemberThreadRead(coachId: string): Promise<void> {
+  await api.post(`/api/coach-messages/${coachId}/read`).catch(() => {});
+}
+
 export function useNotifications(enabled: boolean) {
   const dispatch = useAppDispatch();
   const userId = useAppSelector((s) => s.auth.user?.id);
+  const activeView = useActiveView();
+  const activeViewRef = useRef(activeView);
+  activeViewRef.current = activeView;
   const existingItems = useAppSelector((s) => s.notification.items);
   const existingItemsRef = useRef(existingItems);
   existingItemsRef.current = existingItems;
   const socketRef = useRef<Socket | null>(null);
+  const prefRef = useRef<MemberNotificationPrefs>({
+    notifyGroupActivity: true,
+    notifySessionReminders: true,
+    notifyDailyCheckin: true,
+    notifyWeeklySummary: true,
+  });
 
   const fetchAll = useCallback(async () => {
     if (!enabled || !userId) return;
 
     const items: AppNotification[] = [];
     const now = new Date().toISOString();
+    const dayKey = localTodayKey();
+    let prefs = prefRef.current;
 
     try {
-      const { data: moodToday } = await api.get<{ logged: boolean }>("/api/mood/today");
-      const reminderKey = `mood_reminder_${todayKey()}`;
-      if (!moodToday.logged && typeof window !== "undefined" && !localStorage.getItem(reminderKey)) {
-        localStorage.setItem(reminderKey, "1");
-        items.push({
-          id: `mood-reminder-${todayKey()}`,
-          title: "Log your mood 🌿",
-          message: "How are you feeling today? Tap to check in",
-          read: false,
-          createdAt: now,
-          severity: "info",
-          link: "/mood-mapping",
-        });
+      const { data: profile } = await api.get<{ notifications: MemberNotificationPrefs }>(
+        "/api/auth/profile"
+      );
+      if (profile?.notifications) {
+        prefs = profile.notifications;
+        prefRef.current = profile.notifications;
       }
     } catch {
-      /* ignore mood fetch errors */
+      /* ignore profile preference fetch errors */
+    }
+
+    if (prefs.notifyDailyCheckin) {
+      try {
+        const { data: moodToday } = await api.get<{ logged: boolean }>("/api/mood/today");
+        if (!moodToday.logged) {
+          items.push({
+            id: `mood-reminder-${dayKey}`,
+            title: "Log your mood 🌿",
+            message: "How are you feeling today? Tap to check in",
+            read: false,
+            createdAt: now,
+            severity: "info",
+            link: "/mood-mapping",
+          });
+        }
+      } catch {
+        /* ignore mood fetch errors */
+      }
     }
 
     try {
       const { data: unread } = await api.get<{ count: number }>("/api/coach-messages/unread-count");
       if (unread.count > 0) {
-        items.push({
-          id: "coach-messages-unread",
-          title: "New message from your coach 💬",
-          message: `${unread.count} unread message${unread.count === 1 ? "" : "s"}`,
-          read: false,
-          createdAt: now,
-          severity: "info",
-          link: "/messages",
-        });
-      }
-    } catch {
-      /* ignore */
-    }
-
-    try {
-      const { data: sessions } = await api.get<MemberSession[]>("/api/sessions/member");
-      for (const session of sessions) {
-        if (session.status === "pending" && session.rescheduleRequest) {
+        const chatLink = await resolveMemberCoachMessageLink();
+        const coachIdFromLink = chatLink.match(/^\/coaching\/([^/?#]+)/)?.[1];
+        const view = activeViewRef.current;
+        if (coachIdFromLink && isViewingCoachChat(view, coachIdFromLink)) {
+          void markMemberThreadRead(coachIdFromLink);
+        } else {
           items.push({
-            id: `session-reschedule-${session.id}`,
-            title: "Session rescheduled 📅",
-            message: `Your coach proposed a new time for ${formatSessionDate(session.rescheduleRequest)}`,
+            id: "coach-messages-unread",
+            title: "New message from your coach 💬",
+            message: `${unread.count} unread message${unread.count === 1 ? "" : "s"}`,
             read: false,
-            createdAt: session.rescheduleRequest,
-            severity: "warning",
-            link: "/coaching",
+            createdAt: now,
+            severity: "info",
+            link: chatLink,
           });
         }
       }
@@ -135,49 +195,90 @@ export function useNotifications(enabled: boolean) {
       /* ignore */
     }
 
-    try {
-      const { data: posts } = await api.get<RecentPost[]>("/api/groups/recent-posts");
-      for (const post of posts) {
-        items.push({
-          id: `group-post-${post.id}`,
-          title: `New post in ${post.groupName} 👥`,
-          message: `${post.memberName} posted something`,
-          read: false,
-          createdAt: post.createdAt,
-          severity: "info",
-          link: "/community-groups",
-        });
+    if (prefs.notifySessionReminders) {
+      try {
+        const { data: sessions } = await api.get<MemberSession[]>("/api/sessions/member");
+        for (const session of sessions) {
+          if (session.status === "pending" && session.rescheduleRequest) {
+            items.push({
+              id: `session-reschedule-${session.id}`,
+              title: "Session rescheduled 📅",
+              message: `Your coach proposed a new time for ${formatSessionDate(session.rescheduleRequest)}`,
+              read: false,
+              createdAt: session.rescheduleRequest,
+              severity: "warning",
+              link: "/coaching",
+            });
+          }
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
     }
 
-    try {
-      const { data: joins } = await api.get<RecentJoin[]>("/api/groups/recent-joins");
-      for (const join of joins) {
-        items.push({
-          id: `group-join-${join.id}`,
-          title: `New member in ${join.groupName}`,
-          message: `${join.memberName} just joined`,
-          read: false,
-          createdAt: join.joinedAt,
-          severity: "info",
-          link: "/community-groups",
-        });
+    if (prefs.notifyGroupActivity) {
+      try {
+        const { data: posts } = await api.get<RecentPost[]>("/api/groups/recent-posts");
+        const view = activeViewRef.current;
+        for (const post of posts) {
+          if (isViewingCommunityGroup(view, post.groupId)) continue;
+          const preview =
+            post.body && post.body.length > 60
+              ? `${post.body.slice(0, 60)}…`
+              : post.body || "posted something";
+          items.push({
+            id: `group-post-${post.id}`,
+            title: `New post in ${post.groupName} 👥`,
+            message: `${post.memberName}: ${preview}`,
+            read: false,
+            createdAt:
+              typeof post.createdAt === "string"
+                ? post.createdAt
+                : new Date(post.createdAt).toISOString(),
+            severity: "info",
+            link: groupLink(post.groupId),
+          });
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
+
+      try {
+        const { data: joins } = await api.get<RecentJoin[]>("/api/groups/recent-joins");
+        for (const join of joins) {
+          if (isViewingCommunityGroup(activeViewRef.current, join.groupId)) continue;
+          items.push({
+            id: `group-join-${join.id}`,
+            title: `New member in ${join.groupName}`,
+            message: `${join.memberName} just joined`,
+            read: false,
+            createdAt:
+              typeof join.joinedAt === "string"
+                ? join.joinedAt
+                : new Date(join.joinedAt).toISOString(),
+            severity: "info",
+            link: groupLink(join.groupId),
+          });
+        }
+      } catch {
+        /* ignore */
+      }
     }
 
-    items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const merged = mergeFetchedNotifications(items, existingItemsRef.current);
+    merged.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
     dispatch(
-      setNotifications(applyPersistedReadState(userId, items, existingItemsRef.current))
+      setNotifications(applyPersistedReadState(userId, merged, existingItemsRef.current))
     );
   }, [dispatch, enabled, userId]);
 
   useEffect(() => {
     if (!enabled) return;
     void fetchAll();
+    const interval = setInterval(() => void fetchAll(), 60_000);
+    return () => clearInterval(interval);
   }, [enabled, fetchAll]);
 
   useEffect(() => {
@@ -193,6 +294,11 @@ export function useNotifications(enabled: boolean) {
     socket.on("new_message", (msg: CoachMessageDTO) => {
       if (msg.senderRole !== "coach" || msg.userId !== userId) return;
 
+      if (isViewingCoachChat(activeViewRef.current, msg.coachId)) {
+        void markMemberThreadRead(msg.coachId);
+        return;
+      }
+
       dispatch(
         addNotification({
           id: `coach-msg-${msg.id}`,
@@ -201,7 +307,41 @@ export function useNotifications(enabled: boolean) {
           read: false,
           createdAt: msg.createdAt,
           severity: "info",
-          link: "/messages",
+          link: `/coaching/${msg.coachId}`,
+        })
+      );
+    });
+
+    socket.on("group_post", (post: GroupPostEvent) => {
+      if (!prefRef.current.notifyGroupActivity) return;
+      if (isViewingCommunityGroup(activeViewRef.current, post.groupId)) return;
+      const preview =
+        post.body.length > 60 ? `${post.body.slice(0, 60)}…` : post.body;
+      dispatch(
+        addNotification({
+          id: `group-post-${post.id}`,
+          title: `New post in ${post.groupName} 👥`,
+          message: `${post.memberName}: ${preview}`,
+          read: false,
+          createdAt: post.createdAt,
+          severity: "info",
+          link: groupLink(post.groupId),
+        })
+      );
+    });
+
+    socket.on("group_join", (join: GroupJoinEvent) => {
+      if (!prefRef.current.notifyGroupActivity) return;
+      if (isViewingCommunityGroup(activeViewRef.current, join.groupId)) return;
+      dispatch(
+        addNotification({
+          id: `group-join-${join.id}`,
+          title: `New member in ${join.groupName}`,
+          message: `${join.memberName} just joined`,
+          read: false,
+          createdAt: join.joinedAt,
+          severity: "info",
+          link: groupLink(join.groupId),
         })
       );
     });
@@ -214,3 +354,4 @@ export function useNotifications(enabled: boolean) {
 
   return { refresh: fetchAll };
 }
+

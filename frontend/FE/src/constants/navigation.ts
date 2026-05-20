@@ -77,6 +77,12 @@ export const SUPERADMIN_NAV: NavItem[] = [
     icon: Building2,
     section: "Admin Platform",
   },
+  {
+    href: "/admin/settings",
+    label: "Settings",
+    icon: Settings,
+    section: "Admin Platform",
+  },
 ];
 
 export function navForRole(role: Role): NavItem[] {

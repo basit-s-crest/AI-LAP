@@ -12,11 +12,13 @@ import { authService } from "@/services/auth.service";
 import { useAppDispatch } from "@/hooks/redux";
 import { setSession } from "@/store/slices/authSlice";
 import { loginSchema } from "@/validations/auth.validation";
+import { useMaintenanceRedirect } from "@/hooks/useMaintenanceRedirect";
 
 type FormValues = { email: string; password: string };
 
 export default function OrgLoginPage() {
   const dispatch = useAppDispatch();
+  useMaintenanceRedirect();
   const [error, setError] = useState("");
   const methods = useForm<FormValues>({
     resolver: zodResolver(loginSchema),

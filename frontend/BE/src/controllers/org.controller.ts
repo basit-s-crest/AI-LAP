@@ -51,6 +51,14 @@ export const orgRegister = async (req: Request, res: Response): Promise<Response
 export const orgLogin = async (req: Request, res: Response): Promise<Response> => {
   try {
     const { email, password } = req.body;
+    const platform = await prisma.platformSettings.findUnique({
+      where: { id: "platform" },
+      select: { maintenanceMode: true },
+    });
+    if (platform?.maintenanceMode) {
+      return res.status(503).json({ message: "Site is under maintenance" });
+    }
+
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }

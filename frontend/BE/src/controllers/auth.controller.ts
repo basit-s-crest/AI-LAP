@@ -18,6 +18,20 @@ import {
   getMemberStats,
 } from "../services/memberProfile.service";
 
+async function getPlatformFlags(): Promise<{
+  allowSelfRegistration: boolean;
+  maintenanceMode: boolean;
+}> {
+  const settings = await prisma.platformSettings.findUnique({
+    where: { id: "platform" },
+    select: { allowSelfRegistration: true, maintenanceMode: true },
+  });
+  return {
+    allowSelfRegistration: settings?.allowSelfRegistration ?? true,
+    maintenanceMode: settings?.maintenanceMode ?? false,
+  };
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const sanitizeUser = (user: {
@@ -63,6 +77,11 @@ export const register = async (
     const ALLOWED_ROLES = ["member", "superadmin"] as const;
     type AllowedRole = typeof ALLOWED_ROLES[number];
     const role: AllowedRole = ALLOWED_ROLES.includes(rawRole) ? rawRole : "member";
+
+    const platform = await getPlatformFlags();
+    if (role === "member" && !platform.allowSelfRegistration) {
+      return res.status(403).json({ message: "Self registration is currently disabled." });
+    }
 
     // Superadmin registration requires a valid invite code
     if (role === "superadmin") {
@@ -266,6 +285,11 @@ export const login = async (
     const isPasswordValid = await comparePassword(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const platform = await getPlatformFlags();
+    if (platform.maintenanceMode && user.role !== "superadmin") {
+      return res.status(503).json({ message: "Site is under maintenance" });
     }
 
     if (!user.isVerified) {

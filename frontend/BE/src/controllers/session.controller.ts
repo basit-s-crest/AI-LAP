@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { memberOrganizationHasActiveCoach } from "../services/member-org-coach.service";
+import {
+  emailCoachSessionUpdate,
+  emailMemberSessionUpdate,
+} from "../services/notificationEmail.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -255,6 +259,8 @@ export const bookSession = async (
       },
     });
 
+    void emailCoachSessionUpdate(session.id, "booked");
+
     return res.status(201).json(session);
   } catch (error) {
     console.error("[bookSession]", error);
@@ -318,6 +324,12 @@ export const cancelSession = async (
         cancelledBy: userRole === "coach" ? "coach" : "member",
       },
     });
+
+    if (userRole === "coach") {
+      void emailMemberSessionUpdate(updated.id, "cancelled");
+    } else {
+      void emailCoachSessionUpdate(updated.id, "cancelled");
+    }
 
     return res.status(200).json(updated);
   } catch (error) {
@@ -386,6 +398,12 @@ export const rescheduleSession = async (
         rescheduleRequest: newDate,
       },
     });
+
+    if (userRole === "coach") {
+      void emailMemberSessionUpdate(updated.id, "rescheduled");
+    } else {
+      void emailCoachSessionUpdate(updated.id, "rescheduled");
+    }
 
     return res.status(200).json(updated);
   } catch (error) {
