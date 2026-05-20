@@ -7,4 +7,5 @@ export interface AppNotification {
   read: boolean;
   createdAt: string;
   severity?: NotificationSeverity;
+  link?: string;
 }

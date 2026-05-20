@@ -1,11 +1,11 @@
 {
   "videos": [
-    {"emoji":"🧘","title":"Grounding Through Breath","duration":"8 min","background":"#D4EDD7","tag":"Anxiety"},
-    {"emoji":"🌱","title":"Building Self-Compassion","duration":"12 min","background":"#D4E8F5","tag":"Wellbeing"},
-    {"emoji":"🔥","title":"Setting Healthy Boundaries","duration":"15 min","background":"#F5DDD4","tag":"Relationships"},
-    {"emoji":"✊🏾","title":"Reclaiming Your Narrative","duration":"10 min","background":"#F5E6C8","tag":"Identity"},
-    {"emoji":"😴","title":"Sleep & Mental Health","duration":"7 min","background":"#D4EDD7","tag":"Wellness"},
-    {"emoji":"💬","title":"How to Talk to a Coach","duration":"5 min","background":"#D4E8F5","tag":"Getting Started"}
+    {"emoji":"🧘","title":"Grounding Through Breath","duration":"8 min","background":"#D4EDD7","tag":"Anxiety","youtubeUrl":"https://youtu.be/URiPyIbU3bg?si=SOC9aIdBA2cga4WJ"},
+    {"emoji":"🌱","title":"Building Self-Compassion","duration":"12 min","background":"#D4E8F5","tag":"Wellbeing","youtubeUrl":"https://youtu.be/eiEMVA8AIJw?si=b1DRpboFLuFpn25L"},
+    {"emoji":"🔥","title":"Setting Healthy Boundaries","duration":"15 min","background":"#F5DDD4","tag":"Relationships","youtubeUrl":"https://youtu.be/yPWyNSrFtYw?si=FmBi14s0LwgTnE4f"},
+    {"emoji":"✊🏾","title":"Reclaiming Your Narrative","duration":"10 min","background":"#F5E6C8","tag":"Identity","youtubeUrl":"https://youtu.be/jyyFfQAw9as?si=TBar18n2va8xAqQR"},
+    {"emoji":"😴","title":"Sleep & Mental Health","duration":"7 min","background":"#D4EDD7","tag":"Wellness","youtubeUrl":"https://youtu.be/qZWLegof7GE?si=FbyMUUtQmR4jG14n"},
+    {"emoji":"💬","title":"How to Talk to a Coach","duration":"5 min","background":"#D4E8F5","tag":"Getting Started","youtubeUrl":"https://youtu.be/TGOQShqfaOA?si=QSJC7pg0fM730kjC"}
   ],
   "crisis": [
     {"emoji":"📞","title":"988 Lifeline","description":"Call or text 988 · 24/7","background":"#FAE0DC"},

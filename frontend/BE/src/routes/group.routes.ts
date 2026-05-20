@@ -5,7 +5,10 @@ import {
   createPost,
   getGroupById,
   getGroups,
+  getMyGroups,
   getPosts,
+  getRecentJoins,
+  getRecentPosts,
   joinGroup,
   leaveGroup,
 } from "../controllers/group.controller";
@@ -16,6 +19,9 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get("/", getGroups);
+router.get("/my-groups", getMyGroups);
+router.get("/recent-posts", getRecentPosts);
+router.get("/recent-joins", getRecentJoins);
 router.get("/:id", getGroupById);
 router.post("/:id/join", joinGroup);
 router.post("/:id/leave", leaveGroup);

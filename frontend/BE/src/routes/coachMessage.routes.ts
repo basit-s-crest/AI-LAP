@@ -4,6 +4,7 @@ import {
   getThreadHandler,
   markReadHandler,
   getConversationListHandler,
+  getUnreadCountHandler,
 } from "../controllers/coachMessage.controller";
 
 const router = Router();
@@ -12,6 +13,9 @@ router.use(authMiddleware);
 
 // GET /api/coach-messages — conversation list
 router.get("/", getConversationListHandler);
+
+// GET /api/coach-messages/unread-count
+router.get("/unread-count", getUnreadCountHandler);
 
 // GET /api/coach-messages/:partnerId — thread history with cursor pagination
 router.get("/:partnerId", getThreadHandler);

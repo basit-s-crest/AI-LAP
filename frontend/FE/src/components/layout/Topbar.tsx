@@ -2,8 +2,8 @@
 
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 import { Breadcrumbs } from "./Breadcrumbs";
+import { NotificationBell } from "./NotificationBell";
 
 export function Topbar({
   title,
@@ -34,7 +34,10 @@ export function Topbar({
           {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} className="mt-0.5 hidden sm:flex" /> : null}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">{right}</div>
+      <div className="flex shrink-0 items-center gap-2">
+        <NotificationBell />
+        {right}
+      </div>
     </header>
   );
 }

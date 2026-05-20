@@ -12,6 +12,7 @@ export default function EmpowermentKitPage() {
     duration: string;
     background: string;
     tag: string;
+    youtubeUrl: string;
   }[];
 
   return (
@@ -19,9 +20,12 @@ export default function EmpowermentKitPage() {
       <div className="animate-fadeIn">
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {vids.map((v) => (
-            <div
+            <a
               key={v.title}
-              className="cursor-pointer overflow-hidden rounded-card border border-line bg-card transition-all hover:-translate-y-1 hover:shadow-soft"
+              href={v.youtubeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block cursor-pointer overflow-hidden rounded-card border border-line bg-card transition-all hover:-translate-y-1 hover:shadow-soft"
             >
               <div
                 className="flex h-[110px] items-center justify-center text-[38px]"
@@ -36,7 +40,7 @@ export default function EmpowermentKitPage() {
                 <div className="text-sm font-semibold">{v.title}</div>
                 <div className="text-sm text-dim">▶ {v.duration}</div>
               </div>
-            </div>
+            </a>
           ))}
         </div>
         <Card>

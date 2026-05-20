@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import prisma from "../lib/prisma";
 import {
   getThread,
   markRead,
@@ -149,6 +150,34 @@ export const getConversationListHandler = async (
 
     return res.status(200).json(conversations);
   } catch {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/** GET /api/coach-messages/unread-count — unread messages for the authenticated user. */
+export const getUnreadCountHandler = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    const { id, role } = req.user;
+    if (role === "member") {
+      const count = await prisma.coachMessage.count({
+        where: { userId: id, senderRole: "coach", read: false },
+      });
+      return res.status(200).json({ count });
+    }
+    if (role === "coach") {
+      const count = await prisma.coachMessage.count({
+        where: { coachId: id, senderRole: "member", read: false },
+      });
+      return res.status(200).json({ count });
+    }
+    return res.status(403).json({ message: "Forbidden" });
+  } catch (error) {
+    console.error("[getUnreadCountHandler]", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -4,7 +4,8 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { DashboardRouter } from "@/components/dashboard/DashboardRouter";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Mail, Bell } from "lucide-react";
+import Link from "next/link";
+import { Mail } from "lucide-react";
 import type { Role } from "@/types/role";
 
 export function DashboardClient({
@@ -36,20 +37,11 @@ export function DashboardClient({
         <Badge variant="red">2 Messages</Badge>
       </div>
     ) : (
-      <div className="flex items-center gap-2">
-        <div className="relative">
-          <Button variant="ghost" size="sm" type="button" aria-label="Messages">
-            <Mail className="h-4 w-4" />
-          </Button>
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full border-2 border-card bg-terra" />
-        </div>
-        <div className="relative">
-          <Button variant="ghost" size="sm" type="button" aria-label="Notifications">
-            <Bell className="h-4 w-4" />
-          </Button>
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full border-2 border-card bg-terra" />
-        </div>
-      </div>
+      <Link href="/messages">
+        <Button variant="ghost" size="sm" type="button" aria-label="Messages">
+          <Mail className="h-4 w-4" />
+        </Button>
+      </Link>
     );
 
   return (

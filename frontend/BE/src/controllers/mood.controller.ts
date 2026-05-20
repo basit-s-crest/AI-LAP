@@ -107,11 +107,15 @@ export const getTodayMoodHandler = async (
 
     const userId = req.user.id;
     const todayTrend = await getMoodTrend(userId, 7);
-    const todayMood = todayTrend.records[0] ?? null;
+    const todayRecord = todayTrend.records.find((r) => {
+      const today = new Date();
+      const todayKey = today.toISOString().split("T")[0];
+      return r.date === todayKey;
+    });
 
     return res.status(200).json({
-      message: "Today's mood retrieved successfully",
-      mood: todayMood,
+      logged: Boolean(todayRecord),
+      mood: todayRecord?.mood,
     });
   } catch (error) {
     console.error("[getTodayMoodHandler]", error);

@@ -20,8 +20,20 @@ const notificationSlice = createSlice({
       const n = state.items.find((x) => x.id === action.payload);
       if (n) n.read = true;
     },
+    markAllRead(state) {
+      for (const item of state.items) {
+        item.read = true;
+      }
+    },
+    addNotification(state, action: PayloadAction<AppNotification>) {
+      const exists = state.items.some((x) => x.id === action.payload.id);
+      if (!exists) {
+        state.items.unshift(action.payload);
+      }
+    },
   },
 });
 
-export const { setNotifications, markRead } = notificationSlice.actions;
+export const { setNotifications, markRead, markAllRead, addNotification } =
+  notificationSlice.actions;
 export default notificationSlice.reducer;
