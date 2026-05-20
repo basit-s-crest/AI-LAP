@@ -173,16 +173,6 @@ export default function AvailabilityPage() {
             {saving ? "Saving…" : "Save Availability"}
           </Button>
         </Card>
-        <Card>
-          <h3 className="mb-3 font-serif text-lg font-semibold">On-Demand Settings</h3>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[13px] font-semibold">Available for on-demand sessions</div>
-              <div className="text-xs text-dim">Users can request you immediately when active</div>
-            </div>
-            <AvailabilityToggle on={onDemand} onClick={() => dispatch(setOnDemand(!onDemand))} />
-          </div>
-        </Card>
       </div>
     </DashboardLayout>
   );

@@ -32,9 +32,6 @@ export function CoachCard({
         {coach.speciality ? (
           <div className="my-1 text-xs text-mid">{coach.speciality}</div>
         ) : null}
-        {coach.bio ? (
-          <div className="text-xs text-dim">{coach.bio}</div>
-        ) : null}
       </div>
       <div className="flex shrink-0 gap-2 self-center">
         {onMessage ? (

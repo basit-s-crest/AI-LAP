@@ -23,12 +23,15 @@ const sanitizeCoach = (coach: {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  orgAssignments?: { organization: { name: string } }[];
 }) => ({
   id: coach.id,
   email: coach.email,
   name: coach.name,
   avatar: coach.avatar,
-  bio: coach.bio,
+  bio: coach.orgAssignments && coach.orgAssignments.length > 0
+    ? coach.orgAssignments.map((a) => a.organization.name).join(", ")
+    : coach.bio,
   speciality: coach.speciality,
   isActive: coach.isActive,
   createdAt: coach.createdAt,
@@ -156,6 +159,11 @@ export const listCoachesHandler = async (
     const coaches = await prisma.coach.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
+      include: {
+        orgAssignments: {
+          include: { organization: { select: { name: true } } },
+        },
+      },
     });
 
     return res.status(200).json({ coaches: coaches.map(sanitizeCoach) });
@@ -208,6 +216,11 @@ export const getCoachPublicByIdHandler = async (
 
     const coach = await prisma.coach.findFirst({
       where: { id: coachId, isActive: true },
+      include: {
+        orgAssignments: {
+          include: { organization: { select: { name: true } } },
+        },
+      },
     });
     if (!coach) {
       return res.status(404).json({ message: "Coach not found" });

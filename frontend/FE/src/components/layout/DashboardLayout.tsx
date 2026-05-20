@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { RoleSidebar } from "./RoleSidebar";
 import { Topbar } from "./Topbar";
 import { MobileSidebar } from "./MobileSidebar";
 import type { Role } from "@/types/role";
-import { useAppSelector } from "@/hooks/redux";
+import { useAppSelector, useAppDispatch } from "@/hooks/redux";
+import { setSession } from "@/store/slices/authSlice";
 import { cn } from "@/lib/cn";
+import api from "@/lib/api";
 
 export function DashboardLayout({
   title,
@@ -15,7 +17,6 @@ export function DashboardLayout({
   topbarRight,
   breadcrumbs,
   impersonationBanner,
-  // Server-read values passed as props — correct on first render, no hydration mismatch
   serverRole = "user",
   serverDisplayName = "Member",
 }: {
@@ -28,15 +29,51 @@ export function DashboardLayout({
   serverDisplayName?: string;
 }) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Redux hydrates after first render via AuthHydrator.
-  // Use server-passed values as fallback — they're already correct so no flash.
   const reduxUser = useAppSelector((s) => s.auth.user);
+  const reduxToken = useAppSelector((s) => s.auth.token);
   const role: Role = reduxUser?.role ?? serverRole;
   const displayName = reduxUser
     ? `${reduxUser.firstName} ${reduxUser.lastName}`.trim() || serverDisplayName
     : serverDisplayName;
+
+  // Sync name from DB on mount so admin name changes reflect immediately
+  useEffect(() => {
+    if (!reduxUser || !reduxToken) return;
+    // Only sync for members — coaches/admins have their own profile endpoints
+    if (reduxUser.role !== "user" && reduxUser.role !== "member") return;
+
+    api.get<{ firstName: string; lastName: string; avatar: string | null }>(
+      "/api/auth/profile"
+    ).then((res) => {
+      const { firstName, lastName, avatar } = res.data;
+      // Only update if name actually changed
+      if (
+        firstName !== reduxUser.firstName ||
+        lastName !== reduxUser.lastName
+      ) {
+        dispatch(
+          setSession({
+            token: reduxToken,
+            user: {
+              ...reduxUser,
+              firstName,
+              lastName,
+              avatarEmoji: avatar ?? reduxUser.avatarEmoji,
+            },
+            expiresAt: new Date(
+              Date.now() + 7 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          })
+        );
+      }
+    }).catch(() => {
+      // silently ignore — sidebar will just show cached name
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount only
 
   return (
     <div className="min-h-screen bg-canvas">

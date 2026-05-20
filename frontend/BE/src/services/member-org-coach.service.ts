@@ -17,13 +17,21 @@ export async function getMemberOrganizationId(userId: string): Promise<string | 
  */
 export async function getActiveCoachesForMemberOrganization(
   memberUserId: string
-): Promise<Coach[]> {
+): Promise<(Coach & { orgAssignments: { organization: { name: string } }[] })[]> {
   const orgId = await getMemberOrganizationId(memberUserId);
   if (!orgId) return [];
 
   const assignments = await prisma.organizationCoach.findMany({
     where: { organizationId: orgId },
-    include: { coach: true },
+    include: {
+      coach: {
+        include: {
+          orgAssignments: {
+            include: { organization: { select: { name: true } } },
+          },
+        },
+      },
+    },
   });
 
   return assignments

@@ -204,17 +204,45 @@ export default function CoachMessagesPage() {
   }, [latestUpdate, selectedId, queryClient]);
 
  // ── Scroll: instant on initial load, smooth for new socket messages ──────────
+// ── Track last message count to detect new vs old messages loading ─────────
+const prevMessageCountRef = useRef(0);
+const isLoadingOlderRef = useRef(false);
+
+// Mark when we're fetching older messages
+useEffect(() => {
+  if (isFetchingNextPage) {
+    isLoadingOlderRef.current = true;
+  }
+}, [isFetchingNextPage]);
+
+// ── Scroll: instant on initial load, smooth for new socket messages ──────────
 const prevSelectedId = useRef<string | null>(null);
 
 useEffect(() => {
   if (!chatEndRef.current || messages.length === 0) return;
+
   const conversationChanged = prevSelectedId.current !== selectedId;
   prevSelectedId.current = selectedId;
+
   if (conversationChanged) {
-      // Instant jump when switching conversations or initial load
+    // Instant jump when switching conversations or initial load
+    prevMessageCountRef.current = messages.length;
     chatEndRef.current.scrollIntoView({ behavior: "instant" });
-  } else {
-      // Smooth scroll only for new incoming messages
+    return;
+  }
+
+  // If older messages just loaded (scroll up pagination) — don't scroll to bottom
+  if (isLoadingOlderRef.current) {
+    isLoadingOlderRef.current = false;
+    prevMessageCountRef.current = messages.length;
+    return; // preserve scroll position — handleChatScroll already handles it
+  }
+
+  // Only scroll to bottom if a NEW message was added (count increased by 1)
+  const countDiff = messages.length - prevMessageCountRef.current;
+  prevMessageCountRef.current = messages.length;
+
+  if (countDiff === 1) {
     chatEndRef.current.scrollIntoView({ behavior: "smooth" });
   }
 }, [messages, selectedId]);

@@ -45,7 +45,6 @@ export default function OrgCoachesPage() {
                 </Badge>
               </div>
               <p className="mt-2 text-sm text-mid">{coach.speciality || "Speciality not set"}</p>
-              <p className="mt-2 text-sm text-mid">{coach.bio || "Bio not available"}</p>
             </Card>
           ))}
         </div>

@@ -16,7 +16,7 @@ import {
   useRemoveAdminCoach,
   useUpdateAdminCoach,
 } from "@/hooks/admin/useAdminCoaches";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import type { AdminCoach } from "@/types/admin";
@@ -50,42 +50,127 @@ function OrgMultiSelect({
   onChange: (ids: string[]) => void;
   organizations: { id: string; name: string }[];
 }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const toggle = (id: string) => {
-    if (value.includes(id)) {
-      onChange(value.filter((v) => v !== id));
-    } else {
-      onChange([...value, id]);
-    }
+    onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
   };
+
+  const filtered = organizations.filter((o) =>
+    o.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectedOrgs = organizations.filter((o) => value.includes(o.id));
 
   return (
     <div>
       <Label>Organizations</Label>
-      <div className="max-h-[160px] overflow-y-auto rounded-lg border border-[rgba(60,50,40,0.15)] bg-white p-2">
-        {organizations.length === 0 ? (
-          <div className="px-2 py-1 text-xs text-dim">No organizations found</div>
-        ) : (
-          organizations.map((o) => (
-            <label
-              key={o.id}
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-[#F5F0E8]"
-            >
+      <div ref={ref} className="relative">
+        {/* Trigger */}
+        <div
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setOpen((o) => !o);
+            }
+          }}
+          className="flex min-h-[42px] w-full flex-wrap items-center gap-1.5 rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-left text-[13.5px] text-ink outline-none focus:border-[#4E8C58] focus:shadow-[0_0_0_3px_#EBF5EC]"
+        >
+          {selectedOrgs.length === 0 ? (
+            <span className="text-dim">Select organizations…</span>
+          ) : (
+            selectedOrgs.map((o) => (
+              <span
+                key={o.id}
+                className="flex items-center gap-1 rounded-full bg-[#EBF5EC] px-2 py-0.5 text-xs font-medium text-[#4E8C58]"
+              >
+                {o.name}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggle(o.id);
+                  }}
+                  className="ml-0.5 text-[#4E8C58] hover:text-[#2d5c35]"
+                >
+                  ×
+                </button>
+              </span>
+            ))
+          )}
+          <span className="ml-auto text-dim">▾</span>
+        </div>
+
+        {/* Dropdown */}
+        {open && (
+          <div className="absolute z-50 mt-1 w-full rounded-[10px] border-[1.5px] border-line bg-card shadow-lg">
+            <div className="p-2">
               <input
-                type="checkbox"
-                checked={value.includes(o.id)}
-                onChange={() => toggle(o.id)}
-                className="accent-[#4E8C58]"
+                autoFocus
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search organizations…"
+                className="w-full rounded-[7px] border border-[rgba(60,50,40,0.12)] bg-[#F7F3EE] px-3 py-1.5 text-sm outline-none focus:border-[#4E8C58]"
               />
-              <span className="text-sm text-ink">{o.name}</span>
-            </label>
-          ))
+            </div>
+            <ul className="max-h-52 overflow-y-auto pb-1">
+              {filtered.length === 0 ? (
+                <li className="px-4 py-3 text-sm text-dim">No organizations found</li>
+              ) : (
+                filtered.map((org) => {
+                  const checked = value.includes(org.id);
+                  return (
+                    <li key={org.id}>
+                      <button
+                        type="button"
+                        onClick={() => toggle(org.id)}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[#F0EBE1]"
+                      >
+                        <span
+                          className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-[1.5px] transition-colors ${
+                            checked
+                              ? "border-[#4E8C58] bg-[#4E8C58]"
+                              : "border-[rgba(60,50,40,0.25)] bg-white"
+                          }`}
+                        >
+                          {checked && (
+                            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                              <path
+                                d="M1 4l3 3 5-6"
+                                stroke="white"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          )}
+                        </span>
+                        <span className="block text-sm font-medium text-ink">{org.name}</span>
+                      </button>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </div>
         )}
       </div>
-      {value.length > 0 && (
-        <div className="mt-1 text-[10px] text-dim">
-          {value.length} organization{value.length > 1 ? "s" : ""} selected
-        </div>
-      )}
     </div>
   );
 }

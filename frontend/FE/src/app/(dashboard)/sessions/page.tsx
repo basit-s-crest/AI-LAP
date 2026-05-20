@@ -191,9 +191,6 @@ export default function CoachSessionsPage() {
                         <span className="text-xs text-dim">Cancelled</span>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <Button size="xs" type="button">
-                            Start
-                          </Button>
                           <Button
                             variant="ghost"
                             size="xs"

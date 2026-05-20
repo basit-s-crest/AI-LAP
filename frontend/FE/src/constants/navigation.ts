@@ -47,7 +47,7 @@ export const COACH_NAV: NavItem[] = [
   { href: "/availability", label: "Availability", icon: Clock },
   { href: "/clients", label: "My Clients", icon: Users },
   { href: "/sessions", label: "Sessions", icon: Calendar },
-  { href: "/messages", label: "Messages", icon: Mail, badge: "2" },
+  { href: "/messages", label: "Messages", icon: Mail },
   { href: "/risk-dashboard", label: "Live Risk Dashboard", icon: Activity },
   { href: "/notes", label: "Session Notes", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
