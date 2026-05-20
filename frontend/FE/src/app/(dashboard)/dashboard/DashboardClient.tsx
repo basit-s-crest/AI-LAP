@@ -5,7 +5,7 @@ import { DashboardRouter } from "@/components/dashboard/DashboardRouter";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
-import { Mail } from "lucide-react";
+import { Mail, Bell } from "lucide-react";
 import type { Role } from "@/types/role";
 
 export function DashboardClient({
