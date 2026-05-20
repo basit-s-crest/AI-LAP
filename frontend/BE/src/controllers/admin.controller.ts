@@ -957,6 +957,30 @@ export const adminGetMoodDistribution = async (
   }
 };
 
+export const adminGetOverviewStats = async (
+  _req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const [totalUsers, activeCoaches, pendingUsers, totalSessions] = await Promise.all([
+      prisma.user.count({ where: { role: { not: "superadmin" } } }),
+      prisma.coach.count({ where: { isActive: true } }),
+      prisma.user.count({ where: { role: { not: "superadmin" }, isVerified: false } }),
+      prisma.session.count(),
+    ]);
+
+    return res.status(200).json({
+      totalUsers,
+      activeCoaches,
+      pendingUsers,
+      totalSessions,
+    });
+  } catch (error) {
+    console.error("[adminGetOverviewStats]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 export const adminGetScoresHistory = async (
   req: Request,
   res: Response

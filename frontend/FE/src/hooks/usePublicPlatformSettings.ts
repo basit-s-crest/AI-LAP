@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 export interface PublicPlatformSettings {
   brandTitle: string;
   brandTagline: string;
+  primaryColor: string;
   allowSelfRegistration: boolean;
   maintenanceMode: boolean;
 }

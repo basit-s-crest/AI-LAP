@@ -110,6 +110,8 @@ function buildDefaultValues(role: Role): FormValues {
 function RoleRegisterScreen({ role }: { role: Role }) {
   const router = useRouter();
   const { data: platformSettings } = usePublicPlatformSettings();
+  const brandTitle = platformSettings?.brandTitle || "Azadi Health";
+  const brandTagline = platformSettings?.brandTagline || "Mental Wellness Platform";
   const registerMutation = useRegisterMutation(role);
   const config = REGISTER_CONFIG[role];
   const roleOption = getAuthRoleOption(role);
@@ -150,12 +152,10 @@ function RoleRegisterScreen({ role }: { role: Role }) {
         />
         <div className="relative z-[1]">
           <h1 className="font-serif text-[60px] font-bold leading-none tracking-wide text-[#FDFAF5]">
-            Azadi
-            <br />
-            Health
+            {brandTitle}
           </h1>
           <p className="mt-2.5 text-xs uppercase tracking-[3px] text-[#FDFAF5]/40">
-            Mental Wellness Platform
+            {brandTagline}
           </p>
         </div>
         <div className="relative z-[1] mt-[52px]">

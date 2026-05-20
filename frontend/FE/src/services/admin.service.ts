@@ -27,6 +27,13 @@ export interface MoodDistributionApi {
   struggling: number;
 }
 
+export interface AdminOverviewStats {
+  totalUsers: number;
+  activeCoaches: number;
+  pendingUsers: number;
+  totalSessions: number;
+}
+
 const ACTIVITY_VISUALS: Record<string, { icon: string; bg: string }> = {
   alert: { icon: "👤", bg: "#D4EDD7" },
   moderation: { icon: "💬", bg: "#D4E8F5" },
@@ -105,6 +112,16 @@ export const adminService = {
       okay: Number(data?.okay) || 0,
       low: Number(data?.low) || 0,
       struggling: Number(data?.struggling) || 0,
+    };
+  },
+
+  async getOverviewStats(): Promise<AdminOverviewStats> {
+    const { data } = await api.get<AdminOverviewStats>("/api/admin/overview-stats");
+    return {
+      totalUsers: Number(data?.totalUsers) || 0,
+      activeCoaches: Number(data?.activeCoaches) || 0,
+      pendingUsers: Number(data?.pendingUsers) || 0,
+      totalSessions: Number(data?.totalSessions) || 0,
     };
   },
 };

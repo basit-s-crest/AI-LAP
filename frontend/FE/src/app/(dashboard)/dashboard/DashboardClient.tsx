@@ -1,13 +1,9 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { DashboardRouter } from "@/components/dashboard/DashboardRouter";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import Link from "next/link";
-import { Mail, Bell } from "lucide-react";
-import { resolveMemberCoachMessageLink } from "@/lib/memberCoachChat";
 import type { Role } from "@/types/role";
 
 export function DashboardClient({
@@ -23,13 +19,6 @@ export function DashboardClient({
     : role === "coach" ? "My Dashboard"
     : "Home";
 
-  const { data: memberChatLink } = useQuery({
-    queryKey: ["member-coach-chat-link"],
-    queryFn: () => resolveMemberCoachMessageLink(),
-    enabled: role === "user",
-    staleTime: 60_000,
-  });
-
   const topRight =
     role === "superadmin" ? (
       <div className="flex items-center gap-2">
@@ -41,24 +30,7 @@ export function DashboardClient({
         <Badge variant="gold">University · Enterprise</Badge>
         <Button variant="ghost" size="sm" type="button">⬒ Export Report</Button>
       </div>
-    ) : role === "coach" ? null : (
-      <div className="flex items-center gap-2">
-        <div className="relative">
-          <Link href={memberChatLink ?? "/coaching"}>
-            <Button variant="ghost" size="sm" type="button" aria-label="Messages">
-              <Mail className="h-4 w-4" />
-            </Button>
-          </Link>
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full border-2 border-card bg-terra" />
-        </div>
-        <div className="relative">
-          <Button variant="ghost" size="sm" type="button" aria-label="Notifications">
-            <Bell className="h-4 w-4" />
-          </Button>
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full border-2 border-card bg-terra" />
-        </div>
-      </div>
-    );
+    ) : null;
 
   return (
     <DashboardLayout title={title} topbarRight={topRight} serverRole={role} serverDisplayName={displayName}>

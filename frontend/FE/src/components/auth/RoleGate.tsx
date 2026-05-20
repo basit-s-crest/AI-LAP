@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import type { Role } from "@/types/role";
+import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
 
 const cards: {
   role: Role;
@@ -49,6 +50,9 @@ const cards: {
 
 export function RoleGate() {
   const router = useRouter();
+  const { data: platformSettings } = usePublicPlatformSettings();
+  const brandTitle = platformSettings?.brandTitle?.trim() || "Azadi Health";
+  const brandTagline = platformSettings?.brandTagline?.trim() || "Mental Wellness Platform";
 
   const enter = (role: Role) => {
     router.push(`/login?role=${role}`);
@@ -60,15 +64,15 @@ export function RoleGate() {
         <div className="mb-8 flex w-fit items-center gap-2.5 rounded-xl bg-sidebar px-[18px] py-2.5">
           <span>🌿</span>
           <span className="text-xs text-[#FDFAF5]/55">
-            Azadi Health &nbsp;·&nbsp;{" "}
-            <strong className="text-sage-light">Platform Prototype V5</strong> &nbsp;·&nbsp; Click any
+            {brandTitle} &nbsp;·&nbsp;{" "}
+            <strong className="text-sage-light">{brandTagline}</strong> &nbsp;·&nbsp; Click any
             role to explore
           </span>
         </div>
         <h1 className="mb-1 font-serif text-[52px] font-bold leading-none tracking-tight text-ink">
-          Azadi Health
+          {brandTitle}
         </h1>
-        <p className="mb-10 text-[15px] text-mid">Select a portal to explore the platform</p>
+        <p className="mb-10 text-[15px] text-mid">{brandTagline}</p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {cards.map((c) => (
             <button

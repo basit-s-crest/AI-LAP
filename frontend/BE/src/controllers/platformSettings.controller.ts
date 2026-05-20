@@ -75,6 +75,7 @@ export const getPublicPlatformSettings = async (_req: Request, res: Response): P
     return res.status(200).json({
       brandTitle: settings.brandTitle,
       brandTagline: settings.brandTagline,
+      primaryColor: settings.primaryColor,
       allowSelfRegistration: settings.allowSelfRegistration,
       maintenanceMode: settings.maintenanceMode,
     });

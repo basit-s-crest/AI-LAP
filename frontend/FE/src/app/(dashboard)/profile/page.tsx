@@ -17,7 +17,6 @@ import {
   useUpdateMemberProfile,
   useUpdateMemberNotifications,
 } from "@/hooks/settings/useMemberSettings";
-import { useCoachesQuery } from "@/hooks/api/use-coaches";
 import { cn } from "@/lib/cn";
 import { useRouter } from "next/navigation";
 
@@ -56,7 +55,6 @@ export default function ProfilePage() {
   const logout = useLogout();
   const token = useAppSelector((s) => s.auth.token);
   const { data, isPending, isError, error } = useMemberProfile();
-  const { data: coaches = [] } = useCoachesQuery();
   const updateProfile = useUpdateMemberProfile();
   const updateNotifications = useUpdateMemberNotifications();
   const [editing, setEditing] = useState(false);
@@ -79,8 +77,6 @@ export default function ProfilePage() {
       setAvatar(data.avatar ?? "🌿");
     }
   }, [data]);
-
-  const coachList = coaches ?? [];
 
   const saveProfile = () => {
     updateProfile.mutate(
@@ -282,36 +278,6 @@ export default function ProfilePage() {
             )}
           </Card>
 
-          {coachList.length > 0 && (
-            <Card>
-              <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-dim">
-                Your Coaches
-              </div>
-              <div className="space-y-3">
-                {coachList.map((coach) => (
-                  <div key={coach.id} className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] bg-[#D4E8F5] text-2xl">
-                      {coach.avatar ?? "🧑‍⚕️"}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-semibold text-ink">{coach.name}</div>
-                      {coach.speciality && (
-                        <div className="mt-0.5 text-xs text-dim">{coach.speciality}</div>
-                      )}
-                      {coach.bio && (
-                        <div className="mt-1 text-xs text-mid">{coach.bio}</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                <div>
-                  <Button size="sm" variant="outline" onClick={() => router.push("/coaching")}>
-                    View all coaches
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          )}
         </div>
 
         <div>

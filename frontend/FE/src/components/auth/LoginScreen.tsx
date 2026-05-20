@@ -25,6 +25,8 @@ export function LoginScreen() {
   const roleOption = getAuthRoleOption(role);
   const justRegistered = search.get("registered") === "1";
   const { data: platformSettings } = usePublicPlatformSettings();
+  const brandTitle = platformSettings?.brandTitle || "Azadi Health";
+  const brandTagline = platformSettings?.brandTagline || "Mental Wellness Platform";
   useMaintenanceRedirect();
 
   // Pass role so the hook hits the right backend endpoint (coach vs member)
@@ -74,12 +76,10 @@ export function LoginScreen() {
         />
         <div className="relative z-[1]">
           <h1 className="font-serif text-[60px] font-bold leading-none tracking-wide text-[#FDFAF5]">
-            Azadi
-            <br />
-            Health
+            {brandTitle}
           </h1>
           <p className="mt-2.5 text-xs uppercase tracking-[3px] text-[#FDFAF5]/40">
-            Mental Wellness Platform
+            {brandTagline}
           </p>
         </div>
         <div className="relative z-[1] mt-[52px]">
@@ -155,7 +155,7 @@ export function LoginScreen() {
 
             {role !== "user" || platformSettings?.allowSelfRegistration !== false ? (
               <p className="text-center text-sm text-mid">
-                New to Azadi?{" "}
+                New to {brandTitle}?{" "}
                 <Link
                   href={`/register?role=${role}`}
                   className="font-bold text-sage hover:underline"

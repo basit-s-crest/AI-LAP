@@ -5,6 +5,7 @@ import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthHydrator } from "@/components/auth/AuthHydrator";
 import { SessionGuard } from "@/components/auth/SessionGuard";
 import { NavigationProgress } from "@/components/layout/NavigationProgress";
+import { PlatformBrandSync } from "@/components/platform/PlatformBrandSync";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -28,8 +29,8 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Azadi Health — Mental Wellness Platform",
-    template: "%s · Azadi Health",
+    default: "Mental Wellness Platform",
+    template: "%s · Mental Wellness Platform",
   },
   description:
     "Culturally responsive mental wellness for marginalized youth — coaching, community, and care.",
@@ -54,6 +55,7 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <StoreProvider>
           <QueryProvider>
+            <PlatformBrandSync />
             <NavigationProgress />
             <AuthHydrator />
             <SessionGuard />

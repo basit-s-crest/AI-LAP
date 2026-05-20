@@ -10,6 +10,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
 import { logout } from "@/store/slices/authSlice";
 import { useRouter } from "next/navigation";
+import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
 
 function groupItems(items: NavItem[]) {
   const sections: { section: string; items: NavItem[] }[] = [];
@@ -45,11 +46,21 @@ export function RoleSidebar({
   const items = navForRole(role);
   const groups = groupItems(items);
   const [brandTitle, setBrandTitle] = useState("Azadi Health");
+  const [brandTagline, setBrandTagline] = useState("Mental Wellness Platform");
+  const { data: platformSettings } = usePublicPlatformSettings();
 
   useEffect(() => {
     const saved = localStorage.getItem("platform_brand_title");
     if (saved?.trim()) setBrandTitle(saved.trim());
+    const savedTagline = localStorage.getItem("platform_brand_tagline");
+    if (savedTagline?.trim()) setBrandTagline(savedTagline.trim());
   }, []);
+
+  useEffect(() => {
+    if (!platformSettings) return;
+    if (platformSettings.brandTitle?.trim()) setBrandTitle(platformSettings.brandTitle.trim());
+    if (platformSettings.brandTagline?.trim()) setBrandTagline(platformSettings.brandTagline.trim());
+  }, [platformSettings]);
 
   const inner = (
     <>
@@ -57,12 +68,7 @@ export function RoleSidebar({
         <div className="font-serif text-[21px] font-bold tracking-wide text-[#FDFAF5]">
           {brandTitle}
         </div>
-        <div
-          className="mt-0.5 text-[9.5px] uppercase tracking-[2px] text-white/30"
-          style={{ color: accent }}
-        >
-          {label}
-        </div>
+        <div className="mt-0.5 text-[10px] leading-tight text-white/35">{brandTagline}</div>
       </div>
       <nav className="flex-1 overflow-y-auto py-2.5">
         {groups.map((g, gi) => (
@@ -117,7 +123,7 @@ export function RoleSidebar({
           <Avatar label={userName} style={{ background: accent }} />
           <div className="min-w-0 flex-1">
             <div className="truncate text-xs font-semibold text-[#FDFAF5]">{userName}</div>
-            <div className="text-[10px] text-white/30">{label}</div>
+            <div className="text-[10px] text-white/30">{brandTagline}</div>
           </div>
           {onSwitchRole ? (
             <button

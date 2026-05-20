@@ -4,7 +4,11 @@ import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { StatsCard } from "@/components/cards/StatsCard";
 import { ActivityCardRow } from "@/components/cards/ActivityCard";
-import { useActivityQuery, useMoodDistributionQuery } from "@/hooks/api/use-admin";
+import {
+  useActivityQuery,
+  useAdminOverviewStatsQuery,
+  useMoodDistributionQuery,
+} from "@/hooks/api/use-admin";
 import { useOrganizationsQuery } from "@/hooks/api/use-organizations";
 import { useAdminCoaches } from "@/hooks/admin/useAdminCoaches";
 import { useAdminGroups } from "@/hooks/admin/useAdminGroups";
@@ -22,6 +26,7 @@ const CHART_RANGE_OPTIONS = [
 
 export function SuperadminDashboardHome() {
   const { data: activity = [] } = useActivityQuery();
+  const { data: overviewStats } = useAdminOverviewStatsQuery();
   const { data: orgs = [] } = useOrganizationsQuery();
   const { data: users = [] } = useAdminUsers();
   const { data: coaches = [] } = useAdminCoaches();
@@ -80,16 +85,18 @@ export function SuperadminDashboardHome() {
   );
 
   const verifiedUsers = users.filter((user) => user.isVerified).length;
-  const activeCoaches = coaches.filter((coach) => coach.isActive).length;
-  const totalMessages = users.reduce((total, user) => total + user.messageCount, 0);
-  const pendingUsers = users.length - verifiedUsers;
+  const activeCoaches =
+    overviewStats?.activeCoaches ?? coaches.filter((coach) => coach.isActive).length;
+  const pendingUsers = overviewStats?.pendingUsers ?? users.length - verifiedUsers;
+  const totalUsers = overviewStats?.totalUsers ?? users.length;
+  const totalSessions = overviewStats?.totalSessions ?? 0;
 
   return (
     <div className="animate-fadeIn">
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatsCard
           label="Total Users"
-          value={String(users.length)}
+          value={String(totalUsers)}
           sub={`${verifiedUsers} verified`}
           accent="sage"
         />
@@ -100,9 +107,9 @@ export function SuperadminDashboardHome() {
           accent="blue"
         />
         <StatsCard
-          label="Messages"
-          value={String(totalMessages)}
-          sub="member messages"
+          label="Total Sessions"
+          value={String(totalSessions)}
+          sub="booked across platform"
           accent="gold"
         />
         <StatsCard

@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { buildAppEmailHtml, type AppEmailContent } from "./emailTemplates";
+import prisma from "../lib/prisma";
 
 /**
  * Gmail SMTP transporter.
@@ -36,6 +37,34 @@ function appBaseUrl(): string {
   return (process.env.FRONTEND_URL ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
+async function getEmailBranding(): Promise<{
+  brandTitle: string;
+  brandTagline: string;
+  primaryColor: string;
+}> {
+  try {
+    const settings = await prisma.platformSettings.findUnique({
+      where: { id: "platform" },
+      select: {
+        brandTitle: true,
+        brandTagline: true,
+        primaryColor: true,
+      },
+    });
+    return {
+      brandTitle: settings?.brandTitle ?? "Azadi Health",
+      brandTagline: settings?.brandTagline ?? "Mental Wellness Platform",
+      primaryColor: settings?.primaryColor ?? "#4E8C58",
+    };
+  } catch {
+    return {
+      brandTitle: "Azadi Health",
+      brandTagline: "Mental Wellness Platform",
+      primaryColor: "#4E8C58",
+    };
+  }
+}
+
 /**
  * Branded transactional email (Azadi / VASL styling).
  */
@@ -45,7 +74,8 @@ export async function sendAppEmail(
   content: AppEmailContent
 ): Promise<void> {
   const transporter = createTransporter();
-  const from = `"Azadi Health" <${process.env.GMAIL_USER}>`;
+  const branding = await getEmailBranding();
+  const from = `"${branding.brandTitle}" <${process.env.GMAIL_USER}>`;
   const textBody = [
     content.title,
     content.greeting ?? "",
@@ -63,7 +93,7 @@ export async function sendAppEmail(
     html: buildAppEmailHtml({
       ...content,
       ctaUrl: content.ctaUrl ? content.ctaUrl : undefined,
-    }),
+    }, branding),
   });
 }
 
@@ -100,16 +130,17 @@ export const sendVerificationEmail = async (
   otp: string
 ): Promise<void> => {
   const transporter = createTransporter();
-  const from = `"VASL" <${process.env.GMAIL_USER}>`;
+  const branding = await getEmailBranding();
+  const from = `"${branding.brandTitle}" <${process.env.GMAIL_USER}>`;
 
   await transporter.sendMail({
     from,
     to: toEmail,
-    subject: "Your VASL verification code",
+    subject: `Your ${branding.brandTitle} verification code`,
     text: `Hi ${name},\n\nYour verification code is: ${otp}\n\nThis code expires in 15 minutes.\n\nIf you did not create an account, please ignore this email.`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-        <h2 style="color: #4E8C58; margin-bottom: 8px;">Verify your VASL account</h2>
+        <h2 style="color: ${branding.primaryColor}; margin-bottom: 8px;">Verify your ${branding.brandTitle} account</h2>
         <p style="color: #444;">Hi <strong>${name}</strong>,</p>
         <p style="color: #444;">Use the code below to verify your email. It expires in <strong>15 minutes</strong>.</p>
         <div style="
@@ -119,13 +150,13 @@ export const sendVerificationEmail = async (
           text-align: center;
           padding: 28px 16px;
           background: #f0f7f1;
-          border: 2px dashed #4E8C58;
+          border: 2px dashed ${branding.primaryColor};
           border-radius: 10px;
           margin: 28px 0;
           color: #2d5a35;
         ">${otp}</div>
         <p style="color: #888; font-size: 13px;">
-          If you did not sign up for VASL, you can safely ignore this email.
+          If you did not sign up for ${branding.brandTitle}, you can safely ignore this email.
         </p>
       </div>
     `,

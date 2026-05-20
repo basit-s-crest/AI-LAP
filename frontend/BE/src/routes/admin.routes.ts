@@ -5,7 +5,7 @@ import {
   getAllCoaches, createCoach, updateCoach, removeCoach,
   adminGetGroups, adminCreateGroup, adminUpdateGroup, adminArchiveGroup,
   adminGetOrgStats, adminGetOrgs, adminCreateOrg, adminUpdateOrg, adminGetOrgOverview,
-  adminGetActivity, adminGetMoodDistribution,
+  adminGetActivity, adminGetMoodDistribution, adminGetOverviewStats,
 } from "../controllers/admin.controller";
 import {
   getPlatformSettings,
@@ -21,6 +21,7 @@ router.use(requireRole("superadmin"));
 
 router.get("/activity", adminGetActivity);
 router.get("/mood-distribution", adminGetMoodDistribution);
+router.get("/overview-stats", adminGetOverviewStats);
 
 // Users
 router.get("/users", getAllUsers);

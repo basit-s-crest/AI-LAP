@@ -4,7 +4,7 @@ import { LoginScreen } from "@/components/auth/LoginScreen";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to Azadi Health to continue your wellness journey.",
+  description: "Sign in to continue your wellness journey.",
 };
 
 export default function LoginPage() {

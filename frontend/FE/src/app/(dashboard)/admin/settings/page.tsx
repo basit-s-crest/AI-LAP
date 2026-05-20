@@ -39,7 +39,6 @@ export default function AdminSettingsPage() {
 
   const [brandTitle, setBrandTitle] = useState("");
   const [brandTagline, setBrandTagline] = useState("");
-  const [primaryColor, setPrimaryColor] = useState("#4E8C58");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [loaderUrl, setLoaderUrl] = useState<string | null>(null);
 
@@ -50,7 +49,6 @@ export default function AdminSettingsPage() {
     if (!data) return;
     setBrandTitle(data.brandTitle);
     setBrandTagline(data.brandTagline);
-    setPrimaryColor(data.primaryColor);
     setLogoUrl(data.logoUrl);
     setLoaderUrl(data.loaderUrl);
     setSupportEmail(data.supportEmail);
@@ -59,10 +57,11 @@ export default function AdminSettingsPage() {
 
   const saveBranding = () => {
     updateSettings.mutate(
-      { brandTitle, brandTagline, primaryColor, logoUrl, loaderUrl },
+      { brandTitle, brandTagline, logoUrl, loaderUrl },
       {
         onSuccess: () => {
           localStorage.setItem("platform_brand_title", brandTitle || "Azadi Health");
+          localStorage.setItem("platform_brand_tagline", brandTagline || "Mental Wellness Platform");
           toast.success("Branding settings updated");
         },
         onError: (err) => toast.error(err.message || "Failed to update branding"),
@@ -154,19 +153,9 @@ export default function AdminSettingsPage() {
                 <Input value={brandTagline} onChange={(e) => setBrandTagline(e.target.value)} />
               </div>
             </div>
-            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <Label>Primary Color</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="color"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="h-10 w-14 p-1"
-                  />
-                  <Input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} />
-                </div>
-              </div>
+            <div className="mb-4 rounded-[10px] border border-line bg-canvas px-3 py-2">
+              <div className="font-serif text-lg font-semibold text-ink">{brandTitle || "Azadi Health"}</div>
+              <div className="text-xs text-dim">{brandTagline || "Mental Wellness Platform"}</div>
             </div>
             <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>

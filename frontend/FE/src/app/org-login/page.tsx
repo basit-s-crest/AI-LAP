@@ -13,12 +13,16 @@ import { useAppDispatch } from "@/hooks/redux";
 import { setSession } from "@/store/slices/authSlice";
 import { loginSchema } from "@/validations/auth.validation";
 import { useMaintenanceRedirect } from "@/hooks/useMaintenanceRedirect";
+import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
 
 type FormValues = { email: string; password: string };
 
 export default function OrgLoginPage() {
   const dispatch = useAppDispatch();
   useMaintenanceRedirect();
+  const { data: platformSettings } = usePublicPlatformSettings();
+  const brandTitle = platformSettings?.brandTitle || "Azadi Health";
+  const brandTagline = platformSettings?.brandTagline || "Organization Portal";
   const [error, setError] = useState("");
   const methods = useForm<FormValues>({
     resolver: zodResolver(loginSchema),
@@ -48,12 +52,10 @@ export default function OrgLoginPage() {
         />
         <div className="relative z-[1]">
           <h1 className="font-serif text-[60px] font-bold leading-none tracking-wide text-[#FDFAF5]">
-            Azadi
-            <br />
-            Health
+            {brandTitle}
           </h1>
           <p className="mt-2.5 text-xs uppercase tracking-[3px] text-[#FDFAF5]/40">
-            Organization Portal
+            {brandTagline}
           </p>
         </div>
       </div>

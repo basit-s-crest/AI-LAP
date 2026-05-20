@@ -5,6 +5,11 @@
 :root {
   --ink: #1e1a16;
   --canvas: #f4efe6;
+  --sage: #4e8c58;
+  --sage-light: #7ab882;
+  --sage-tint: #d4edd7;
+  --sage-soft: #ebf5ec;
+  --sage-dark: #3e7248;
 }
 
 html {

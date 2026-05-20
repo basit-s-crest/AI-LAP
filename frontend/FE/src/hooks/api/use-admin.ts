@@ -28,6 +28,14 @@ export function useMoodDistributionQuery() {
   });
 }
 
+export function useAdminOverviewStatsQuery() {
+  return useQuery({
+    queryKey: [...queryKeys.admin.activity(), "overview-stats"],
+    queryFn: () => adminService.getOverviewStats(),
+    retry: 1,
+  });
+}
+
 export function useAppendAdminGroupMutation() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -21,10 +21,10 @@ const config: Config = {
         card: "#FDFAF5",
         line: "rgba(60,50,40,0.10)",
         sage: {
-          DEFAULT: "#4E8C58",
-          light: "#7AB882",
-          tint: "#D4EDD7",
-          soft: "#EBF5EC",
+          DEFAULT: "var(--sage, #4E8C58)",
+          light: "var(--sage-light, #7AB882)",
+          tint: "var(--sage-tint, #D4EDD7)",
+          soft: "var(--sage-soft, #EBF5EC)",
         },
         gold: {
           DEFAULT: "#B8832A",

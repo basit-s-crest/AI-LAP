@@ -50,7 +50,7 @@ export async function maybeEmailCoachUnreadMessages(
 
   const memberName = member?.name ?? "A member";
 
-  sendAppEmailSafe(coach.email, `New messages from ${memberName} · Azadi Health`, {
+  sendAppEmailSafe(coach.email, `New messages from ${memberName}`, {
     title: "You have unread messages",
     greeting: `Hi ${coach.name},`,
     lines: [
@@ -135,7 +135,7 @@ export async function emailCoachSessionUpdate(
   const when = formatEmailDateTime(ctx.session.scheduledAt);
   const copy = sessionActionCopy(action, "member");
 
-  sendAppEmailSafe(ctx.coach.email, `${copy.title} · Azadi Health`, {
+  sendAppEmailSafe(ctx.coach.email, copy.title, {
     title: copy.title,
     greeting: `Hi ${ctx.coach.name},`,
     lines: [
@@ -160,7 +160,7 @@ export async function emailMemberSessionUpdate(
   const when = formatEmailDateTime(ctx.session.scheduledAt);
   const copy = sessionActionCopy(action, "coach");
 
-  sendAppEmailSafe(ctx.member.email, `${copy.title} · Azadi Health`, {
+  sendAppEmailSafe(ctx.member.email, copy.title, {
     title: copy.title,
     greeting: `Hi ${ctx.member.name},`,
     lines: [
@@ -211,7 +211,7 @@ export async function emailOrgMembersCoachOnDemand(coachId: string): Promise<voi
 
     sendAppEmailSafe(
       member.email,
-      `${coach.name} is available now · Azadi Health`,
+      `${coach.name} is available now`,
       {
         title: "A coach is available on demand",
         greeting: `Hi ${member.name},`,
