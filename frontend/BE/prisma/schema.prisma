@@ -34,7 +34,7 @@ model User {
   organizationId   String?
   organization     Organization?     @relation(fields: [organizationId], references: [id])
   sessionNotes     SessionNote[]
-  onboardingAssessment OnboardingAssessment?
+  onboardingAssessments OnboardingAssessment[]
   notifyGroupActivity    Boolean @default(true)
   notifySessionReminders Boolean @default(true)
   notifyDailyCheckin     Boolean @default(false)
@@ -284,7 +284,7 @@ model SessionNote {
 
 model OnboardingAssessment {
   id         String   @id @default(cuid())
-  userId     String   @unique
+  userId     String
   age        String?
   identity   String?
   gender     String?

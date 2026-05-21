@@ -56,14 +56,20 @@ const getMessages = async (req, res) => {
         }
         const myUserId = req.user.id;
         const otherUserId = req.params.userId;
+        // Pagination params
+        const limit = Math.min(parseInt(req.query.limit ?? "10", 10), 50);
+        const cursor = req.query.cursor;
         const messages = await prisma_1.default.message.findMany({
             where: {
                 OR: [
                     { senderId: myUserId, receiverId: otherUserId },
                     { senderId: otherUserId, receiverId: myUserId },
                 ],
+                // If cursor provided, fetch messages OLDER than that message
+                ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
             },
-            orderBy: { createdAt: "asc" },
+            orderBy: { createdAt: "desc" }, // newest first, we'll reverse on frontend
+            take: limit + 1, // fetch one extra to know if there's a next page
             select: {
                 id: true,
                 senderId: true,
@@ -73,7 +79,18 @@ const getMessages = async (req, res) => {
                 createdAt: true,
             },
         });
-        return res.status(200).json(messages);
+        // Check if there are more older messages
+        const hasMore = messages.length > limit;
+        if (hasMore)
+            messages.pop(); // remove the extra one
+        // nextCursor = createdAt of the oldest message in this batch
+        const nextCursor = hasMore
+            ? messages[messages.length - 1].createdAt.toISOString()
+            : null;
+        return res.status(200).json({
+            messages, // newest-first; hook will reverse to oldest-first for display
+            nextCursor,
+        });
     }
     catch (error) {
         return res.status(500).json({ message: "Internal server error" });

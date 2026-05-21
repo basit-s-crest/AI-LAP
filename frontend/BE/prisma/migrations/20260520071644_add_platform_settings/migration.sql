@@ -35,7 +35,7 @@ CREATE TABLE "PlatformSettings" (
     CONSTRAINT "PlatformSettings_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
+--CreateIndex
 CREATE UNIQUE INDEX "OnboardingAssessment_userId_key" ON "OnboardingAssessment"("userId");
 
 -- AddForeignKey

@@ -18,6 +18,7 @@ const prisma = {
     coachMember: createModelMock(),
     coach: createModelMock(),
     user: createModelMock(),
+    organizationCoach: createModelMock(),
     message: createModelMock(),
     communityGroup: createModelMock(),
     emailVerification: createModelMock(),

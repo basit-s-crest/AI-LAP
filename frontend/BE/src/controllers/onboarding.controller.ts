@@ -31,19 +31,8 @@ export const submitAssessment = async (
     const phqScore = validPhqAnswers.reduce((acc, v) => acc + v, 0);
     const gadScore = validGadAnswers.reduce((acc, v) => acc + v, 0);
 
-    const assessment = await prisma.onboardingAssessment.upsert({
-      where: { userId },
-      update: {
-        age: age || null,
-        identity: identity || null,
-        gender: gender || null,
-        orient: orient || null,
-        phqAnswers: validPhqAnswers,
-        phqScore,
-        gadAnswers: validGadAnswers,
-        gadScore,
-      },
-      create: {
+    const assessment = await prisma.onboardingAssessment.create({
+      data: {
         userId,
         age: age || null,
         identity: identity || null,
@@ -81,8 +70,9 @@ export const getAssessment = async (
 
     const userId = req.user.id;
 
-    const assessment = await prisma.onboardingAssessment.findUnique({
+    const assessment = await prisma.onboardingAssessment.findFirst({
       where: { userId },
+      orderBy: { createdAt: "desc" },
     });
 
     return res.status(200).json({

@@ -305,53 +305,46 @@ export default function ProfilePage() {
             <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-dim">
               Assessment Scores
             </div>
-            {[
-              { key: "phq8" as const, label: "PHQ-8 (Depression)" },
-              { key: "gad7" as const, label: "GAD-7 (Anxiety)" },
-            ].map((item) => {
-              const score = data.assessments[item.key];
-              return (
-                <div key={item.key} className="mb-3 flex items-center justify-between">
-                  <div className="text-[13px] font-semibold">{item.label}</div>
-                  {score ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[15px] font-bold text-sage">
-                        {score.score}/{score.max}
-                      </span>
-                      <Badge variant={assessmentBadgeVariant(score.label)}>{score.label}</Badge>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-dim">Not yet assessed</span>
-                  )}
-                </div>
-              );
-            })}
             {isLoading ? (
               <div className="py-4 text-center text-xs text-mid">Loading assessment scores...</div>
             ) : (
               <>
                 {[
                   {
+                    key: "phq8" as const,
                     l: "PHQ-8 (Depression)",
                     v: hasPhq ? `${assessment?.phqScore}/24` : "—",
                     tag: phqInfo.label,
                     tc: phqInfo.variant,
+                    avg: data.assessments?.phq8,
                   },
                   {
+                    key: "gad7" as const,
                     l: "GAD-7 (Anxiety)",
                     v: hasGad ? `${assessment?.gadScore}/21` : "—",
                     tag: gadInfo.label,
                     tc: gadInfo.variant,
+                    avg: data.assessments?.gad7,
                   },
-                ].map((a) => (
-                  <div key={a.l} className="mb-3 flex items-center justify-between">
-                    <div className="text-[13px] font-semibold">{a.l}</div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[15px] font-bold text-sage">{a.v}</span>
-                      <Badge variant={a.tc}>{a.tag}</Badge>
+                ].map((a) => {
+                  const showAvg = a.avg && (a.key === "phq8" ? hasPhq : hasGad);
+                  return (
+                    <div key={a.l} className="mb-3 flex items-center justify-between border-b border-[rgba(60,50,40,0.06)] pb-3 last:border-b-0 last:pb-0">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-semibold">{a.l}</div>
+                        {showAvg && a.avg && (
+                          <div className="mt-0.5 text-xs text-dim">
+                            Average: <span className="font-semibold text-sage">{a.avg.score}/{a.avg.max}</span> ({a.avg.label})
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[15px] font-bold text-sage">{a.v}</span>
+                        <Badge variant={a.tc}>{a.tag}</Badge>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </>
             )}
             <Button

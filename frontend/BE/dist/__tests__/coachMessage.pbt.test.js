@@ -170,7 +170,7 @@ describe("Property 13.5: Sentiment payload truncation", () => {
             mockFetch.mockClear();
             mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
             const message = makeMessage({ content });
-            (0, sentimentForwarder_1.forwardToSentiment)(message);
+            (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
             await new Promise((resolve) => setTimeout(resolve, 10));
             expect(mockFetch).toHaveBeenCalledTimes(1);
             const body = JSON.parse(mockFetch.mock.calls[0][1].body);
@@ -183,7 +183,7 @@ describe("Property 13.5: Sentiment payload truncation", () => {
             mockFetch.mockClear();
             mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
             const message = makeMessage({ content });
-            (0, sentimentForwarder_1.forwardToSentiment)(message);
+            (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
             await new Promise((resolve) => setTimeout(resolve, 10));
             const body = JSON.parse(mockFetch.mock.calls[0][1].body);
             // text is truncated to 500 in the payload

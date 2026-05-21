@@ -27,12 +27,12 @@ describe("forwardToSentiment", () => {
     it("should return void synchronously without throwing", () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const message = makeCoachMessage();
-        expect(() => (0, sentimentForwarder_1.forwardToSentiment)(message)).not.toThrow();
+        expect(() => (0, sentimentForwarder_1.forwardToSentiment)(message, message.id)).not.toThrow();
     });
     it("should not throw even when fetch rejects", async () => {
         mockFetch.mockRejectedValue(new Error("Network error"));
         const message = makeCoachMessage();
-        expect(() => (0, sentimentForwarder_1.forwardToSentiment)(message)).not.toThrow();
+        expect(() => (0, sentimentForwarder_1.forwardToSentiment)(message, message.id)).not.toThrow();
         // Wait for the async chain to settle
         await new Promise((resolve) => setTimeout(resolve, 10));
     });
@@ -41,7 +41,7 @@ describe("forwardToSentiment", () => {
         abortError.name = "AbortError";
         mockFetch.mockRejectedValue(abortError);
         const message = makeCoachMessage();
-        expect(() => (0, sentimentForwarder_1.forwardToSentiment)(message)).not.toThrow();
+        expect(() => (0, sentimentForwarder_1.forwardToSentiment)(message, message.id)).not.toThrow();
         await new Promise((resolve) => setTimeout(resolve, 10));
     });
     it("should not throw even when response.json() rejects", async () => {
@@ -49,7 +49,7 @@ describe("forwardToSentiment", () => {
             json: () => Promise.reject(new Error("Invalid JSON")),
         });
         const message = makeCoachMessage();
-        expect(() => (0, sentimentForwarder_1.forwardToSentiment)(message)).not.toThrow();
+        expect(() => (0, sentimentForwarder_1.forwardToSentiment)(message, message.id)).not.toThrow();
         await new Promise((resolve) => setTimeout(resolve, 10));
     });
     // 12.2 — Caller responsibility: forwardToSentiment is only called for member messages
@@ -58,7 +58,7 @@ describe("forwardToSentiment", () => {
     it("should call fetch when invoked (caller is responsible for gating coach messages)", async () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const message = makeCoachMessage({ senderRole: "member" });
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         expect(mockFetch).toHaveBeenCalledTimes(1);
     });
@@ -66,14 +66,14 @@ describe("forwardToSentiment", () => {
     it("should POST to PYTHON_BACKEND_URL/v1/ingest/chat", async () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const message = makeCoachMessage();
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         expect(mockFetch).toHaveBeenCalledWith("http://localhost:8000/v1/ingest/chat", expect.objectContaining({ method: "POST" }));
     });
     it("should include all required ChatIngestPayload fields", async () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const message = makeCoachMessage();
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         const callArgs = mockFetch.mock.calls[0];
         const body = JSON.parse(callArgs[1].body);
@@ -85,11 +85,12 @@ describe("forwardToSentiment", () => {
         expect(body).toHaveProperty("text");
         expect(body).toHaveProperty("timestamp");
         expect(body).toHaveProperty("consent_active");
+        expect(body).toHaveProperty("original_source_id", "msg-1");
     });
     it("should set role to 'member'", async () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const message = makeCoachMessage();
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         const body = JSON.parse(mockFetch.mock.calls[0][1].body);
         expect(body.role).toBe("member");
@@ -97,7 +98,7 @@ describe("forwardToSentiment", () => {
     it("should set consent_active to true", async () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const message = makeCoachMessage();
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         const body = JSON.parse(mockFetch.mock.calls[0][1].body);
         expect(body.consent_active).toBe(true);
@@ -105,7 +106,7 @@ describe("forwardToSentiment", () => {
     it("should set member_token to message.userId", async () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const message = makeCoachMessage({ userId: "user-abc" });
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         const body = JSON.parse(mockFetch.mock.calls[0][1].body);
         expect(body.member_token).toBe("user-abc");
@@ -113,7 +114,7 @@ describe("forwardToSentiment", () => {
     it("should set session_id to '{userId}_{coachId}'", async () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const message = makeCoachMessage({ userId: "user-abc", coachId: "coach-xyz" });
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         const body = JSON.parse(mockFetch.mock.calls[0][1].body);
         expect(body.session_id).toBe("user-abc_coach-xyz");
@@ -122,7 +123,7 @@ describe("forwardToSentiment", () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const createdAt = new Date("2024-01-15T10:30:00.000Z");
         const message = makeCoachMessage({ createdAt });
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         const body = JSON.parse(mockFetch.mock.calls[0][1].body);
         expect(body.timestamp).toBe("2024-01-15T10:30:00.000Z");
@@ -131,7 +132,7 @@ describe("forwardToSentiment", () => {
         process.env.PYTHON_ORG_ID = "org_custom";
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const message = makeCoachMessage();
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         const body = JSON.parse(mockFetch.mock.calls[0][1].body);
         expect(body.org_id).toBe("org_custom");
@@ -140,7 +141,7 @@ describe("forwardToSentiment", () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const longContent = "x".repeat(1000);
         const message = makeCoachMessage({ content: longContent });
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         const body = JSON.parse(mockFetch.mock.calls[0][1].body);
         expect(body.text).toHaveLength(500);
@@ -150,7 +151,7 @@ describe("forwardToSentiment", () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const exactContent = "y".repeat(500);
         const message = makeCoachMessage({ content: exactContent });
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         const body = JSON.parse(mockFetch.mock.calls[0][1].body);
         expect(body.text).toHaveLength(500);
@@ -159,7 +160,7 @@ describe("forwardToSentiment", () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const shortContent = "Hello!";
         const message = makeCoachMessage({ content: shortContent });
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         const body = JSON.parse(mockFetch.mock.calls[0][1].body);
         expect(body.text).toBe("Hello!");
@@ -168,7 +169,7 @@ describe("forwardToSentiment", () => {
         delete process.env.PYTHON_ORG_ID;
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const message = makeCoachMessage();
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         const body = JSON.parse(mockFetch.mock.calls[0][1].body);
         expect(body.org_id).toBe("org_default");
@@ -176,8 +177,8 @@ describe("forwardToSentiment", () => {
     it("should generate a unique event_id (UUID v4 format) for each call", async () => {
         mockFetch.mockResolvedValue({ json: () => Promise.resolve({ event_id: "evt-1" }) });
         const message = makeCoachMessage();
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
-        (0, sentimentForwarder_1.forwardToSentiment)(message);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
+        (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
         await new Promise((resolve) => setTimeout(resolve, 10));
         const body1 = JSON.parse(mockFetch.mock.calls[0][1].body);
         const body2 = JSON.parse(mockFetch.mock.calls[1][1].body);
