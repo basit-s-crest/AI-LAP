@@ -225,3 +225,37 @@ export async function emailOrgMembersCoachOnDemand(coachId: string): Promise<voi
     );
   }
 }
+
+/**
+ * Email the coach when a new member is assigned to them (if enabled).
+ */
+export async function emailCoachNewClientAssigned(
+  coachId: string,
+  memberId: string
+): Promise<void> {
+  const [coach, member] = await Promise.all([
+    prisma.coach.findUnique({
+      where: { id: coachId },
+      select: { email: true, name: true, notifyNewClientAssigned: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: memberId },
+      select: { name: true, email: true },
+    }),
+  ]);
+
+  if (!coach?.email || !coach.notifyNewClientAssigned) return;
+
+  const memberName = member?.name ?? "A new member";
+
+  sendAppEmailSafe(coach.email, `New client assigned: ${memberName}`, {
+    title: "You have a new client",
+    greeting: `Hi ${coach.name},`,
+    lines: [
+      `${memberName} has been assigned to you as a new coaching client.`,
+      "You can view their profile and start a conversation from your dashboard.",
+    ],
+    ctaLabel: "View my clients",
+    ctaUrl: portalUrl("/clients"),
+  });
+}

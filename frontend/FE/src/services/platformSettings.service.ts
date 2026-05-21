@@ -10,6 +10,8 @@ export interface PlatformSettings {
   supportEmail: string;
   maxMembersPerCoach: number;
   sessionDurationDefault: number;
+  sessionDurationMax: number;
+  sessionDurationMin: number;
   allowSelfRegistration: boolean;
   maintenanceMode: boolean;
   createdAt: string;

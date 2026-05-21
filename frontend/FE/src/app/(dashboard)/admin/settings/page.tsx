@@ -44,6 +44,8 @@ export default function AdminSettingsPage() {
 
   const [supportEmail, setSupportEmail] = useState("");
   const [sessionDurationDefault, setSessionDurationDefault] = useState(50);
+  const [sessionDurationMax, setSessionDurationMax] = useState(90);
+  const [sessionDurationMin, setSessionDurationMin] = useState(25);
 
   useEffect(() => {
     if (!data) return;
@@ -53,6 +55,8 @@ export default function AdminSettingsPage() {
     setLoaderUrl(data.loaderUrl);
     setSupportEmail(data.supportEmail);
     setSessionDurationDefault(data.sessionDurationDefault);
+    setSessionDurationMax(data.sessionDurationMax ?? 90);
+    setSessionDurationMin(data.sessionDurationMin ?? 25);
   }, [data]);
 
   const saveBranding = () => {
@@ -71,7 +75,7 @@ export default function AdminSettingsPage() {
 
   const saveConfig = () => {
     updateSettings.mutate(
-      { supportEmail, sessionDurationDefault },
+      { supportEmail, sessionDurationDefault, sessionDurationMax, sessionDurationMin },
       {
         onSuccess: () => toast.success("Platform config updated"),
         onError: (err) => toast.error(err.message || "Failed to update config"),
@@ -138,11 +142,11 @@ export default function AdminSettingsPage() {
       ) : isError ? (
         <Card className="text-sm text-danger">{error?.message || "Failed to load settings"}</Card>
       ) : data ? (
-        <div className="max-w-[980px] animate-fadeIn">
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
-            <div className="space-y-4">
-          <Card>
-            <h3 className="mb-4 font-serif text-lg font-semibold">Branding</h3>
+        <div className="animate-fadeIn">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+            <div className="space-y-6">
+          <div className="rounded-2xl border border-line bg-card p-7 shadow-sm">
+            <h3 className="mb-5 font-serif text-lg font-semibold">Branding</h3>
             <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Label>Brand Title</Label>
@@ -192,10 +196,10 @@ export default function AdminSettingsPage() {
             <Button type="button" onClick={saveBranding} disabled={updateSettings.isPending}>
               Save Branding
             </Button>
-          </Card>
+          </div>
 
-            <Card>
-              <h3 className="mb-4 font-serif text-lg font-semibold">Platform Config</h3>
+            <div className="rounded-2xl border border-line bg-card p-7 shadow-sm">
+              <h3 className="mb-5 font-serif text-lg font-semibold">Platform Config</h3>
               <div className="mb-4">
                 <Label>Support Email</Label>
                 <Input
@@ -205,20 +209,32 @@ export default function AdminSettingsPage() {
                 />
               </div>
               <div className="mb-4">
-                <Label>Default Session Duration (minutes)</Label>
+                <Label>Maximum Session Duration (minutes)</Label>
                 <Input
                   type="number"
-                  value={sessionDurationDefault}
-                  onChange={(e) => setSessionDurationDefault(Number(e.target.value))}
+                  min={1}
+                  value={sessionDurationMax}
+                  onChange={(e) => setSessionDurationMax(Number(e.target.value))}
                 />
+                <p className="mt-1 text-xs text-dim">Coaches cannot set a session duration above this value.</p>
+              </div>
+              <div className="mb-4">
+                <Label>Minimum Session Duration (minutes)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={sessionDurationMin}
+                  onChange={(e) => setSessionDurationMin(Number(e.target.value))}
+                />
+                <p className="mt-1 text-xs text-dim">Coaches cannot set a session duration below this value.</p>
               </div>
               <Button type="button" onClick={saveConfig} disabled={updateSettings.isPending}>
                 Save Config
               </Button>
-            </Card>
+            </div>
 
-            <Card>
-            <h3 className="mb-3 font-serif text-lg font-semibold">Email Settings</h3>
+            <div className="rounded-2xl border border-line bg-card p-7 shadow-sm">
+            <h3 className="mb-5 font-serif text-lg font-semibold">Email Settings</h3>
             <div className="space-y-2 text-sm text-mid">
               <p>
                 Emails sent from: <span className="font-semibold text-ink">{data.emailFrom || "Not configured"}</span>
@@ -232,11 +248,11 @@ export default function AdminSettingsPage() {
                 server
               </p>
             </div>
-          </Card>
+            </div>
             </div>
 
-            <Card>
-              <h3 className="mb-3 font-serif text-lg font-semibold">Platform Controls</h3>
+            <div className="rounded-2xl border border-line bg-card p-7 shadow-sm">
+              <h3 className="mb-5 font-serif text-lg font-semibold">Platform Controls</h3>
               <div className="flex items-center gap-3 border-b border-[rgba(60,50,40,0.08)] py-3">
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-semibold">Allow Self Registration</div>
@@ -264,7 +280,7 @@ export default function AdminSettingsPage() {
                   onClick={() => toggle("maintenanceMode", !data.maintenanceMode)}
                 />
               </div>
-            </Card>
+            </div>
           </div>
         </div>
       ) : null}

@@ -311,6 +311,8 @@ model PlatformSettings {
   supportEmail           String   @default("support@azadihealth.com")
   maxMembersPerCoach     Int      @default(20)
   sessionDurationDefault Int      @default(50)
+  sessionDurationMax     Int      @default(90)
+  sessionDurationMin     Int      @default(25)
   allowSelfRegistration  Boolean  @default(true)
   maintenanceMode        Boolean  @default(false)
   createdAt              DateTime @default(now())
