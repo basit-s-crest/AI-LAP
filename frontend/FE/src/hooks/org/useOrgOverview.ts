@@ -3,6 +3,21 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 
+export interface OrgMoodRow {
+  key: string;
+  label: string;
+  percent: number;
+  color: string;
+  count: number;
+}
+
+export interface OrgCompletionStat {
+  label: string;
+  count: number;
+  percent: number;
+  color: string;
+}
+
 export interface OrgOverview {
   orgName: string;
   type: string;
@@ -14,6 +29,9 @@ export interface OrgOverview {
   engagementRate: number;
   sessionsThisMonth: number;
   avgPhqScore: number | null;
+  moodDistribution: OrgMoodRow[];
+  engagementSeries: Array<{ label: string; value: number }>;
+  completionStats: OrgCompletionStat[];
 }
 
 export function useOrgOverview() {

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { comparePassword, generateToken, hashPassword } from "../services/auth.service";
+import { buildOrgOutcomesMetrics, buildOrgOverviewMetrics } from "../services/orgStats.service";
 
 export const orgRegister = async (req: Request, res: Response): Promise<Response> => {
   try {
@@ -100,25 +101,18 @@ export const getOrgOverview = async (req: Request, res: Response): Promise<Respo
     const organization = await prisma.organization.findUnique({ where: { id: orgId } });
     if (!organization) return res.status(404).json({ message: "Organization not found" });
 
-    const [totalMembers, activeMembers, totalCoaches] = await Promise.all([
-      prisma.user.count({ where: { organizationId: orgId } }),
-      prisma.user.count({ where: { organizationId: orgId, isVerified: true } }),
+    const [metrics, totalCoaches] = await Promise.all([
+      buildOrgOverviewMetrics(orgId),
       prisma.organizationCoach.count({ where: { organizationId: orgId } }),
     ]);
-
-    const engagementRate = totalMembers > 0 ? (activeMembers / totalMembers) * 100 : 0;
 
     return res.status(200).json({
       orgName: organization.name,
       type: organization.type,
       plan: organization.plan,
       status: organization.status,
-      totalMembers,
-      activeMembers,
       totalCoaches,
-      engagementRate: Number(engagementRate.toFixed(2)),
-      sessionsThisMonth: 0,
-      avgPhqScore: null,
+      ...metrics,
     });
   } catch (error) {
     console.error("[getOrgOverview]", error);
@@ -185,6 +179,22 @@ export const getOrgCoaches = async (req: Request, res: Response): Promise<Respon
     return res.status(200).json(coaches);
   } catch (error) {
     console.error("[getOrgCoaches]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getOrgOutcomes = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const orgId = req.user?.orgId;
+    if (!orgId) return res.status(401).json({ message: "Unauthorized" });
+
+    const organization = await prisma.organization.findUnique({ where: { id: orgId } });
+    if (!organization) return res.status(404).json({ message: "Organization not found" });
+
+    const outcomes = await buildOrgOutcomesMetrics(orgId);
+    return res.status(200).json(outcomes);
+  } catch (error) {
+    console.error("[getOrgOutcomes]", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

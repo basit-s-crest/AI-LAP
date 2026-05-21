@@ -16,7 +16,8 @@ import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useRegisterMutation } from "@/hooks/api/use-auth-mutations";
-import { getAuthRoleOption, parseAuthRole } from "@/lib/auth-roles";
+import { getAuthRoleOption } from "@/lib/auth-roles";
+import { useAuthRoleParam } from "@/hooks/useAuthRoleParam";
 import type { RegisterPayload } from "@/types/auth";
 import type { Role } from "@/types/role";
 import { toast } from "sonner";
@@ -264,9 +265,12 @@ export function SuperadminRegisterScreen() {
   return <RoleRegisterScreen role="superadmin" />;
 }
 
-export function RegisterScreen() {
-  const search = useSearchParams();
-  const role = parseAuthRole(search.get("role"));
+type RegisterScreenProps = {
+  initialRole?: Role;
+};
+
+export function RegisterScreen({ initialRole }: RegisterScreenProps) {
+  const { role } = useAuthRoleParam(initialRole);
 
   switch (role) {
     case "organization":

@@ -259,3 +259,183 @@ export async function emailCoachNewClientAssigned(
     ctaUrl: portalUrl("/clients"),
   });
 }
+
+async function loadOrgContact(orgId: string) {
+  return prisma.organization.findUnique({
+    where: { id: orgId },
+    select: {
+      id: true,
+      name: true,
+      primaryContactEmail: true,
+      primaryContactName: true,
+      notifyWeeklyReport: true,
+      notifyCrisisAlerts: true,
+      notifyNewMembers: true,
+    },
+  });
+}
+
+/** Email org contact when a member is flagged at crisis/high risk. */
+export async function emailOrgCrisisAlert(
+  orgId: string,
+  memberName: string,
+  riskTier: string,
+  detail?: string
+): Promise<void> {
+  const org = await loadOrgContact(orgId);
+  if (!org?.primaryContactEmail || !org.notifyCrisisAlerts) return;
+
+  sendAppEmailSafe(org.primaryContactEmail, `Crisis alert: ${memberName}`, {
+    title: "Member needs immediate attention",
+    greeting: `Hi ${org.primaryContactName},`,
+    lines: [
+      `${memberName} was flagged with ${riskTier} risk in ${org.name}.`,
+      detail ?? "Review the member in your organization dashboard and coordinate with assigned coaches.",
+    ],
+    ctaLabel: "Open org dashboard",
+    ctaUrl: portalUrl("/org/dashboard"),
+  });
+}
+
+/** Notify org coaches when a new member joins the organization. */
+export async function emailOrgCoachesNewMember(
+  orgId: string,
+  memberId: string
+): Promise<void> {
+  const [member, assignments] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: memberId },
+      select: { name: true, email: true },
+    }),
+    prisma.organizationCoach.findMany({
+      where: { organizationId: orgId },
+      include: {
+        coach: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            notifyNewClientAssigned: true,
+            isActive: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  if (!member) return;
+  const memberName = member.name ?? "A new member";
+
+  for (const row of assignments) {
+    const coach = row.coach;
+    if (!coach.isActive || !coach.email || !coach.notifyNewClientAssigned) continue;
+    sendAppEmailSafe(coach.email, `New member in your organization: ${memberName}`, {
+      title: "New member joined your organization",
+      greeting: `Hi ${coach.name},`,
+      lines: [
+        `${memberName} (${member.email ?? "no email"}) joined your organization and may book sessions with you.`,
+        "Check your clients list when you're ready to connect.",
+      ],
+      ctaLabel: "View clients",
+      ctaUrl: portalUrl("/clients"),
+    });
+  }
+}
+
+/** Immediate org contact email when a member joins (if daily digest is enabled). */
+export async function emailOrgNewMemberJoined(
+  orgId: string,
+  memberId: string
+): Promise<void> {
+  const [org, member] = await Promise.all([
+    loadOrgContact(orgId),
+    prisma.user.findUnique({
+      where: { id: memberId },
+      select: { name: true, email: true, createdAt: true },
+    }),
+  ]);
+  if (!org?.primaryContactEmail || !org.notifyNewMembers || !member) return;
+
+  sendAppEmailSafe(org.primaryContactEmail, `New member joined ${org.name}`, {
+    title: "New member joined",
+    greeting: `Hi ${org.primaryContactName},`,
+    lines: [
+      `${member.name} (${member.email}) joined ${org.name}.`,
+      "Assigned coaches have been notified. You can review members in your dashboard.",
+    ],
+    ctaLabel: "View members",
+    ctaUrl: portalUrl("/org/dashboard"),
+  });
+}
+
+/** Called when a member is linked to an organization — coaches notified immediately; org contact gets daily digest. */
+export async function notifyOrganizationMemberJoined(
+  orgId: string,
+  memberId: string
+): Promise<void> {
+  await emailOrgCoachesNewMember(orgId, memberId);
+}
+
+/** Weekly outcomes email for organizations with notifyWeeklyReport enabled. */
+export async function emailOrgWeeklyOutcomeReport(orgId: string): Promise<void> {
+  const org = await loadOrgContact(orgId);
+  if (!org?.primaryContactEmail || !org.notifyWeeklyReport) return;
+
+  const { buildOrgOutcomesMetrics, buildOrgOverviewMetrics } = await import("./orgStats.service");
+  const [overview, outcomes] = await Promise.all([
+    buildOrgOverviewMetrics(orgId),
+    buildOrgOutcomesMetrics(orgId),
+  ]);
+
+  sendAppEmailSafe(org.primaryContactEmail, `Weekly outcomes — ${org.name}`, {
+    title: "Weekly Outcome Report",
+    greeting: `Hi ${org.primaryContactName},`,
+    lines: [
+      `Members: ${overview.totalMembers} total, ${overview.activeMembers} active (30d)`,
+      `Sessions this month: ${overview.sessionsThisMonth}`,
+      overview.avgPhqScore !== null
+        ? `Average PHQ-8 score: ${overview.avgPhqScore}`
+        : "Average PHQ-8 score: not yet available",
+      outcomes.retentionRate !== null
+        ? `30-day retention: ${outcomes.retentionRate}%`
+        : "30-day retention: not yet available",
+      "Sign in for full charts and downloadable reports.",
+    ],
+    ctaLabel: "View outcomes",
+    ctaUrl: portalUrl("/org/outcomes"),
+  });
+}
+
+/** Daily digest of members who joined in the last 24 hours. */
+export async function emailOrgDailyNewMemberDigest(orgId: string): Promise<void> {
+  const org = await loadOrgContact(orgId);
+  if (!org?.primaryContactEmail || !org.notifyNewMembers) return;
+
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const members = await prisma.user.findMany({
+    where: { organizationId: orgId, createdAt: { gte: since } },
+    select: { name: true, email: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (members.length === 0) return;
+
+  const lines = members.map(
+    (m) => `• ${m.name} (${m.email}) — ${formatEmailDateTime(m.createdAt)}`
+  );
+
+  sendAppEmailSafe(
+    org.primaryContactEmail,
+    `New members digest — ${org.name}`,
+    {
+      title: "Daily new member digest",
+      greeting: `Hi ${org.primaryContactName},`,
+      lines: [
+        `${members.length} member(s) joined ${org.name} in the last 24 hours:`,
+        ...lines,
+      ],
+      ctaLabel: "View dashboard",
+      ctaUrl: portalUrl("/org/dashboard"),
+    }
+  );
+}

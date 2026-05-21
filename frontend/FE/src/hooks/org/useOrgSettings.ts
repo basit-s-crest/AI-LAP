@@ -41,8 +41,24 @@ export function useUpdateOrgSettings() {
       const { data } = await api.patch("/api/org/settings", payload);
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org", "settings"] });
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: ["org", "settings"] });
+      const previous = queryClient.getQueryData<OrgSettings>(["org", "settings"]);
+      if (previous) {
+        queryClient.setQueryData<OrgSettings>(["org", "settings"], {
+          ...previous,
+          ...payload,
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _payload, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["org", "settings"], context.previous);
+      }
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["org", "settings"], data);
     },
   });
 }

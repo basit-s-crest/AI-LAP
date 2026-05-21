@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { hashPassword } from "../services/auth.service";
+import { notifyOrganizationMemberJoined } from "../services/notificationEmail.service";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -157,6 +158,10 @@ export const createUser = async (
       },
     });
 
+    if (user.organizationId) {
+      void notifyOrganizationMemberJoined(user.organizationId, user.id);
+    }
+
     return res.status(201).json({
       id: user.id,
       email: user.email,
@@ -194,6 +199,14 @@ export const updateUser = async (
       updatedData.organizationId = organizationId === "" ? null : organizationId;
     }
 
+    const prior =
+      organizationId !== undefined
+        ? await prisma.user.findUnique({
+            where: { id: req.params.id },
+            select: { organizationId: true },
+          })
+        : null;
+
     const user = await prisma.user.update({
       where: { id: req.params.id },
       data: updatedData,
@@ -208,6 +221,14 @@ export const updateUser = async (
         organizationId: true,
       },
     });
+
+    const newOrgId =
+      organizationId !== undefined && organizationId !== ""
+        ? organizationId
+        : null;
+    if (newOrgId && prior && !prior.organizationId) {
+      void notifyOrganizationMemberJoined(newOrgId, user.id);
+    }
 
     return res.status(200).json(user);
   } catch (error) {

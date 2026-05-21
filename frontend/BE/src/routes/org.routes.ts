@@ -3,6 +3,7 @@ import {
   getOrgCoaches,
   getOrgMembers,
   getOrgOverview,
+  getOrgOutcomes,
   getOrgSettings,
   orgRegister,
   orgLogin,
@@ -15,6 +16,7 @@ const router = Router();
 router.post("/login", orgLogin);
 router.post("/register", orgRegister);
 router.get("/overview", authMiddleware, requireRole("organization"), getOrgOverview);
+router.get("/outcomes", authMiddleware, requireRole("organization"), getOrgOutcomes);
 router.get("/members", authMiddleware, requireRole("organization"), getOrgMembers);
 router.get("/coaches", authMiddleware, requireRole("organization"), getOrgCoaches);
 router.get("/settings", authMiddleware, requireRole("organization"), getOrgSettings);

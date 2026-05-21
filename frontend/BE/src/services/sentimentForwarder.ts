@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import type { CoachMessage, PeerGroupPost } from "@prisma/client";
 import Redis from "ioredis";
 import prisma from "../lib/prisma";
+import { emailOrgCrisisAlert } from "./notificationEmail.service";
 
 interface ChatIngestPayload {
   event_id: string;
@@ -200,6 +201,24 @@ export function forwardToSentiment(message: CoachMessage, messageId: string): vo
 
       await safePublish(SCORE_CHANNEL, scoreUpdate);
       console.log("[sentiment] published to Redis channel=", SCORE_CHANNEL, "tier=", scoreUpdate.risk_tier);
+
+      const tier = (resp.risk_tier ?? "low").toLowerCase();
+      if (tier === "crisis" || tier === "high") {
+        const member = await prisma.user.findUnique({
+          where: { id: message.userId },
+          select: { organizationId: true, name: true },
+        });
+        if (member?.organizationId) {
+          void emailOrgCrisisAlert(
+            member.organizationId,
+            clientName,
+            tier,
+            resp.recommended_action
+              ? `Recommended action: ${resp.recommended_action}`
+              : undefined
+          );
+        }
+      }
     } catch (err: unknown) {
       const reason =
         err instanceof Error && err.name === "TimeoutError"

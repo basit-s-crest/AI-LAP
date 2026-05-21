@@ -36,20 +36,34 @@ export default function OrgSettingsPage() {
     );
   };
 
-  const toggle = (key: "notifyWeeklyReport" | "notifyCrisisAlerts" | "notifyNewMembers", value: boolean) => {
+  const toggle = (
+    key: "notifyWeeklyReport" | "notifyCrisisAlerts" | "notifyNewMembers",
+    value: boolean
+  ) => {
     updateSettings.mutate(
       { [key]: value },
       {
-        onSuccess: () => toast.success("Notification updated"),
+        onSuccess: () => {
+          toast.success(value ? "Notifications enabled" : "Notifications disabled");
+        },
         onError: (err) => toast.error(err.message || "Failed to update notification"),
       }
     );
   };
 
-  const Toggle = ({ on, onClick }: { on: boolean; onClick: () => void }) => (
+  const Toggle = ({
+    on,
+    onClick,
+    disabled,
+  }: {
+    on: boolean;
+    onClick: () => void;
+    disabled?: boolean;
+  }) => (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "relative h-[22px] w-[38px] shrink-0 rounded-[11px] transition-colors",
         on ? "bg-sage" : "border-[1.5px] border-[rgba(60,50,40,0.2)] bg-[#EDE7DC]"
@@ -144,7 +158,11 @@ export default function OrgSettingsPage() {
                       <div className="text-[13px] font-semibold">{item.label}</div>
                       <div className="mt-0.5 text-xs text-dim">{item.description}</div>
                     </div>
-                    <Toggle on={item.value} onClick={() => toggle(item.key, !item.value)} />
+                    <Toggle
+                      on={item.value}
+                      onClick={() => toggle(item.key, !item.value)}
+                      disabled={updateSettings.isPending}
+                    />
                   </div>
                 ))}
               </Card>

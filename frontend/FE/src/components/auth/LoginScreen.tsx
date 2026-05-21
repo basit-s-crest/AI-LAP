@@ -11,19 +11,23 @@ import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useLogin } from "@/hooks/auth/useLogin";
-import { getAuthRoleOption, parseAuthRole } from "@/lib/auth-roles";
 import { useEffect } from "react";
+import { useAuthRoleParam } from "@/hooks/useAuthRoleParam";
 import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
 import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
 import { useMaintenanceRedirect } from "@/hooks/useMaintenanceRedirect";
+import type { Role } from "@/types/role";
 
 type FormValues = { email: string; password: string };
 
-export function LoginScreen() {
+type LoginScreenProps = {
+  initialRole?: Role;
+};
+
+export function LoginScreen({ initialRole }: LoginScreenProps) {
   const search = useSearchParams();
   const router = useRouter();
-  const role = parseAuthRole(search.get("role"));
-  const roleOption = getAuthRoleOption(role);
+  const { role, roleOption } = useAuthRoleParam(initialRole);
   const justRegistered = search.get("registered") === "1";
   const { data: platformSettings } = usePublicPlatformSettings();
   const { brandTitle, brandTagline } = useHydratedPlatformBranding();

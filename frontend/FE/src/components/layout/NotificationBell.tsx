@@ -12,6 +12,7 @@ import {
 import { markAllRead, markRead } from "@/store/slices/notificationSlice";
 import { useNotifications, localTodayKey } from "@/hooks/useNotifications";
 import { useCoachNotifications } from "@/hooks/useCoachNotifications";
+import { useOrgNotifications } from "@/hooks/org/useOrgNotifications";
 import { cn } from "@/lib/cn";
 
 function timeAgo(iso: string): string {
@@ -36,12 +37,14 @@ export function NotificationBell() {
   const panelRef = useRef<HTMLDivElement>(null);
   const moodAutoOpenedRef = useRef(false);
 
-  const isMember = role === "user";
+  const isMember = role === "user" || role === "member";
   const isCoach = role === "coach";
-  const enabled = isMember || isCoach;
+  const isOrg = role === "organization";
+  const enabled = isMember || isCoach || isOrg;
 
   useNotifications(isMember);
   useCoachNotifications(isCoach);
+  useOrgNotifications(isOrg);
 
   const unreadCount = items.filter((n) => !n.read).length;
 

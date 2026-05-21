@@ -301,6 +301,10 @@ export const assignCoachHandler = async (
 
     const statusCode = existing ? 200 : 201;
 
+    if (!existing) {
+      void emailCoachNewClientAssigned(coachId, userId);
+    }
+
     return res.status(statusCode).json({
       assigned: true,
       coachId,
