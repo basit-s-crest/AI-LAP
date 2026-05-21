@@ -88,9 +88,47 @@ export async function getMemberStats(userId: string): Promise<MemberStats> {
   };
 }
 
-export async function getMemberAssessments(_userId: string): Promise<{
+export async function getMemberAssessments(userId: string): Promise<{
   phq8: AssessmentScore | null;
   gad7: AssessmentScore | null;
 }> {
-  return { phq8: null, gad7: null };
+  const assessments = await prisma.onboardingAssessment.findMany({
+    where: { userId },
+  });
+
+  if (assessments.length === 0) {
+    return { phq8: null, gad7: null };
+  }
+
+  let totalPhq = 0;
+  let totalGad = 0;
+  let phqCount = 0;
+  let gadCount = 0;
+
+  for (const a of assessments) {
+    if (a.phqAnswers && a.phqAnswers.length > 0) {
+      totalPhq += a.phqScore;
+      phqCount++;
+    }
+    if (a.gadAnswers && a.gadAnswers.length > 0) {
+      totalGad += a.gadScore;
+      gadCount++;
+    }
+  }
+
+  const avgPhq = phqCount > 0 ? Math.round(totalPhq / phqCount) : null;
+  const avgGad = gadCount > 0 ? Math.round(totalGad / gadCount) : null;
+
+  return {
+    phq8: avgPhq !== null ? {
+      score: avgPhq,
+      max: 24,
+      label: assessmentLabel("PHQ8", avgPhq),
+    } : null,
+    gad7: avgGad !== null ? {
+      score: avgGad,
+      max: 21,
+      label: assessmentLabel("GAD7", avgGad),
+    } : null,
+  };
 }

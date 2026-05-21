@@ -5,6 +5,7 @@ const org_controller_1 = require("../controllers/org.controller");
 const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
 router.post("/login", org_controller_1.orgLogin);
+router.post("/register", org_controller_1.orgRegister);
 router.get("/overview", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("organization"), org_controller_1.getOrgOverview);
 router.get("/members", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("organization"), org_controller_1.getOrgMembers);
 router.get("/coaches", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("organization"), org_controller_1.getOrgCoaches);

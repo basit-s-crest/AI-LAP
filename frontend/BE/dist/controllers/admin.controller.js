@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.adminArchiveGroup = exports.adminUpdateGroup = exports.adminCreateGroup = exports.adminGetGroups = exports.removeCoach = exports.updateCoach = exports.createCoach = exports.getAllCoaches = exports.createSuperAdmin = exports.deleteUser = exports.updateUser = exports.createUser = exports.getUserById = exports.getAllUsers = void 0;
+exports.adminGetScoresHistory = exports.adminGetOverviewStats = exports.adminGetMoodDistribution = exports.adminGetActivity = exports.adminGetOrgOverview = exports.adminUpdateOrg = exports.adminCreateOrg = exports.adminGetOrgs = exports.adminGetOrgStats = exports.adminArchiveGroup = exports.adminUpdateGroup = exports.adminCreateGroup = exports.adminGetGroups = exports.removeCoach = exports.updateCoach = exports.createCoach = exports.getAllCoaches = exports.createSuperAdmin = exports.deleteUser = exports.updateUser = exports.createUser = exports.getUserById = exports.getAllUsers = void 0;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const auth_service_1 = require("../services/auth.service");
 // ─── USER MANAGEMENT ──────────────────────────────────────────────────────────
@@ -37,6 +37,7 @@ const getAllUsers = async (req, res) => {
                         sentMessages: true,
                     },
                 },
+                organizationId: true,
             },
         });
         return res.status(200).json(users.map((u) => ({
@@ -50,22 +51,19 @@ const getAllUsers = async (req, res) => {
             updatedAt: u.updatedAt,
             groupCount: u._count.groupMemberships,
             messageCount: u._count.sentMessages,
+            organizationId: u.organizationId,
         })));
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.getAllUsers = getAllUsers;
 const getUserById = async (req, res) => {
     try {
         const user = await prisma_1.default.user.findUnique({
-            where: {
-                id: req.params.id,
-            },
+            where: { id: req.params.id },
             select: {
                 id: true,
                 email: true,
@@ -76,55 +74,38 @@ const getUserById = async (req, res) => {
                 createdAt: true,
                 updatedAt: true,
                 groupMemberships: {
-                    where: {
-                        isActive: true,
-                    },
+                    where: { isActive: true },
                     include: {
                         group: {
-                            select: {
-                                id: true,
-                                name: true,
-                                emoji: true,
-                            },
+                            select: { id: true, name: true, emoji: true },
                         },
                     },
                 },
+                organizationId: true,
             },
         });
         if (!user) {
-            return res.status(404).json({
-                message: "User not found",
-            });
+            return res.status(404).json({ message: "User not found" });
         }
         return res.status(200).json(user);
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.getUserById = getUserById;
 const createUser = async (req, res) => {
     try {
-        const { email, name, password, avatar, role, isVerified, } = req.body;
+        const { email, name, password, avatar, role, isVerified, organizationId } = req.body;
         if (!email || !name || !password) {
-            return res.status(400).json({
-                message: "Email, name and password are required",
-            });
+            return res.status(400).json({ message: "Email, name and password are required" });
         }
         const allowedRoles = ["member", "superadmin"];
         const userRole = allowedRoles.includes(role) ? role : "member";
-        const existingUser = await prisma_1.default.user.findUnique({
-            where: {
-                email,
-            },
-        });
+        const existingUser = await prisma_1.default.user.findUnique({ where: { email } });
         if (existingUser) {
-            return res.status(409).json({
-                message: "User already exists",
-            });
+            return res.status(409).json({ message: "User already exists" });
         }
         const hashedPassword = await (0, auth_service_1.hashPassword)(password);
         const user = await prisma_1.default.user.create({
@@ -135,6 +116,7 @@ const createUser = async (req, res) => {
                 avatar: avatar ?? null,
                 role: userRole,
                 isVerified: isVerified ?? true,
+                organizationId: organizationId ?? null,
             },
             select: {
                 id: true,
@@ -147,14 +129,11 @@ const createUser = async (req, res) => {
                 updatedAt: true,
                 _count: {
                     select: {
-                        groupMemberships: {
-                            where: {
-                                isActive: true,
-                            },
-                        },
+                        groupMemberships: { where: { isActive: true } },
                         sentMessages: true,
                     },
                 },
+                organizationId: true,
             },
         });
         return res.status(201).json({
@@ -168,40 +147,33 @@ const createUser = async (req, res) => {
             updatedAt: user.updatedAt,
             groupCount: user._count.groupMemberships,
             messageCount: user._count.sentMessages,
+            organizationId: user.organizationId,
         });
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.createUser = createUser;
 const updateUser = async (req, res) => {
     try {
-        const { name, email, role, isVerified, } = req.body;
-        const allowedRoles = [
-            "member",
-            "coach",
-            "superadmin",
-        ];
+        const { name, email, role, isVerified, organizationId } = req.body;
+        const allowedRoles = ["member", "coach", "superadmin"];
         const updatedData = {};
         if (name)
             updatedData.name = name;
         if (email)
             updatedData.email = email;
-        if (role &&
-            allowedRoles.includes(role)) {
+        if (role && allowedRoles.includes(role))
             updatedData.role = role;
-        }
-        if (isVerified !== undefined) {
+        if (isVerified !== undefined)
             updatedData.isVerified = isVerified;
+        if (organizationId !== undefined) {
+            updatedData.organizationId = organizationId === "" ? null : organizationId;
         }
         const user = await prisma_1.default.user.update({
-            where: {
-                id: req.params.id,
-            },
+            where: { id: req.params.id },
             data: updatedData,
             select: {
                 id: true,
@@ -211,57 +183,38 @@ const updateUser = async (req, res) => {
                 isVerified: true,
                 createdAt: true,
                 updatedAt: true,
+                organizationId: true,
             },
         });
         return res.status(200).json(user);
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.updateUser = updateUser;
 const deleteUser = async (req, res) => {
     try {
-        await prisma_1.default.user.delete({
-            where: {
-                id: req.params.id,
-            },
-        });
-        return res.status(200).json({
-            message: "User deleted",
-        });
+        await prisma_1.default.user.delete({ where: { id: req.params.id } });
+        return res.status(200).json({ message: "User deleted" });
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.deleteUser = deleteUser;
 // ─── SUPERADMIN MANAGEMENT ────────────────────────────────────────────────────
 const createSuperAdmin = async (req, res) => {
     try {
-        const { email, name, password, avatar, } = req.body;
-        if (!email ||
-            !name ||
-            !password) {
-            return res.status(400).json({
-                message: "Email, name and password required",
-            });
+        const { email, name, password, avatar } = req.body;
+        if (!email || !name || !password) {
+            return res.status(400).json({ message: "Email, name and password required" });
         }
-        const existingUser = await prisma_1.default.user.findUnique({
-            where: {
-                email,
-            },
-        });
+        const existingUser = await prisma_1.default.user.findUnique({ where: { email } });
         if (existingUser) {
-            return res.status(409).json({
-                message: "User already exists",
-            });
+            return res.status(409).json({ message: "User already exists" });
         }
         const hashedPassword = await (0, auth_service_1.hashPassword)(password);
         const superadmin = await prisma_1.default.user.create({
@@ -287,9 +240,7 @@ const createSuperAdmin = async (req, res) => {
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.createSuperAdmin = createSuperAdmin;
@@ -297,13 +248,12 @@ exports.createSuperAdmin = createSuperAdmin;
 const getAllCoaches = async (req, res) => {
     try {
         const coaches = await prisma_1.default.coach.findMany({
-            orderBy: {
-                createdAt: "desc",
-            },
+            orderBy: { createdAt: "desc" },
             include: {
-                _count: {
-                    select: {
-                        members: true,
+                _count: { select: { members: true } },
+                orgAssignments: {
+                    include: {
+                        organization: { select: { id: true, name: true } },
                     },
                 },
             },
@@ -318,35 +268,27 @@ const getAllCoaches = async (req, res) => {
             isActive: c.isActive,
             createdAt: c.createdAt,
             memberCount: c._count.members,
+            organizations: c.orgAssignments.map((a) => ({
+                id: a.organization.id,
+                name: a.organization.name,
+            })),
         })));
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.getAllCoaches = getAllCoaches;
 const createCoach = async (req, res) => {
     try {
-        const { email, name, password, bio, speciality, avatar, } = req.body;
-        if (!email ||
-            !name ||
-            !password) {
-            return res.status(400).json({
-                message: "Email, name and password required",
-            });
+        const { email, name, password, bio, speciality, avatar, organizationIds } = req.body;
+        if (!email || !name || !password) {
+            return res.status(400).json({ message: "Email, name and password required" });
         }
-        const exists = await prisma_1.default.coach.findUnique({
-            where: {
-                email,
-            },
-        });
+        const exists = await prisma_1.default.coach.findUnique({ where: { email } });
         if (exists) {
-            return res.status(409).json({
-                message: "Coach email already exists",
-            });
+            return res.status(409).json({ message: "Coach email already exists" });
         }
         const hashedPassword = await (0, auth_service_1.hashPassword)(password);
         const coach = await prisma_1.default.coach.create({
@@ -360,6 +302,21 @@ const createCoach = async (req, res) => {
                 isActive: true,
             },
         });
+        // Assign organizations if provided
+        if (Array.isArray(organizationIds) && organizationIds.length > 0) {
+            await prisma_1.default.organizationCoach.createMany({
+                data: organizationIds.map((orgId) => ({
+                    coachId: coach.id,
+                    organizationId: orgId,
+                })),
+                skipDuplicates: true,
+            });
+        }
+        // Fetch org assignments to return
+        const orgAssignments = await prisma_1.default.organizationCoach.findMany({
+            where: { coachId: coach.id },
+            include: { organization: { select: { id: true, name: true } } },
+        });
         return res.status(201).json({
             id: coach.id,
             email: coach.email,
@@ -369,70 +326,75 @@ const createCoach = async (req, res) => {
             avatar: coach.avatar,
             isActive: coach.isActive,
             createdAt: coach.createdAt,
+            organizations: orgAssignments.map((a) => ({
+                id: a.organization.id,
+                name: a.organization.name,
+            })),
         });
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.createCoach = createCoach;
 const updateCoach = async (req, res) => {
     try {
-        const { name, email, bio, speciality, avatar, isActive, } = req.body;
+        const { name, email, bio, speciality, avatar, isActive, organizationIds } = req.body;
         const coach = await prisma_1.default.coach.update({
-            where: {
-                id: req.params.id,
-            },
+            where: { id: req.params.id },
             data: {
                 ...(name && { name }),
                 ...(email && { email }),
-                ...(bio !== undefined && {
-                    bio,
-                }),
-                ...(speciality !==
-                    undefined && {
-                    speciality,
-                }),
-                ...(avatar !== undefined && {
-                    avatar,
-                }),
-                ...(isActive !== undefined && {
-                    isActive,
-                }),
+                ...(bio !== undefined && { bio }),
+                ...(speciality !== undefined && { speciality }),
+                ...(avatar !== undefined && { avatar }),
+                ...(isActive !== undefined && { isActive }),
             },
         });
-        return res.status(200).json(coach);
+        // Sync org assignments if provided
+        if (Array.isArray(organizationIds)) {
+            await prisma_1.default.organizationCoach.deleteMany({ where: { coachId: req.params.id } });
+            if (organizationIds.length > 0) {
+                await prisma_1.default.organizationCoach.createMany({
+                    data: organizationIds.map((orgId) => ({
+                        coachId: req.params.id,
+                        organizationId: orgId,
+                    })),
+                    skipDuplicates: true,
+                });
+            }
+        }
+        // Fetch updated org assignments to return
+        const orgAssignments = await prisma_1.default.organizationCoach.findMany({
+            where: { coachId: req.params.id },
+            include: { organization: { select: { id: true, name: true } } },
+        });
+        return res.status(200).json({
+            ...coach,
+            organizations: orgAssignments.map((a) => ({
+                id: a.organization.id,
+                name: a.organization.name,
+            })),
+        });
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.updateCoach = updateCoach;
 const removeCoach = async (req, res) => {
     try {
         await prisma_1.default.coach.update({
-            where: {
-                id: req.params.id,
-            },
-            data: {
-                isActive: false,
-            },
+            where: { id: req.params.id },
+            data: { isActive: false },
         });
-        return res.status(200).json({
-            message: "Coach removed",
-        });
+        return res.status(200).json({ message: "Coach removed" });
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.removeCoach = removeCoach;
@@ -440,17 +402,11 @@ exports.removeCoach = removeCoach;
 const adminGetGroups = async (req, res) => {
     try {
         const groups = await prisma_1.default.communityGroup.findMany({
-            orderBy: {
-                createdAt: "desc",
-            },
+            orderBy: { createdAt: "desc" },
             include: {
                 _count: {
                     select: {
-                        memberships: {
-                            where: {
-                                isActive: true,
-                            },
-                        },
+                        memberships: { where: { isActive: true } },
                         posts: true,
                     },
                 },
@@ -460,8 +416,6 @@ const adminGetGroups = async (req, res) => {
             id: g.id,
             name: g.name,
             emoji: g.emoji,
-            description: g.description,
-            color: g.color,
             tags: g.tags,
             mod: g.mod,
             status: g.status,
@@ -472,31 +426,22 @@ const adminGetGroups = async (req, res) => {
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.adminGetGroups = adminGetGroups;
 const adminCreateGroup = async (req, res) => {
     try {
-        const { name, emoji, description, color, tags, mod, } = req.body;
+        const { name, emoji, tags, mod } = req.body;
         if (!name) {
-            return res.status(400).json({
-                message: "Name required",
-            });
+            return res.status(400).json({ message: "Name required" });
         }
         const group = await prisma_1.default.communityGroup.create({
             data: {
                 name,
                 emoji: emoji ?? "👥",
-                description: description ?? null,
-                color: color ?? "#4E8C58",
-                tags: Array.isArray(tags)
-                    ? tags
-                    : [],
+                tags: Array.isArray(tags) ? tags : [],
                 mod: mod ?? null,
-                memberIds: [],
                 status: "active",
             },
         });
@@ -504,63 +449,429 @@ const adminCreateGroup = async (req, res) => {
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.adminCreateGroup = adminCreateGroup;
 const adminUpdateGroup = async (req, res) => {
     try {
-        const { name, emoji, description, color, tags, mod, status, } = req.body;
+        const { name, emoji, tags, mod, status } = req.body;
         const group = await prisma_1.default.communityGroup.update({
-            where: {
-                id: req.params.id,
-            },
+            where: { id: req.params.id },
             data: {
                 ...(name && { name }),
                 ...(emoji && { emoji }),
-                ...(description !==
-                    undefined && {
-                    description,
-                }),
-                ...(color && { color }),
                 ...(tags && { tags }),
-                ...(mod !== undefined && {
-                    mod,
-                }),
-                ...(status && {
-                    status,
-                }),
+                ...(mod !== undefined && { mod }),
+                ...(status && { status }),
             },
         });
         return res.status(200).json(group);
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.adminUpdateGroup = adminUpdateGroup;
 const adminArchiveGroup = async (req, res) => {
     try {
         const group = await prisma_1.default.communityGroup.update({
-            where: {
-                id: req.params.id,
-            },
-            data: {
-                status: "archived",
-            },
+            where: { id: req.params.id },
+            data: { status: "archived" },
         });
         return res.status(200).json(group);
     }
     catch (error) {
         console.error(error);
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 exports.adminArchiveGroup = adminArchiveGroup;
+// ─── ORGANIZATION MANAGEMENT ──────────────────────────────────────────────────
+const adminGetOrgStats = async (_req, res) => {
+    try {
+        const [totalPartners, totalMembers, totalCoaches, spendAgg] = await Promise.all([
+            prisma_1.default.organization.count(),
+            prisma_1.default.user.count({ where: { organizationId: { not: null } } }),
+            prisma_1.default.organizationCoach.count(),
+            prisma_1.default.organization.aggregate({ _sum: { monthlySpend: true } }),
+        ]);
+        return res.status(200).json({
+            totalPartners,
+            totalMembers,
+            totalMRR: spendAgg._sum.monthlySpend ?? 0,
+            totalCoaches,
+        });
+    }
+    catch (error) {
+        console.error("[adminGetOrgStats]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.adminGetOrgStats = adminGetOrgStats;
+const adminGetOrgs = async (_req, res) => {
+    try {
+        const orgs = await prisma_1.default.organization.findMany({
+            orderBy: { createdAt: "desc" },
+            include: {
+                _count: { select: { members: true } },
+                members: { select: { isVerified: true } },
+                coachAssignments: {
+                    include: {
+                        coach: {
+                            select: { id: true, name: true, email: true, speciality: true, isActive: true },
+                        },
+                    },
+                },
+            },
+        });
+        return res.status(200).json(orgs.map((o) => {
+            const totalMembers = o._count.members;
+            const activeMembers = o.members.filter((m) => m.isVerified).length;
+            const activeRate = totalMembers > 0 ? Math.round((activeMembers / totalMembers) * 100) : 0;
+            return {
+                id: o.id,
+                name: o.name,
+                type: o.type,
+                plan: o.plan,
+                status: o.status,
+                primaryContactName: o.primaryContactName,
+                primaryContactEmail: o.primaryContactEmail,
+                monthlySpend: o.monthlySpend,
+                totalMembers,
+                activeMembers,
+                activeRate,
+                totalCoaches: o.coachAssignments.length,
+                coaches: o.coachAssignments.map((a) => a.coach),
+                createdAt: o.createdAt,
+            };
+        }));
+    }
+    catch (error) {
+        console.error("[adminGetOrgs]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.adminGetOrgs = adminGetOrgs;
+const adminCreateOrg = async (req, res) => {
+    try {
+        const { name, type, plan, primaryContactName, primaryContactEmail, primaryContactPassword, monthlySpend, domain, coachIds, } = req.body;
+        if (!name || !primaryContactEmail || !primaryContactPassword) {
+            return res.status(400).json({
+                message: "name, primaryContactEmail and primaryContactPassword are required",
+            });
+        }
+        const existing = await prisma_1.default.organization.findUnique({ where: { primaryContactEmail } });
+        if (existing) {
+            return res.status(409).json({ message: "Email already in use" });
+        }
+        const hashedPw = await (0, auth_service_1.hashPassword)(primaryContactPassword);
+        const org = await prisma_1.default.organization.create({
+            data: {
+                name,
+                type: type ?? "University",
+                plan: plan ?? "Starter",
+                primaryContactName: primaryContactName ?? "",
+                primaryContactEmail,
+                primaryContactPassword: hashedPw,
+                monthlySpend: monthlySpend ? Number(monthlySpend) : 0,
+                domain: domain ?? null,
+                coachAssignments: Array.isArray(coachIds) && coachIds.length > 0
+                    ? { create: coachIds.map((coachId) => ({ coachId })) }
+                    : undefined,
+            },
+            include: {
+                coachAssignments: {
+                    include: {
+                        coach: {
+                            select: { id: true, name: true, email: true, speciality: true, isActive: true },
+                        },
+                    },
+                },
+            },
+        });
+        return res.status(201).json({
+            id: org.id,
+            name: org.name,
+            type: org.type,
+            plan: org.plan,
+            status: org.status,
+            primaryContactName: org.primaryContactName,
+            primaryContactEmail: org.primaryContactEmail,
+            monthlySpend: org.monthlySpend,
+            totalMembers: 0,
+            activeMembers: 0,
+            activeRate: 0,
+            totalCoaches: org.coachAssignments.length,
+            coaches: org.coachAssignments.map((a) => a.coach),
+            createdAt: org.createdAt,
+        });
+    }
+    catch (error) {
+        console.error("[adminCreateOrg]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.adminCreateOrg = adminCreateOrg;
+const adminUpdateOrg = async (req, res) => {
+    try {
+        const { name, type, plan, primaryContactName, monthlySpend, status, domain, coachIds } = req.body;
+        const org = await prisma_1.default.organization.update({
+            where: { id: req.params.id },
+            data: {
+                ...(name !== undefined && { name }),
+                ...(type !== undefined && { type }),
+                ...(plan !== undefined && { plan }),
+                ...(primaryContactName !== undefined && { primaryContactName }),
+                ...(monthlySpend !== undefined && { monthlySpend: Number(monthlySpend) }),
+                ...(status !== undefined && { status }),
+                ...(domain !== undefined && { domain }),
+            },
+        });
+        if (Array.isArray(coachIds)) {
+            await prisma_1.default.organizationCoach.deleteMany({ where: { organizationId: req.params.id } });
+            if (coachIds.length > 0) {
+                await prisma_1.default.organizationCoach.createMany({
+                    data: coachIds.map((coachId) => ({ organizationId: req.params.id, coachId })),
+                    skipDuplicates: true,
+                });
+            }
+        }
+        const assignments = await prisma_1.default.organizationCoach.findMany({
+            where: { organizationId: req.params.id },
+            include: {
+                coach: {
+                    select: { id: true, name: true, email: true, speciality: true, isActive: true },
+                },
+            },
+        });
+        return res.status(200).json({
+            id: org.id,
+            name: org.name,
+            type: org.type,
+            plan: org.plan,
+            status: org.status,
+            primaryContactName: org.primaryContactName,
+            primaryContactEmail: org.primaryContactEmail,
+            monthlySpend: org.monthlySpend,
+            totalCoaches: assignments.length,
+            coaches: assignments.map((a) => a.coach),
+            createdAt: org.createdAt,
+        });
+    }
+    catch (error) {
+        console.error("[adminUpdateOrg]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.adminUpdateOrg = adminUpdateOrg;
+const adminGetOrgOverview = async (req, res) => {
+    try {
+        const orgId = req.params.id;
+        if (!orgId)
+            return res.status(400).json({ message: "Organization ID is required" });
+        const organization = await prisma_1.default.organization.findUnique({ where: { id: orgId } });
+        if (!organization)
+            return res.status(404).json({ message: "Organization not found" });
+        const [totalMembers, activeMembers, totalCoaches] = await Promise.all([
+            prisma_1.default.user.count({ where: { organizationId: orgId } }),
+            prisma_1.default.user.count({ where: { organizationId: orgId, isVerified: true } }),
+            prisma_1.default.organizationCoach.count({ where: { organizationId: orgId } }),
+        ]);
+        const engagementRate = totalMembers > 0 ? (activeMembers / totalMembers) * 100 : 0;
+        return res.status(200).json({
+            orgName: organization.name,
+            type: organization.type,
+            plan: organization.plan,
+            status: organization.status,
+            totalMembers,
+            activeMembers,
+            totalCoaches,
+            engagementRate: Number(engagementRate.toFixed(2)),
+            sessionsThisMonth: 0,
+            avgPhqScore: null,
+        });
+    }
+    catch (error) {
+        console.error("[adminGetOrgOverview]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.adminGetOrgOverview = adminGetOrgOverview;
+// ─── DASHBOARD AGGREGATES (superadmin home) ───────────────────────────────────
+const ACTIVITY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const adminGetActivity = async (_req, res) => {
+    try {
+        const since = new Date(Date.now() - ACTIVITY_WINDOW_MS);
+        const [newUsers, memberships, flaggedPosts, newOrgs, newCoaches] = await Promise.all([
+            prisma_1.default.user.findMany({
+                where: { createdAt: { gte: since }, role: { not: "superadmin" } },
+                orderBy: { createdAt: "desc" },
+                take: 8,
+                select: { id: true, name: true, createdAt: true },
+            }),
+            prisma_1.default.groupMembership.findMany({
+                where: { joinedAt: { gte: since } },
+                orderBy: { joinedAt: "desc" },
+                take: 8,
+                include: {
+                    member: { select: { name: true } },
+                    group: { select: { name: true } },
+                },
+            }),
+            prisma_1.default.peerGroupPost.findMany({
+                where: { createdAt: { gte: since }, isFlagged: true },
+                orderBy: { createdAt: "desc" },
+                take: 8,
+                include: {
+                    member: { select: { name: true } },
+                    group: { select: { name: true } },
+                },
+            }),
+            prisma_1.default.organization.findMany({
+                where: { createdAt: { gte: since } },
+                orderBy: { createdAt: "desc" },
+                take: 6,
+                select: { id: true, name: true, createdAt: true },
+            }),
+            prisma_1.default.coach.findMany({
+                where: { createdAt: { gte: since } },
+                orderBy: { createdAt: "desc" },
+                take: 6,
+                select: { id: true, name: true, createdAt: true },
+            }),
+        ]);
+        const rows = [];
+        newUsers.forEach((u) => rows.push({
+            id: `user-${u.id}`,
+            type: "admin",
+            message: "joined the platform",
+            createdAt: u.createdAt.toISOString(),
+            actorName: u.name,
+            _t: u.createdAt.getTime(),
+        }));
+        memberships.forEach((m) => rows.push({
+            id: `gm-${m.id}`,
+            type: "join",
+            message: `joined ${m.group.name}`,
+            createdAt: m.joinedAt.toISOString(),
+            actorName: m.member.name,
+            _t: m.joinedAt.getTime(),
+        }));
+        flaggedPosts.forEach((p) => rows.push({
+            id: `post-${p.id}`,
+            type: "alert",
+            message: `flagged post in ${p.group.name}`,
+            createdAt: p.createdAt.toISOString(),
+            actorName: p.member.name,
+            _t: p.createdAt.getTime(),
+        }));
+        newOrgs.forEach((o) => rows.push({
+            id: `org-${o.id}`,
+            type: "org",
+            message: "new partner organization added",
+            createdAt: o.createdAt.toISOString(),
+            actorName: o.name,
+            _t: o.createdAt.getTime(),
+        }));
+        newCoaches.forEach((c) => rows.push({
+            id: `coach-${c.id}`,
+            type: "admin",
+            message: "new coach onboarded",
+            createdAt: c.createdAt.toISOString(),
+            actorName: c.name,
+            _t: c.createdAt.getTime(),
+        }));
+        rows.sort((a, b) => b._t - a._t);
+        const payload = rows.slice(0, 20).map(({ _t: _unused, ...rest }) => rest);
+        return res.status(200).json(payload);
+    }
+    catch (error) {
+        console.error("[adminGetActivity]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.adminGetActivity = adminGetActivity;
+const adminGetMoodDistribution = async (_req, res) => {
+    try {
+        const grouped = await prisma_1.default.mood.groupBy({
+            by: ["mood"],
+            _count: { _all: true },
+        });
+        const counts = {
+            GREAT: 0, GOOD: 0, OKAY: 0, LOW: 0, HARD: 0,
+        };
+        for (const row of grouped) {
+            const key = String(row.mood).toUpperCase();
+            if (key in counts)
+                counts[key] = row._count._all;
+        }
+        return res.status(200).json({
+            great: counts.GREAT,
+            good: counts.GOOD,
+            okay: counts.OKAY,
+            low: counts.LOW,
+            struggling: counts.HARD,
+        });
+    }
+    catch (error) {
+        console.error("[adminGetMoodDistribution]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.adminGetMoodDistribution = adminGetMoodDistribution;
+const adminGetOverviewStats = async (_req, res) => {
+    try {
+        const [totalUsers, activeCoaches, pendingUsers, totalSessions] = await Promise.all([
+            prisma_1.default.user.count({ where: { role: { not: "superadmin" } } }),
+            prisma_1.default.coach.count({ where: { isActive: true } }),
+            prisma_1.default.user.count({ where: { role: { not: "superadmin" }, isVerified: false } }),
+            prisma_1.default.session.count(),
+        ]);
+        return res.status(200).json({
+            totalUsers,
+            activeCoaches,
+            pendingUsers,
+            totalSessions,
+        });
+    }
+    catch (error) {
+        console.error("[adminGetOverviewStats]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.adminGetOverviewStats = adminGetOverviewStats;
+const adminGetScoresHistory = async (req, res) => {
+    try {
+        const orgId = process.env.PYTHON_ORG_ID ?? "org_default";
+        const pythonUrl = `${process.env.PYTHON_BACKEND_URL}/v1/admin/events/${orgId}?limit=100`;
+        const response = await fetch(pythonUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch from Python backend: ${response.statusText}`);
+        }
+        const rawEvents = await response.json();
+        const tokens = Array.from(new Set(rawEvents.map((e) => e.member_token)));
+        const users = await prisma_1.default.user.findMany({
+            where: { id: { in: tokens } },
+            select: { id: true, name: true },
+        });
+        const nameMap = new Map(users.map((u) => [u.id, u.name]));
+        const history = rawEvents.map((e) => ({
+            member_token: e.member_token,
+            client_name: nameMap.get(e.member_token) ?? "Member",
+            risk_tier: e.risk_tier,
+            risk_score: e.risk_score,
+            risk_trend: e.risk_trend ?? "stable",
+            recommended_action: e.recommended_action ?? "no_action",
+            active_signals: e.active_signals ?? [],
+            processed_at: e.event_timestamp,
+        }));
+        return res.status(200).json(history);
+    }
+    catch (error) {
+        console.error("[adminGetScoresHistory]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.adminGetScoresHistory = adminGetScoresHistory;

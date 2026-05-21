@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 
 import prisma from "../lib/prisma";
-import { emailOrgMembersCoachOnDemand } from "../services/notificationEmail.service";
+import { emailOrgMembersCoachOnDemand, emailCoachNewClientAssigned } from "../services/notificationEmail.service";
 import {
   comparePassword,
   generateToken,

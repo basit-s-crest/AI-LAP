@@ -3,9 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPosts = exports.createPost = exports.createGroup = exports.leaveGroup = exports.joinGroup = exports.getGroupById = exports.getGroups = void 0;
+exports.getPosts = exports.getRecentJoins = exports.getRecentPosts = exports.getMyGroups = exports.createPost = exports.createGroup = exports.leaveGroup = exports.joinGroup = exports.getGroupById = exports.getGroups = void 0;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const sentimentForwarder_1 = require("../services/sentimentForwarder");
+const realtime_1 = require("../lib/realtime");
 const getGroups = async (req, res) => {
     try {
         if (!req.user?.id) {
@@ -125,10 +126,26 @@ const joinGroup = async (req, res) => {
         if (group.status === "archived") {
             return res.status(403).json({ message: "Archived groups cannot be joined" });
         }
-        await prisma_1.default.groupMembership.upsert({
+        const membership = await prisma_1.default.groupMembership.upsert({
             where: { memberId_groupId: { memberId: userId, groupId } },
             update: { isActive: true },
             create: { memberId: userId, groupId, isActive: true },
+            include: {
+                group: { select: { id: true, name: true, emoji: true } },
+                member: { select: { id: true, name: true } },
+            },
+        });
+        const otherMembers = await prisma_1.default.groupMembership.findMany({
+            where: { groupId, isActive: true, memberId: { not: userId } },
+            select: { memberId: true },
+        });
+        (0, realtime_1.notifyMembers)(otherMembers.map((m) => m.memberId), "group_join", {
+            id: membership.id,
+            groupId,
+            groupName: membership.group.name,
+            groupEmoji: membership.group.emoji,
+            memberName: membership.member.name,
+            joinedAt: membership.joinedAt.toISOString(),
         });
         return res.status(200).json({ message: "Joined group", joined: true });
     }
@@ -220,10 +237,26 @@ const createPost = async (req, res) => {
         }
         const post = await prisma_1.default.peerGroupPost.create({
             data: { groupId, memberId: userId, body: body.trim() },
-            include: { member: { select: { id: true, name: true } } },
+            include: {
+                member: { select: { id: true, name: true } },
+                group: { select: { id: true, name: true, emoji: true } },
+            },
         });
         // Fire-and-forget: forward post text to Python sentiment backend
         (0, sentimentForwarder_1.forwardPeerPostToSentiment)(post);
+        const otherMembers = await prisma_1.default.groupMembership.findMany({
+            where: { groupId, isActive: true, memberId: { not: userId } },
+            select: { memberId: true },
+        });
+        (0, realtime_1.notifyMembers)(otherMembers.map((m) => m.memberId), "group_post", {
+            id: post.id,
+            groupId: post.groupId,
+            groupName: post.group.name,
+            groupEmoji: post.group.emoji,
+            memberName: post.member.name,
+            body: post.body,
+            createdAt: post.createdAt.toISOString(),
+        });
         return res.status(201).json({
             id: post.id,
             author: post.member.name,
@@ -241,6 +274,137 @@ const createPost = async (req, res) => {
     }
 };
 exports.createPost = createPost;
+const getMyGroups = async (req, res) => {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        const userId = req.user.id;
+        const memberships = await prisma_1.default.groupMembership.findMany({
+            where: { memberId: userId, isActive: true },
+            include: {
+                group: {
+                    include: {
+                        _count: {
+                            select: {
+                                memberships: { where: { isActive: true } },
+                                posts: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: { joinedAt: "desc" },
+        });
+        return res.status(200).json(memberships
+            .filter((m) => m.group.status !== "archived")
+            .map((m) => ({
+            id: m.group.id,
+            name: m.group.name,
+            emoji: m.group.emoji,
+            desc: m.group.description ?? "",
+            color: m.group.color,
+            tags: m.group.tags,
+            mod: m.group.mod ?? "",
+            status: m.group.status,
+            members: m.group._count.memberships,
+            posts: m.group._count.posts,
+            joined: true,
+        })));
+    }
+    catch (error) {
+        console.error("[getMyGroups]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getMyGroups = getMyGroups;
+const getRecentPosts = async (req, res) => {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        const userId = req.user.id;
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const groupIds = (await prisma_1.default.groupMembership.findMany({
+            where: { memberId: userId, isActive: true },
+            select: { groupId: true },
+        })).map((m) => m.groupId);
+        if (groupIds.length === 0) {
+            return res.status(200).json([]);
+        }
+        const posts = await prisma_1.default.peerGroupPost.findMany({
+            where: {
+                groupId: { in: groupIds },
+                isFlagged: false,
+                createdAt: { gte: since },
+                memberId: { not: userId },
+            },
+            orderBy: { createdAt: "desc" },
+            include: {
+                member: { select: { id: true, name: true } },
+                group: { select: { id: true, name: true, emoji: true } },
+            },
+            take: 20,
+        });
+        return res.status(200).json(posts.map((p) => ({
+            id: p.id,
+            groupId: p.groupId,
+            groupName: p.group.name,
+            groupEmoji: p.group.emoji,
+            memberName: p.member.name,
+            body: p.body,
+            createdAt: p.createdAt,
+        })));
+    }
+    catch (error) {
+        console.error("[getRecentPosts]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getRecentPosts = getRecentPosts;
+const getRecentJoins = async (req, res) => {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        const userId = req.user.id;
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const groupIds = (await prisma_1.default.groupMembership.findMany({
+            where: { memberId: userId, isActive: true },
+            select: { groupId: true },
+        })).map((m) => m.groupId);
+        if (groupIds.length === 0) {
+            return res.status(200).json([]);
+        }
+        const joins = await prisma_1.default.groupMembership.findMany({
+            where: {
+                groupId: { in: groupIds },
+                isActive: true,
+                joinedAt: { gte: since },
+                memberId: { not: userId },
+            },
+            orderBy: { joinedAt: "desc" },
+            include: {
+                member: { select: { id: true, name: true } },
+                group: { select: { id: true, name: true, emoji: true } },
+            },
+            take: 20,
+        });
+        return res.status(200).json(joins.map((j) => ({
+            id: j.id,
+            groupId: j.groupId,
+            groupName: j.group.name,
+            groupEmoji: j.group.emoji,
+            memberName: j.member.name,
+            joinedAt: j.joinedAt,
+        })));
+    }
+    catch (error) {
+        console.error("[getRecentJoins]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getRecentJoins = getRecentJoins;
 const getPosts = async (req, res) => {
     try {
         const posts = await prisma_1.default.peerGroupPost.findMany({

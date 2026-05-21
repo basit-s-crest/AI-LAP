@@ -7,6 +7,7 @@ exports.registerCoachChatHandlers = registerCoachChatHandlers;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const coachMessage_service_1 = require("../services/coachMessage.service");
 const sentimentForwarder_1 = require("../services/sentimentForwarder");
+const notificationEmail_service_1 = require("../services/notificationEmail.service");
 function registerCoachChatHandlers(io, socket) {
     const user = socket.data.user;
     // Join personal room on connection
@@ -46,7 +47,8 @@ function registerCoachChatHandlers(io, socket) {
             io.of("/coach-chat").to(partnerRoom).emit("new_message", dto);
             // Sentiment — member messages only
             if (user.role === "member") {
-                (0, sentimentForwarder_1.forwardToSentiment)(message);
+                (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
+                void (0, notificationEmail_service_1.maybeEmailCoachUnreadMessages)(coachId, userId);
             }
         }
         catch (err) {

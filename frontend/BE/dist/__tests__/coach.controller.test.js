@@ -94,12 +94,28 @@ function coach() {
 function coachMember() {
     return prisma_1.default.coachMember;
 }
+function user() {
+    return prisma_1.default.user;
+}
+function organizationCoach() {
+    return prisma_1.default.organizationCoach;
+}
+/** Member must be in org (OrganizationCoach) to assign */
+function mockMemberInOrgForCoach(coach = makeCoach({ isActive: true })) {
+    user().findUnique.mockResolvedValue({
+        id: "user-1",
+        organizationId: "org-1",
+        email: "member@test.com",
+        name: "Member",
+    });
+    organizationCoach().findUnique.mockResolvedValue({ coach });
+}
 // ─── listCoachesHandler — Unit Tests ─────────────────────────────────────────
 describe("listCoachesHandler", () => {
     it("returns HTTP 200 with a coaches array", async () => {
         const activeCoach = makeCoach({ isActive: true });
         coach().findMany.mockResolvedValue([activeCoach]);
-        const req = makeReq();
+        const req = makeReq({ user: { id: "admin-1", role: "superadmin" } });
         const { status, json, res } = makeRes();
         await (0, coach_controller_1.listCoachesHandler)(req, res);
         expect(status).toHaveBeenCalledWith(200);
@@ -108,7 +124,7 @@ describe("listCoachesHandler", () => {
     it("strips the password field from each coach in the response", async () => {
         const activeCoach = makeCoach({ isActive: true });
         coach().findMany.mockResolvedValue([activeCoach]);
-        const req = makeReq();
+        const req = makeReq({ user: { id: "admin-1", role: "superadmin" } });
         const { json, res } = makeRes();
         await (0, coach_controller_1.listCoachesHandler)(req, res);
         const { coaches } = json.mock.calls[0][0];
@@ -119,7 +135,7 @@ describe("listCoachesHandler", () => {
         const active = makeCoach({ id: "c1", isActive: true, name: "Active" });
         // The real DB query filters by isActive: true, so the mock returns only active ones
         coach().findMany.mockResolvedValue([active]);
-        const req = makeReq();
+        const req = makeReq({ user: { id: "admin-1", role: "superadmin" } });
         const { json, res } = makeRes();
         await (0, coach_controller_1.listCoachesHandler)(req, res);
         const { coaches } = json.mock.calls[0][0];
@@ -127,18 +143,46 @@ describe("listCoachesHandler", () => {
     });
     it("returns HTTP 500 when prisma.coach.findMany throws", async () => {
         coach().findMany.mockRejectedValue(new Error("DB connection lost"));
-        const req = makeReq();
+        const req = makeReq({ user: { id: "admin-1", role: "superadmin" } });
         const { status, json, res } = makeRes();
         await (0, coach_controller_1.listCoachesHandler)(req, res);
         expect(status).toHaveBeenCalledWith(500);
         expect(json).toHaveBeenCalledWith({ message: "Internal server error" });
+    });
+    it("member with no organizationId gets an empty coaches array", async () => {
+        user().findUnique.mockResolvedValue({ organizationId: null });
+        const req = makeReq({ user: { id: "user-1", role: "member" } });
+        const { status, json, res } = makeRes();
+        await (0, coach_controller_1.listCoachesHandler)(req, res);
+        expect(status).toHaveBeenCalledWith(200);
+        expect(json).toHaveBeenCalledWith({ coaches: [] });
+        expect(coach().findMany).not.toHaveBeenCalled();
+    });
+    it("member with org gets only OrganizationCoach-linked active coaches", async () => {
+        const c1 = makeCoach({ id: "c1", isActive: true, name: "Alpha" });
+        const c2 = makeCoach({ id: "c2", isActive: false, name: "Inactive" });
+        user().findUnique.mockResolvedValue({ organizationId: "org-1" });
+        organizationCoach().findMany.mockResolvedValue([
+            { coach: c1 },
+            { coach: c2 },
+        ]);
+        const req = makeReq({ user: { id: "user-1", role: "member" } });
+        const { status, json, res } = makeRes();
+        await (0, coach_controller_1.listCoachesHandler)(req, res);
+        expect(status).toHaveBeenCalledWith(200);
+        const { coaches } = json.mock.calls[0][0];
+        expect(coaches).toHaveLength(1);
+        expect(coaches[0].id).toBe("c1");
+        expect(coach().findMany).not.toHaveBeenCalled();
     });
 });
 // ─── assignCoachHandler — Unit Tests ─────────────────────────────────────────
 describe("assignCoachHandler", () => {
     it("returns HTTP 201 when a new CoachMember row is created", async () => {
         const cm = makeCoachMember();
-        coach().findUnique.mockResolvedValue(makeCoach({ isActive: true }));
+        const activeCoach = makeCoach({ isActive: true });
+        coach().findUnique.mockResolvedValue(activeCoach);
+        mockMemberInOrgForCoach(activeCoach);
         coachMember().findFirst.mockResolvedValue(null); // no existing assignment
         coachMember().upsert.mockResolvedValue(cm);
         const req = makeReq({
@@ -152,7 +196,9 @@ describe("assignCoachHandler", () => {
     });
     it("returns HTTP 200 when assignment already exists", async () => {
         const cm = makeCoachMember();
-        coach().findUnique.mockResolvedValue(makeCoach({ isActive: true }));
+        const activeCoach = makeCoach({ isActive: true });
+        coach().findUnique.mockResolvedValue(activeCoach);
+        mockMemberInOrgForCoach(activeCoach);
         coachMember().findFirst.mockResolvedValue(cm); // existing assignment
         coachMember().upsert.mockResolvedValue(cm);
         const req = makeReq({
@@ -174,6 +220,20 @@ describe("assignCoachHandler", () => {
         await (0, coach_controller_1.assignCoachHandler)(req, res);
         expect(status).toHaveBeenCalledWith(404);
         expect(json).toHaveBeenCalledWith({ message: "Coach not found" });
+    });
+    it("returns HTTP 403 when member coach is not in their organization", async () => {
+        const activeCoach = makeCoach({ isActive: true });
+        coach().findUnique.mockResolvedValue(activeCoach);
+        user().findUnique.mockResolvedValue({ organizationId: "org-1" });
+        organizationCoach().findUnique.mockResolvedValue(null);
+        const req = makeReq({
+            body: { coachId: "coach-1" },
+            user: { id: "user-1", role: "member" },
+        });
+        const { status, json, res } = makeRes();
+        await (0, coach_controller_1.assignCoachHandler)(req, res);
+        expect(status).toHaveBeenCalledWith(403);
+        expect(json).toHaveBeenCalledWith({ message: "Forbidden" });
     });
     it("returns HTTP 404 when coach has isActive = false", async () => {
         coach().findUnique.mockResolvedValue(makeCoach({ isActive: false }));
@@ -252,7 +312,7 @@ describe("Property 4: List endpoint active-only filter", () => {
             // The real DB query filters by isActive: true — simulate that
             const activeCoaches = coaches.filter((c) => c.isActive);
             coach().findMany.mockResolvedValue(activeCoaches);
-            const req = makeReq();
+            const req = makeReq({ user: { id: "admin-1", role: "superadmin" } });
             const { json, res } = makeRes();
             await (0, coach_controller_1.listCoachesHandler)(req, res);
             const { coaches: returned } = json.mock.calls[0][0];
@@ -285,7 +345,7 @@ describe("Property 6: No password leakage from listCoachesHandler", () => {
             jest.clearAllMocks();
             // Mock returns coaches WITH password (as DB would)
             coach().findMany.mockResolvedValue(coaches);
-            const req = makeReq();
+            const req = makeReq({ user: { id: "admin-1", role: "superadmin" } });
             const { json, res } = makeRes();
             await (0, coach_controller_1.listCoachesHandler)(req, res);
             const { coaches: returned } = json.mock.calls[0][0];
@@ -328,6 +388,7 @@ describe("Property 7: Assignment idempotency", () => {
                 }
                 coach().findUnique.mockResolvedValue(activeCoach);
                 coachMember().upsert.mockResolvedValue(cm);
+                mockMemberInOrgForCoach(activeCoach);
                 const req = makeReq({
                     body: { coachId },
                     user: { id: userId, role: "member" },

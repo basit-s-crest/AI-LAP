@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { useAppSelector } from "@/hooks/redux";
 import { cn } from "@/lib/cn";
 import { onboardingService } from "@/services/onboarding.service";
+import { useQueryClient } from "@tanstack/react-query";
 
 const PHQ_QS = [
   "Little interest or pleasure in doing things?",
@@ -47,6 +48,7 @@ const DEMO_OPTS = [
 
 export function OnboardingFlow() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const user = useAppSelector((s) => s.auth.user);
   const name = user?.firstName ?? "Amara";
   const [onboardStep, setOnboardStep] = useState(0);
@@ -74,6 +76,8 @@ export function OnboardingFlow() {
         phqAnswers: finalPhq,
         gadAnswers: finalGad,
       });
+      queryClient.invalidateQueries({ queryKey: ["onboarding-assessment"] });
+      queryClient.invalidateQueries({ queryKey: ["member", "profile"] });
     } catch (error) {
       console.error("Failed to submit onboarding assessment:", error);
     }

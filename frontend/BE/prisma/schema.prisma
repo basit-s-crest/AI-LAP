@@ -34,7 +34,7 @@ model User {
   organizationId   String?
   organization     Organization?     @relation(fields: [organizationId], references: [id])
   sessionNotes     SessionNote[]
-  onboardingAssessment OnboardingAssessment?
+  onboardingAssessments OnboardingAssessment[]
   notifyGroupActivity    Boolean @default(true)
   notifySessionReminders Boolean @default(true)
   notifyDailyCheckin     Boolean @default(false)
@@ -284,7 +284,7 @@ model SessionNote {
 
 model OnboardingAssessment {
   id         String   @id @default(cuid())
-  userId     String   @unique
+  userId     String
   age        String?
   identity   String?
   gender     String?
@@ -311,6 +311,8 @@ model PlatformSettings {
   supportEmail           String   @default("support@azadihealth.com")
   maxMembersPerCoach     Int      @default(20)
   sessionDurationDefault Int      @default(50)
+  sessionDurationMax     Int      @default(90)
+  sessionDurationMin     Int      @default(25)
   allowSelfRegistration  Boolean  @default(true)
   maintenanceMode        Boolean  @default(false)
   createdAt              DateTime @default(now())

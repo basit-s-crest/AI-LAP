@@ -3,12 +3,62 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateOrgSettings = exports.getOrgSettings = exports.getOrgCoaches = exports.getOrgMembers = exports.getOrgOverview = exports.orgLogin = void 0;
+exports.updateOrgSettings = exports.getOrgSettings = exports.getOrgCoaches = exports.getOrgMembers = exports.getOrgOverview = exports.orgLogin = exports.orgRegister = void 0;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const auth_service_1 = require("../services/auth.service");
+const orgRegister = async (req, res) => {
+    try {
+        const { email, password, firstName, lastName, organizationName, organizationType } = req.body;
+        if (!email || !password || !firstName || !organizationName) {
+            return res.status(400).json({
+                message: "Organization name, contact first name, email, and password are required",
+            });
+        }
+        const existing = await prisma_1.default.organization.findUnique({
+            where: { primaryContactEmail: email },
+        });
+        if (existing) {
+            return res.status(409).json({ message: "Organization contact email already registered" });
+        }
+        const primaryContactPassword = await (0, auth_service_1.hashPassword)(password);
+        const primaryContactName = [firstName, lastName].filter(Boolean).join(" ").trim();
+        const organization = await prisma_1.default.organization.create({
+            data: {
+                name: organizationName,
+                type: organizationType || "University",
+                primaryContactName: primaryContactName || firstName,
+                primaryContactEmail: email,
+                primaryContactPassword,
+            },
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                plan: true,
+                status: true,
+            },
+        });
+        return res.status(201).json({
+            message: "Organization account created",
+            organization,
+        });
+    }
+    catch (error) {
+        console.error("[orgRegister]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.orgRegister = orgRegister;
 const orgLogin = async (req, res) => {
     try {
         const { email, password } = req.body;
+        const platform = await prisma_1.default.platformSettings.findUnique({
+            where: { id: "platform" },
+            select: { maintenanceMode: true },
+        });
+        if (platform?.maintenanceMode) {
+            return res.status(503).json({ message: "Site is under maintenance" });
+        }
         if (!email || !password) {
             return res.status(400).json({ message: "Email and password are required" });
         }
@@ -51,7 +101,7 @@ const getOrgOverview = async (req, res) => {
         const [totalMembers, activeMembers, totalCoaches] = await Promise.all([
             prisma_1.default.user.count({ where: { organizationId: orgId } }),
             prisma_1.default.user.count({ where: { organizationId: orgId, isVerified: true } }),
-            prisma_1.default.coach.count({ where: { organizationId: orgId } }),
+            prisma_1.default.organizationCoach.count({ where: { organizationId: orgId } }),
         ]);
         const engagementRate = totalMembers > 0 ? (activeMembers / totalMembers) * 100 : 0;
         return res.status(200).json({
@@ -107,20 +157,25 @@ const getOrgCoaches = async (req, res) => {
         const orgId = req.user?.orgId;
         if (!orgId)
             return res.status(401).json({ message: "Unauthorized" });
-        const coaches = await prisma_1.default.coach.findMany({
+        const assignments = await prisma_1.default.organizationCoach.findMany({
             where: { organizationId: orgId },
-            orderBy: { createdAt: "desc" },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                speciality: true,
-                bio: true,
-                isActive: true,
-                avatar: true,
-                createdAt: true,
+            orderBy: { assignedAt: "desc" },
+            include: {
+                coach: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        speciality: true,
+                        bio: true,
+                        isActive: true,
+                        avatar: true,
+                        createdAt: true,
+                    },
+                },
             },
         });
+        const coaches = assignments.map(a => a.coach);
         return res.status(200).json(coaches);
     }
     catch (error) {

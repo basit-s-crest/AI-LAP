@@ -66,6 +66,23 @@ function getCoachIdFromCookie(): string | null {
   }
 }
 
+/** Build duration options in 5-minute steps within [min, max]. */
+function buildDurationOptions(min: number, max: number) {
+  const options: { value: string; label: string }[] = [];
+  // Common increments: 25, 30, 45, 50, 60, 90 — keep only those within range,
+  // plus always include min and max themselves.
+  const candidates = [min, 25, 30, 45, 50, 60, 75, 90, max];
+  const seen = new Set<number>();
+  for (const v of candidates) {
+    if (v >= min && v <= max && !seen.has(v)) {
+      seen.add(v);
+      options.push({ value: String(v), label: `${v} minutes` });
+    }
+  }
+  options.sort((a, b) => Number(a.value) - Number(b.value));
+  return options;
+}
+
 export default function AvailabilityPage() {
   const dispatch = useAppDispatch();
   const onDemand = useAppSelector((s) => s.coach.onDemand);
@@ -74,6 +91,24 @@ export default function AvailabilityPage() {
   const [duration, setDuration] = useState("50");
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+
+  // Platform-enforced limits (fetched from admin settings)
+  const [durationMax, setDurationMax] = useState(90);
+  const [durationMin, setDurationMin] = useState(25);
+
+  // Fetch platform limits from the public endpoint (no auth required)
+  useEffect(() => {
+    const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+    fetch(`${base}/api/auth/platform-settings`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { sessionDurationMax?: number; sessionDurationMin?: number }) => {
+        if (data.sessionDurationMax) setDurationMax(data.sessionDurationMax);
+        if (data.sessionDurationMin) setDurationMin(data.sessionDurationMin);
+      })
+      .catch(() => {
+        // silently fall back to defaults (90 / 25)
+      });
+  }, []);
 
   // Load saved availability on mount
   useEffect(() => {
@@ -84,7 +119,6 @@ export default function AvailabilityPage() {
       .get<{ slots: SlotEntry[]; duration: number }>(`/api/sessions/availability/${coachId}`)
       .then(({ data }) => {
         if (data.slots && data.slots.length > 0) {
-          // Merge returned slots with defaults (in case new days were added)
           const map = Object.fromEntries(data.slots.map((s) => [s.day, s]));
           setSlots(
             days.map((day) =>
@@ -107,11 +141,20 @@ export default function AvailabilityPage() {
   };
 
   const handleSave = async () => {
+    const numDuration = Number(duration);
+    if (numDuration > durationMax) {
+      toast.error(`Session duration cannot exceed ${durationMax} minutes (set by admin).`);
+      return;
+    }
+    if (numDuration < durationMin) {
+      toast.error(`Session duration must be at least ${durationMin} minutes (set by admin).`);
+      return;
+    }
     setSaving(true);
     try {
       await api.patch("/api/sessions/availability", {
         slots,
-        duration: Number(duration),
+        duration: numDuration,
       });
       toast.success("Availability saved");
     } catch {
@@ -120,6 +163,20 @@ export default function AvailabilityPage() {
       setSaving(false);
     }
   };
+
+  const durationOptions = buildDurationOptions(durationMin, durationMax);
+
+  // If current selection is out of range, clamp it to the nearest valid option
+  const effectiveDuration = (() => {
+    const n = Number(duration);
+    if (n > durationMax) return String(durationMax);
+    if (n < durationMin) return String(durationMin);
+    // If exact value isn't in options, pick closest
+    const vals = durationOptions.map((o) => Number(o.value));
+    if (vals.includes(n)) return duration;
+    const closest = vals.reduce((a, b) => (Math.abs(b - n) < Math.abs(a - n) ? b : a));
+    return String(closest);
+  })();
 
   return (
     <DashboardLayout title="Availability">
@@ -160,14 +217,13 @@ export default function AvailabilityPage() {
           <div className="mt-3">
             <Label>Session Duration</Label>
             <Select
-              options={[
-                { value: "50", label: "50 minutes" },
-                { value: "30", label: "30 minutes" },
-                { value: "25", label: "25 minutes" },
-              ]}
-              value={duration}
+              options={durationOptions}
+              value={effectiveDuration}
               onChange={setDuration}
             />
+            <p className="mt-1 text-xs text-dim">
+              Allowed range: {durationMin}–{durationMax} minutes (set by admin)
+            </p>
           </div>
           <Button type="button" className="mt-4" onClick={handleSave} disabled={saving || !loaded}>
             {saving ? "Saving…" : "Save Availability"}

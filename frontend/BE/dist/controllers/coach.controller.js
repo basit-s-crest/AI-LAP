@@ -3,16 +3,20 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMyMembers = exports.assignCoachHandler = exports.listCoachesHandler = exports.loginCoach = exports.registerCoach = void 0;
+exports.updateCoachNotifications = exports.updateCoachProfile = exports.getCoachProfile = exports.setOnDemandStatus = exports.getOnDemandStatus = exports.getMyMembers = exports.assignCoachHandler = exports.getCoachPublicByIdHandler = exports.listCoachesHandler = exports.loginCoach = exports.registerCoach = void 0;
 const prisma_1 = __importDefault(require("../lib/prisma"));
+const notificationEmail_service_1 = require("../services/notificationEmail.service");
 const auth_service_1 = require("../services/auth.service");
+const member_org_coach_service_1 = require("../services/member-org-coach.service");
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const sanitizeCoach = (coach) => ({
     id: coach.id,
     email: coach.email,
     name: coach.name,
     avatar: coach.avatar,
-    bio: coach.bio,
+    bio: coach.orgAssignments && coach.orgAssignments.length > 0
+        ? coach.orgAssignments.map((a) => a.organization.name).join(", ")
+        : coach.bio,
     speciality: coach.speciality,
     isActive: coach.isActive,
     createdAt: coach.createdAt,
@@ -67,6 +71,13 @@ exports.registerCoach = registerCoach;
 const loginCoach = async (req, res) => {
     try {
         const { email, password } = req.body;
+        const platform = await prisma_1.default.platformSettings.findUnique({
+            where: { id: "platform" },
+            select: { maintenanceMode: true },
+        });
+        if (platform?.maintenanceMode) {
+            return res.status(503).json({ message: "Site is under maintenance" });
+        }
         if (!email || !password) {
             return res
                 .status(400)
@@ -103,13 +114,24 @@ exports.loginCoach = loginCoach;
 // ─── List Active Coaches ──────────────────────────────────────────────────────
 /**
  * GET /api/coach/list
- * Returns all active coaches, sorted by name, with password stripped.
+ * Members: active coaches in their org (OrganizationCoach only). No org → [].
+ * Other authenticated roles: all active coaches (unchanged for staff flows).
  */
 const listCoachesHandler = async (req, res) => {
     try {
+        const role = req.user?.role;
+        if (role === "member" && req.user?.id) {
+            const coaches = await (0, member_org_coach_service_1.getActiveCoachesForMemberOrganization)(req.user.id);
+            return res.status(200).json({ coaches: coaches.map(sanitizeCoach) });
+        }
         const coaches = await prisma_1.default.coach.findMany({
             where: { isActive: true },
             orderBy: { name: "asc" },
+            include: {
+                orgAssignments: {
+                    include: { organization: { select: { name: true } } },
+                },
+            },
         });
         return res.status(200).json({ coaches: coaches.map(sanitizeCoach) });
     }
@@ -119,6 +141,62 @@ const listCoachesHandler = async (req, res) => {
     }
 };
 exports.listCoachesHandler = listCoachesHandler;
+/**
+ * GET /api/coach/:coachId
+ * Member: coach must be in member's org (OrganizationCoach). No org → 403.
+ * Coach: only own profile. Organization: coach must be assigned to JWT orgId.
+ */
+const getCoachPublicByIdHandler = async (req, res) => {
+    try {
+        const coachId = req.params.coachId;
+        const u = req.user;
+        if (!u?.id) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        if (u.role === "member") {
+            const ok = await (0, member_org_coach_service_1.memberOrganizationHasActiveCoach)(u.id, coachId);
+            if (!ok) {
+                return res.status(403).json({ message: "Forbidden" });
+            }
+        }
+        else if (u.role === "coach") {
+            if (u.id !== coachId) {
+                return res.status(403).json({ message: "Forbidden" });
+            }
+        }
+        else if (u.role === "organization") {
+            if (!u.orgId) {
+                return res.status(403).json({ message: "Forbidden" });
+            }
+            const link = await prisma_1.default.organizationCoach.findUnique({
+                where: {
+                    organizationId_coachId: { organizationId: u.orgId, coachId },
+                },
+                include: { coach: true },
+            });
+            if (!link?.coach?.isActive) {
+                return res.status(403).json({ message: "Forbidden" });
+            }
+        }
+        const coach = await prisma_1.default.coach.findFirst({
+            where: { id: coachId, isActive: true },
+            include: {
+                orgAssignments: {
+                    include: { organization: { select: { name: true } } },
+                },
+            },
+        });
+        if (!coach) {
+            return res.status(404).json({ message: "Coach not found" });
+        }
+        return res.status(200).json({ coach: sanitizeCoach(coach) });
+    }
+    catch (error) {
+        console.error("[getCoachPublicByIdHandler]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getCoachPublicByIdHandler = getCoachPublicByIdHandler;
 // ─── Assign Coach to Member ───────────────────────────────────────────────────
 /**
  * POST /api/coach/assign
@@ -139,6 +217,12 @@ const assignCoachHandler = async (req, res) => {
         const coach = await prisma_1.default.coach.findUnique({ where: { id: coachId } });
         if (!coach || !coach.isActive) {
             return res.status(404).json({ message: "Coach not found" });
+        }
+        if (req.user?.role === "member") {
+            const inOrg = await (0, member_org_coach_service_1.memberOrganizationHasActiveCoach)(userId, coachId);
+            if (!inOrg) {
+                return res.status(403).json({ message: "Forbidden" });
+            }
         }
         // Verify the member's own User record still exists (guards against stale JWTs
         // after a DB reset or data migration where the user row was deleted).
@@ -208,3 +292,155 @@ const getMyMembers = async (req, res) => {
     }
 };
 exports.getMyMembers = getMyMembers;
+// ─── On-Demand Status ─────────────────────────────────────────────────────────
+/**
+ * GET /api/coach/on-demand
+ * Coach only. Returns the current on-demand (isActive) status.
+ */
+const getOnDemandStatus = async (req, res) => {
+    try {
+        const coachId = req.user?.id;
+        if (!coachId)
+            return res.status(401).json({ message: "Unauthorized" });
+        const coach = await prisma_1.default.coach.findUnique({
+            where: { id: coachId },
+            select: { isActive: true },
+        });
+        if (!coach)
+            return res.status(404).json({ message: "Coach not found" });
+        return res.status(200).json({ onDemand: coach.isActive });
+    }
+    catch (error) {
+        console.error("[getOnDemandStatus]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getOnDemandStatus = getOnDemandStatus;
+/**
+ * PATCH /api/coach/on-demand
+ * Coach only. Updates the on-demand (isActive) status.
+ * Body: { onDemand: boolean }
+ */
+const setOnDemandStatus = async (req, res) => {
+    try {
+        const coachId = req.user?.id;
+        if (!coachId)
+            return res.status(401).json({ message: "Unauthorized" });
+        const { onDemand } = req.body;
+        if (typeof onDemand !== "boolean") {
+            return res.status(400).json({ message: "onDemand must be a boolean" });
+        }
+        const previous = await prisma_1.default.coach.findUnique({
+            where: { id: coachId },
+            select: { isActive: true },
+        });
+        const coach = await prisma_1.default.coach.update({
+            where: { id: coachId },
+            data: { isActive: onDemand },
+            select: { isActive: true },
+        });
+        if (onDemand && previous && !previous.isActive) {
+            void (0, notificationEmail_service_1.emailOrgMembersCoachOnDemand)(coachId);
+        }
+        return res.status(200).json({ onDemand: coach.isActive });
+    }
+    catch (error) {
+        console.error("[setOnDemandStatus]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.setOnDemandStatus = setOnDemandStatus;
+// ─── Coach profile & settings ─────────────────────────────────────────────────
+/** GET /api/coach/profile */
+const getCoachProfile = async (req, res) => {
+    try {
+        const coachId = req.user?.id;
+        if (!coachId || req.user?.role !== "coach") {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+        const coach = await prisma_1.default.coach.findUnique({ where: { id: coachId } });
+        if (!coach)
+            return res.status(404).json({ message: "Coach not found" });
+        return res.status(200).json({
+            coach: sanitizeCoach(coach),
+            notifications: {
+                notifySessionReminders: coach.notifySessionReminders,
+                notifyNewClientAssigned: coach.notifyNewClientAssigned,
+                notifyMessageAlerts: coach.notifyMessageAlerts,
+            },
+        });
+    }
+    catch (error) {
+        console.error("[getCoachProfile]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getCoachProfile = getCoachProfile;
+/** PATCH /api/coach/profile */
+const updateCoachProfile = async (req, res) => {
+    try {
+        const coachId = req.user?.id;
+        if (!coachId || req.user?.role !== "coach") {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+        const { name, bio, speciality, avatar, newPassword, confirmPassword } = req.body;
+        if (newPassword !== undefined) {
+            if (!newPassword || newPassword !== confirmPassword) {
+                return res.status(400).json({ message: "Passwords do not match" });
+            }
+            if (newPassword.length < 8) {
+                return res.status(400).json({ message: "Password must be at least 8 characters" });
+            }
+        }
+        const coach = await prisma_1.default.coach.update({
+            where: { id: coachId },
+            data: {
+                ...(name !== undefined ? { name: name.trim() } : {}),
+                ...(bio !== undefined ? { bio } : {}),
+                ...(speciality !== undefined ? { speciality } : {}),
+                ...(avatar !== undefined ? { avatar } : {}),
+                ...(newPassword ? { password: await (0, auth_service_1.hashPassword)(newPassword) } : {}),
+            },
+        });
+        return res.status(200).json({ coach: sanitizeCoach(coach) });
+    }
+    catch (error) {
+        console.error("[updateCoachProfile]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.updateCoachProfile = updateCoachProfile;
+/** PATCH /api/coach/notifications */
+const updateCoachNotifications = async (req, res) => {
+    try {
+        const coachId = req.user?.id;
+        if (!coachId || req.user?.role !== "coach") {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+        const { notifySessionReminders, notifyNewClientAssigned, notifyMessageAlerts, } = req.body;
+        const coach = await prisma_1.default.coach.update({
+            where: { id: coachId },
+            data: {
+                ...(notifySessionReminders !== undefined
+                    ? { notifySessionReminders: Boolean(notifySessionReminders) }
+                    : {}),
+                ...(notifyNewClientAssigned !== undefined
+                    ? { notifyNewClientAssigned: Boolean(notifyNewClientAssigned) }
+                    : {}),
+                ...(notifyMessageAlerts !== undefined
+                    ? { notifyMessageAlerts: Boolean(notifyMessageAlerts) }
+                    : {}),
+            },
+        });
+        return res.status(200).json({
+            notifySessionReminders: coach.notifySessionReminders,
+            notifyNewClientAssigned: coach.notifyNewClientAssigned,
+            notifyMessageAlerts: coach.notifyMessageAlerts,
+        });
+    }
+    catch (error) {
+        console.error("[updateCoachNotifications]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.updateCoachNotifications = updateCoachNotifications;

@@ -15,6 +15,8 @@ type PlatformSettingsPatch = Partial<{
   supportEmail: string;
   maxMembersPerCoach: number;
   sessionDurationDefault: number;
+  sessionDurationMax: number;
+  sessionDurationMin: number;
   allowSelfRegistration: boolean;
   maintenanceMode: boolean;
 }>;
@@ -78,6 +80,8 @@ export const getPublicPlatformSettings = async (_req: Request, res: Response): P
       primaryColor: settings.primaryColor,
       allowSelfRegistration: settings.allowSelfRegistration,
       maintenanceMode: settings.maintenanceMode,
+      sessionDurationMax: settings.sessionDurationMax,
+      sessionDurationMin: settings.sessionDurationMin,
     });
   } catch (error) {
     console.error("[getPublicPlatformSettings]", error);
@@ -100,6 +104,8 @@ export const updatePlatformSettings = async (req: Request, res: Response): Promi
     if (patch.supportEmail !== undefined) data.supportEmail = patch.supportEmail;
     if (patch.maxMembersPerCoach !== undefined) data.maxMembersPerCoach = Number(patch.maxMembersPerCoach);
     if (patch.sessionDurationDefault !== undefined) data.sessionDurationDefault = Number(patch.sessionDurationDefault);
+    if (patch.sessionDurationMax !== undefined) data.sessionDurationMax = Number(patch.sessionDurationMax);
+    if (patch.sessionDurationMin !== undefined) data.sessionDurationMin = Number(patch.sessionDurationMin);
     if (patch.allowSelfRegistration !== undefined) data.allowSelfRegistration = Boolean(patch.allowSelfRegistration);
     if (patch.maintenanceMode !== undefined) data.maintenanceMode = Boolean(patch.maintenanceMode);
 

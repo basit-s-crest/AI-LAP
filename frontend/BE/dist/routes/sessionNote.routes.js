@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const sessionNote_controller_1 = require("../controllers/sessionNote.controller");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach"));
+router.post("/", sessionNote_controller_1.createSessionNote);
+router.get("/coach/:coachId", sessionNote_controller_1.getCoachSessionNotes);
+router.patch("/:id", sessionNote_controller_1.updateSessionNote);
+router.delete("/:id", sessionNote_controller_1.deleteSessionNote);
+exports.default = router;

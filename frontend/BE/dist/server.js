@@ -11,6 +11,7 @@ const socket_io_1 = require("socket.io");
 const app_1 = __importDefault(require("./app"));
 const socketAuth_middleware_1 = require("./middleware/socketAuth.middleware");
 const coachChat_1 = require("./sockets/coachChat");
+const realtime_1 = require("./lib/realtime");
 const PORT = Number(process.env.PORT) || 4000;
 // Warn if sentiment env vars are absent
 if (!process.env.PYTHON_BACKEND_URL) {
@@ -27,6 +28,7 @@ const io = new socket_io_1.Server(httpServer, {
         credentials: true,
     },
 });
+(0, realtime_1.initRealtime)(io);
 // Register /coach-chat namespace
 const coachChat = io.of("/coach-chat");
 coachChat.use(socketAuth_middleware_1.socketAuthMiddleware);
