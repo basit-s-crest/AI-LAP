@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { navForRole, roleAccent, roleSidebarLabel, type NavItem } from "@/constants/navigation";
@@ -10,7 +9,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
 import { logout } from "@/store/slices/authSlice";
 import { useRouter } from "next/navigation";
-import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
+import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
 
 function groupItems(items: NavItem[]) {
   const sections: { section: string; items: NavItem[] }[] = [];
@@ -45,22 +44,7 @@ export function RoleSidebar({
   const label = roleSidebarLabel(role);
   const items = navForRole(role);
   const groups = groupItems(items);
-  const [brandTitle, setBrandTitle] = useState("Azadi Health");
-  const [brandTagline, setBrandTagline] = useState("Mental Wellness Platform");
-  const { data: platformSettings } = usePublicPlatformSettings();
-
-  useEffect(() => {
-    const saved = localStorage.getItem("platform_brand_title");
-    if (saved?.trim()) setBrandTitle(saved.trim());
-    const savedTagline = localStorage.getItem("platform_brand_tagline");
-    if (savedTagline?.trim()) setBrandTagline(savedTagline.trim());
-  }, []);
-
-  useEffect(() => {
-    if (!platformSettings) return;
-    if (platformSettings.brandTitle?.trim()) setBrandTitle(platformSettings.brandTitle.trim());
-    if (platformSettings.brandTagline?.trim()) setBrandTagline(platformSettings.brandTagline.trim());
-  }, [platformSettings]);
+  const { brandTitle, brandTagline } = useHydratedPlatformBranding();
 
   const inner = (
     <>

@@ -13,6 +13,7 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useLogin } from "@/hooks/auth/useLogin";
 import { getAuthRoleOption, parseAuthRole } from "@/lib/auth-roles";
 import { useEffect } from "react";
+import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
 import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
 import { useMaintenanceRedirect } from "@/hooks/useMaintenanceRedirect";
 
@@ -25,8 +26,7 @@ export function LoginScreen() {
   const roleOption = getAuthRoleOption(role);
   const justRegistered = search.get("registered") === "1";
   const { data: platformSettings } = usePublicPlatformSettings();
-  const brandTitle = platformSettings?.brandTitle || "Azadi Health";
-  const brandTagline = platformSettings?.brandTagline || "Mental Wellness Platform";
+  const { brandTitle, brandTagline } = useHydratedPlatformBranding();
   useMaintenanceRedirect();
 
   // Pass role so the hook hits the right backend endpoint (coach vs member)

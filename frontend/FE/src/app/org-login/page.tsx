@@ -13,16 +13,14 @@ import { useAppDispatch } from "@/hooks/redux";
 import { setSession } from "@/store/slices/authSlice";
 import { loginSchema } from "@/validations/auth.validation";
 import { useMaintenanceRedirect } from "@/hooks/useMaintenanceRedirect";
-import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
+import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
 
 type FormValues = { email: string; password: string };
 
 export default function OrgLoginPage() {
   const dispatch = useAppDispatch();
   useMaintenanceRedirect();
-  const { data: platformSettings } = usePublicPlatformSettings();
-  const brandTitle = platformSettings?.brandTitle || "Azadi Health";
-  const brandTagline = platformSettings?.brandTagline || "Organization Portal";
+  const { brandTitle, brandTagline } = useHydratedPlatformBranding();
   const [error, setError] = useState("");
   const methods = useForm<FormValues>({
     resolver: zodResolver(loginSchema),

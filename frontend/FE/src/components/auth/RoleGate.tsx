@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import type { Role } from "@/types/role";
-import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
+import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
 
 const cards: {
   role: Role;
@@ -50,9 +50,7 @@ const cards: {
 
 export function RoleGate() {
   const router = useRouter();
-  const { data: platformSettings } = usePublicPlatformSettings();
-  const brandTitle = platformSettings?.brandTitle?.trim() || "Azadi Health";
-  const brandTagline = platformSettings?.brandTagline?.trim() || "Mental Wellness Platform";
+  const { brandTitle, brandTagline } = useHydratedPlatformBranding();
 
   const enter = (role: Role) => {
     router.push(`/login?role=${role}`);

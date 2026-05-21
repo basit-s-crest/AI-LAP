@@ -21,6 +21,7 @@ import type { RegisterPayload } from "@/types/auth";
 import type { Role } from "@/types/role";
 import { toast } from "sonner";
 import { useEffect } from "react";
+import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
 import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
 import { useMaintenanceRedirect } from "@/hooks/useMaintenanceRedirect";
 
@@ -110,8 +111,7 @@ function buildDefaultValues(role: Role): FormValues {
 function RoleRegisterScreen({ role }: { role: Role }) {
   const router = useRouter();
   const { data: platformSettings } = usePublicPlatformSettings();
-  const brandTitle = platformSettings?.brandTitle || "Azadi Health";
-  const brandTagline = platformSettings?.brandTagline || "Mental Wellness Platform";
+  const { brandTitle, brandTagline } = useHydratedPlatformBranding();
   const registerMutation = useRegisterMutation(role);
   const config = REGISTER_CONFIG[role];
   const roleOption = getAuthRoleOption(role);
