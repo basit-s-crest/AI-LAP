@@ -12,6 +12,7 @@ const app_1 = __importDefault(require("./app"));
 const socketAuth_middleware_1 = require("./middleware/socketAuth.middleware");
 const coachChat_1 = require("./sockets/coachChat");
 const realtime_1 = require("./lib/realtime");
+const orgNotification_scheduler_1 = require("./services/orgNotification.scheduler");
 const PORT = Number(process.env.PORT) || 4000;
 // Warn if sentiment env vars are absent
 if (!process.env.PYTHON_BACKEND_URL) {
@@ -36,6 +37,7 @@ coachChat.on("connection", (socket) => {
     (0, coachChat_1.registerCoachChatHandlers)(io, socket);
 });
 httpServer.listen(PORT, () => {
+    (0, orgNotification_scheduler_1.startOrgNotificationScheduler)();
     console.log(`✅ VASL Server running on http://localhost:${PORT}`);
     console.log(`   DATABASE_URL set:       ${!!process.env.DATABASE_URL}`);
     console.log(`   JWT_SECRET set:         ${!!process.env.JWT_SECRET}`);

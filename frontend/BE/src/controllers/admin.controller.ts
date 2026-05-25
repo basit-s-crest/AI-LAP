@@ -1016,7 +1016,17 @@ export const adminGetScoresHistory = async (
     }
     const rawEvents: any = await response.json();
 
-    const tokens = Array.from(new Set(rawEvents.map((e: any) => e.member_token))) as string[];
+    let tokens = Array.from(new Set(rawEvents.map((e: any) => e.member_token))) as string[];
+
+    // If role is coach, only find users assigned to this coach
+    if (req.user && req.user.role === "coach") {
+      const coachMembers = await prisma.coachMember.findMany({
+        where: { coachId: req.user.id },
+        select: { userId: true },
+      });
+      const assignedUserIds = new Set(coachMembers.map((cm) => cm.userId));
+      tokens = tokens.filter((t) => assignedUserIds.has(t));
+    }
 
     const users = await prisma.user.findMany({
       where: { id: { in: tokens } },
@@ -1025,16 +1035,18 @@ export const adminGetScoresHistory = async (
 
     const nameMap = new Map(users.map((u) => [u.id, u.name]));
 
-    const history = rawEvents.map((e: any) => ({
-      member_token: e.member_token,
-      client_name: nameMap.get(e.member_token) ?? "Member",
-      risk_tier: e.risk_tier,
-      risk_score: e.risk_score,
-      risk_trend: e.risk_trend ?? "stable",
-      recommended_action: e.recommended_action ?? "no_action",
-      active_signals: e.active_signals ?? [],
-      processed_at: e.event_timestamp,
-    }));
+    const history = rawEvents
+      .filter((e: any) => nameMap.has(e.member_token))
+      .map((e: any) => ({
+        member_token: e.member_token,
+        client_name: nameMap.get(e.member_token) ?? "Member",
+        risk_tier: e.risk_tier,
+        risk_score: e.risk_score,
+        risk_trend: e.risk_trend ?? "stable",
+        recommended_action: e.recommended_action ?? "no_action",
+        active_signals: e.active_signals ?? [],
+        processed_at: e.event_timestamp,
+      }));
 
     return res.status(200).json(history);
   } catch (error) {

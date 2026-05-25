@@ -28,6 +28,25 @@ const tim = new Redis(REDIS_URL, { maxRetriesPerRequest: null });
 pub.on("error", e => { if (e.code !== "ECONNREFUSED") console.error("[pub]", e.message); });
 tim.on("error", e => { if (e.code !== "ECONNREFUSED") console.error("[tim]", e.message); });
 
+let redisConnectionOptions;
+try {
+  const u = new URL(REDIS_URL);
+  redisConnectionOptions = {
+    host: u.hostname,
+    port: parseInt(u.port || "6379", 10),
+    username: u.username || undefined,
+    password: u.password || undefined,
+    db: parseInt(u.pathname?.replace("/", "") || "0", 10),
+    maxRetriesPerRequest: null,
+  };
+} catch {
+  redisConnectionOptions = {
+    host: "localhost",
+    port: 6379,
+    maxRetriesPerRequest: null,
+  };
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const ts  = () => new Date().toISOString();
 const now = () => Date.now();
@@ -140,7 +159,7 @@ const worker = new Worker(
     return { event_id: p.event_id, risk_tier: scoreUpdate.risk_tier };
   },
   {
-    connection:  new Redis(REDIS_URL, { maxRetriesPerRequest: null }),
+    connection:  redisConnectionOptions,
     concurrency: 20,
   }
 );

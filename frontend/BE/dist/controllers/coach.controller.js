@@ -242,6 +242,9 @@ const assignCoachHandler = async (req, res) => {
             create: { coachId, userId: userId },
         });
         const statusCode = existing ? 200 : 201;
+        if (!existing) {
+            void (0, notificationEmail_service_1.emailCoachNewClientAssigned)(coachId, userId);
+        }
         return res.status(statusCode).json({
             assigned: true,
             coachId,

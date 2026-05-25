@@ -66,6 +66,8 @@ const getPublicPlatformSettings = async (_req, res) => {
             primaryColor: settings.primaryColor,
             allowSelfRegistration: settings.allowSelfRegistration,
             maintenanceMode: settings.maintenanceMode,
+            sessionDurationMax: settings.sessionDurationMax,
+            sessionDurationMin: settings.sessionDurationMin,
         });
     }
     catch (error) {
@@ -95,6 +97,10 @@ const updatePlatformSettings = async (req, res) => {
             data.maxMembersPerCoach = Number(patch.maxMembersPerCoach);
         if (patch.sessionDurationDefault !== undefined)
             data.sessionDurationDefault = Number(patch.sessionDurationDefault);
+        if (patch.sessionDurationMax !== undefined)
+            data.sessionDurationMax = Number(patch.sessionDurationMax);
+        if (patch.sessionDurationMin !== undefined)
+            data.sessionDurationMin = Number(patch.sessionDurationMin);
         if (patch.allowSelfRegistration !== undefined)
             data.allowSelfRegistration = Boolean(patch.allowSelfRegistration);
         if (patch.maintenanceMode !== undefined)

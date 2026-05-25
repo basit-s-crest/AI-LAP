@@ -33,5 +33,25 @@ export function getSubRedis(): Redis {
   return _subRedis;
 }
 
+export function getRedisOptions() {
+  try {
+    const u = new URL(REDIS_URL);
+    return {
+      host: u.hostname,
+      port: parseInt(u.port || "6379", 10),
+      username: u.username || undefined,
+      password: u.password || undefined,
+      db: parseInt(u.pathname?.replace("/", "") || "0", 10),
+      maxRetriesPerRequest: null,
+    };
+  } catch {
+    return {
+      host: "localhost",
+      port: 6379,
+      maxRetriesPerRequest: null,
+    };
+  }
+}
+
 export const SCORE_UPDATE_CHANNEL = "vasl_score_updates";
 export const CHAT_QUEUE_NAME = "vasl_chat_inference";

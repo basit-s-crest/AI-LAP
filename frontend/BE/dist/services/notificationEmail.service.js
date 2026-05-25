@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -7,6 +40,13 @@ exports.maybeEmailCoachUnreadMessages = maybeEmailCoachUnreadMessages;
 exports.emailCoachSessionUpdate = emailCoachSessionUpdate;
 exports.emailMemberSessionUpdate = emailMemberSessionUpdate;
 exports.emailOrgMembersCoachOnDemand = emailOrgMembersCoachOnDemand;
+exports.emailCoachNewClientAssigned = emailCoachNewClientAssigned;
+exports.emailOrgCrisisAlert = emailOrgCrisisAlert;
+exports.emailOrgCoachesNewMember = emailOrgCoachesNewMember;
+exports.emailOrgNewMemberJoined = emailOrgNewMemberJoined;
+exports.notifyOrganizationMemberJoined = notifyOrganizationMemberJoined;
+exports.emailOrgWeeklyOutcomeReport = emailOrgWeeklyOutcomeReport;
+exports.emailOrgDailyNewMemberDigest = emailOrgDailyNewMemberDigest;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const emailTemplates_1 = require("./emailTemplates");
 const email_service_1 = require("./email.service");
@@ -200,4 +240,182 @@ async function emailOrgMembersCoachOnDemand(coachId) {
             ctaUrl: (0, email_service_1.portalUrl)("/coaching"),
         });
     }
+}
+/**
+ * Email the coach when a new member is assigned to them (if enabled).
+ */
+async function emailCoachNewClientAssigned(coachId, memberId) {
+    const [coach, member] = await Promise.all([
+        prisma_1.default.coach.findUnique({
+            where: { id: coachId },
+            select: { email: true, name: true, notifyNewClientAssigned: true },
+        }),
+        prisma_1.default.user.findUnique({
+            where: { id: memberId },
+            select: { name: true, email: true },
+        }),
+    ]);
+    if (!coach?.email || !coach.notifyNewClientAssigned)
+        return;
+    const memberName = member?.name ?? "A new member";
+    (0, email_service_1.sendAppEmailSafe)(coach.email, `New client assigned: ${memberName}`, {
+        title: "You have a new client",
+        greeting: `Hi ${coach.name},`,
+        lines: [
+            `${memberName} has been assigned to you as a new coaching client.`,
+            "You can view their profile and start a conversation from your dashboard.",
+        ],
+        ctaLabel: "View my clients",
+        ctaUrl: (0, email_service_1.portalUrl)("/clients"),
+    });
+}
+async function loadOrgContact(orgId) {
+    return prisma_1.default.organization.findUnique({
+        where: { id: orgId },
+        select: {
+            id: true,
+            name: true,
+            primaryContactEmail: true,
+            primaryContactName: true,
+            notifyWeeklyReport: true,
+            notifyCrisisAlerts: true,
+            notifyNewMembers: true,
+        },
+    });
+}
+/** Email org contact when a member is flagged at crisis/high risk. */
+async function emailOrgCrisisAlert(orgId, memberName, riskTier, detail) {
+    const org = await loadOrgContact(orgId);
+    if (!org?.primaryContactEmail || !org.notifyCrisisAlerts)
+        return;
+    (0, email_service_1.sendAppEmailSafe)(org.primaryContactEmail, `Crisis alert: ${memberName}`, {
+        title: "Member needs immediate attention",
+        greeting: `Hi ${org.primaryContactName},`,
+        lines: [
+            `${memberName} was flagged with ${riskTier} risk in ${org.name}.`,
+            detail ?? "Review the member in your organization dashboard and coordinate with assigned coaches.",
+        ],
+        ctaLabel: "Open org dashboard",
+        ctaUrl: (0, email_service_1.portalUrl)("/org/dashboard"),
+    });
+}
+/** Notify org coaches when a new member joins the organization. */
+async function emailOrgCoachesNewMember(orgId, memberId) {
+    const [member, assignments] = await Promise.all([
+        prisma_1.default.user.findUnique({
+            where: { id: memberId },
+            select: { name: true, email: true },
+        }),
+        prisma_1.default.organizationCoach.findMany({
+            where: { organizationId: orgId },
+            include: {
+                coach: {
+                    select: {
+                        id: true,
+                        email: true,
+                        name: true,
+                        notifyNewClientAssigned: true,
+                        isActive: true,
+                    },
+                },
+            },
+        }),
+    ]);
+    if (!member)
+        return;
+    const memberName = member.name ?? "A new member";
+    for (const row of assignments) {
+        const coach = row.coach;
+        if (!coach.isActive || !coach.email || !coach.notifyNewClientAssigned)
+            continue;
+        (0, email_service_1.sendAppEmailSafe)(coach.email, `New member in your organization: ${memberName}`, {
+            title: "New member joined your organization",
+            greeting: `Hi ${coach.name},`,
+            lines: [
+                `${memberName} (${member.email ?? "no email"}) joined your organization and may book sessions with you.`,
+                "Check your clients list when you're ready to connect.",
+            ],
+            ctaLabel: "View clients",
+            ctaUrl: (0, email_service_1.portalUrl)("/clients"),
+        });
+    }
+}
+/** Immediate org contact email when a member joins (if daily digest is enabled). */
+async function emailOrgNewMemberJoined(orgId, memberId) {
+    const [org, member] = await Promise.all([
+        loadOrgContact(orgId),
+        prisma_1.default.user.findUnique({
+            where: { id: memberId },
+            select: { name: true, email: true, createdAt: true },
+        }),
+    ]);
+    if (!org?.primaryContactEmail || !org.notifyNewMembers || !member)
+        return;
+    (0, email_service_1.sendAppEmailSafe)(org.primaryContactEmail, `New member joined ${org.name}`, {
+        title: "New member joined",
+        greeting: `Hi ${org.primaryContactName},`,
+        lines: [
+            `${member.name} (${member.email}) joined ${org.name}.`,
+            "Assigned coaches have been notified. You can review members in your dashboard.",
+        ],
+        ctaLabel: "View members",
+        ctaUrl: (0, email_service_1.portalUrl)("/org/dashboard"),
+    });
+}
+/** Called when a member is linked to an organization — coaches notified immediately; org contact gets daily digest. */
+async function notifyOrganizationMemberJoined(orgId, memberId) {
+    await emailOrgCoachesNewMember(orgId, memberId);
+}
+/** Weekly outcomes email for organizations with notifyWeeklyReport enabled. */
+async function emailOrgWeeklyOutcomeReport(orgId) {
+    const org = await loadOrgContact(orgId);
+    if (!org?.primaryContactEmail || !org.notifyWeeklyReport)
+        return;
+    const { buildOrgOutcomesMetrics, buildOrgOverviewMetrics } = await Promise.resolve().then(() => __importStar(require("./orgStats.service")));
+    const [overview, outcomes] = await Promise.all([
+        buildOrgOverviewMetrics(orgId),
+        buildOrgOutcomesMetrics(orgId),
+    ]);
+    (0, email_service_1.sendAppEmailSafe)(org.primaryContactEmail, `Weekly outcomes — ${org.name}`, {
+        title: "Weekly Outcome Report",
+        greeting: `Hi ${org.primaryContactName},`,
+        lines: [
+            `Members: ${overview.totalMembers} total, ${overview.activeMembers} active (30d)`,
+            `Sessions this month: ${overview.sessionsThisMonth}`,
+            overview.avgPhqScore !== null
+                ? `Average PHQ-8 score: ${overview.avgPhqScore}`
+                : "Average PHQ-8 score: not yet available",
+            outcomes.retentionRate !== null
+                ? `30-day retention: ${outcomes.retentionRate}%`
+                : "30-day retention: not yet available",
+            "Sign in for full charts and downloadable reports.",
+        ],
+        ctaLabel: "View outcomes",
+        ctaUrl: (0, email_service_1.portalUrl)("/org/outcomes"),
+    });
+}
+/** Daily digest of members who joined in the last 24 hours. */
+async function emailOrgDailyNewMemberDigest(orgId) {
+    const org = await loadOrgContact(orgId);
+    if (!org?.primaryContactEmail || !org.notifyNewMembers)
+        return;
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const members = await prisma_1.default.user.findMany({
+        where: { organizationId: orgId, createdAt: { gte: since } },
+        select: { name: true, email: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+    });
+    if (members.length === 0)
+        return;
+    const lines = members.map((m) => `• ${m.name} (${m.email}) — ${(0, emailTemplates_1.formatEmailDateTime)(m.createdAt)}`);
+    (0, email_service_1.sendAppEmailSafe)(org.primaryContactEmail, `New members digest — ${org.name}`, {
+        title: "Daily new member digest",
+        greeting: `Hi ${org.primaryContactName},`,
+        lines: [
+            `${members.length} member(s) joined ${org.name} in the last 24 hours:`,
+            ...lines,
+        ],
+        ctaLabel: "View dashboard",
+        ctaUrl: (0, email_service_1.portalUrl)("/org/dashboard"),
+    });
 }

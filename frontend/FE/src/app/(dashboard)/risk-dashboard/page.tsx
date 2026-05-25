@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import type { ScoreUpdateEvent } from "@/lib/vasl/types";
+import { AUTH_ROLE_KEY } from "@/constants/storage";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface HistoryEntry {
@@ -50,58 +51,82 @@ const EMPTY_STATE: PersistedState = {
   tierTotals: { low: 0, moderate: 0, high: 0, crisis: 0 },
 };
 
+// ── Icons ──────────────────────────────────────────────────────────────────
+const ChevronDownIcon = () => (
+  <svg className="h-3.5 w-3.5 text-dim shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+  </svg>
+);
+
+const SearchIcon = () => (
+  <svg className="h-3.5 w-3.5 text-dim shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+);
+
+// ── Helper ──────────────────────────────────────────────────────────────────
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const encoded = encodeURIComponent(name);
+  const match = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${encoded}=`));
+  return match ? decodeURIComponent(match.split("=")[1]) : null;
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 export default function RiskDashboardPage() {
-  const [scores, setScores]         = useState<Record<string, ScoreUpdateEvent>>(EMPTY_STATE.scores);
-  const [history, setHistory]       = useState<Record<string, HistoryEntry[]>>(EMPTY_STATE.history);
-  const [events, setEvents]         = useState<Array<{ text: string; time: string; tier: string }>>(EMPTY_STATE.events);
+  const [rawUpdates, setRawUpdates] = useState<ScoreUpdateEvent[]>([]);
+  const [assignedMembers, setAssignedMembers] = useState<any[]>([]);
+  const [assignedMemberTokens, setAssignedMemberTokens] = useState<Set<string>>(new Set());
   const [connected, setConnected]   = useState(false);
   const [lastPing, setLastPing]     = useState<string | null>(null);
-  const [totalCount, setTotalCount] = useState(EMPTY_STATE.totalCount);
-  const [tierTotals, setTierTotals] = useState(EMPTY_STATE.tierTotals);
 
-  // Hydrate historical data from the Database on mount
+  // Filter States
+  const [selectedPeriod, setSelectedPeriod] = useState<"all" | "7d" | "30d" | "60d" | "custom">("all");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [isFilterEnabled, setIsFilterEnabled] = useState(false);
+  const [selectedPatients, setSelectedPatients] = useState<string[]>([]);
+  const [patientSearchQuery, setPatientSearchQuery] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Hydrate historical data and coach members from backend
   useEffect(() => {
     const { default: api } = require("@/lib/api");
+    const userRole = getCookie(AUTH_ROLE_KEY);
+    setRole(userRole);
+
+    if (userRole === "coach") {
+      api.get("/api/coach/members")
+        .then(({ data }: { data: { members: any[] } }) => {
+          setAssignedMembers(data.members);
+          setAssignedMemberTokens(new Set(data.members.map((m) => m.id)));
+        })
+        .catch((err: any) => {
+          console.error("Failed to load coach members:", err);
+        });
+    }
 
     api.get("/api/coach/scores/history")
       .then(({ data }: { data: ScoreUpdateEvent[] }) => {
-        const nextScores: Record<string, ScoreUpdateEvent> = {};
-        const nextHistory: Record<string, HistoryEntry[]> = {};
-        const nextEvents: Array<{ text: string; time: string; tier: string }> = [];
-        let nextTotalCount = 0;
-        const nextTierTotals = { low: 0, moderate: 0, high: 0, crisis: 0 };
-
-        // Replay history events in chronological order to populate states
-        data.forEach((update) => {
-          nextTotalCount++;
-          if (update.risk_tier in nextTierTotals) {
-            nextTierTotals[update.risk_tier]++;
-          }
-
-          nextScores[update.member_token] = update;
-
-          if (!nextHistory[update.member_token]) {
-            nextHistory[update.member_token] = [];
-          }
-          nextHistory[update.member_token].push({
-            score: update.risk_score,
-            tier:  update.risk_tier,
-            time:  new Date(update.processed_at).toLocaleTimeString(),
-          });
-
-          nextEvents.unshift({
-            text: `${update.client_name} — ${update.risk_tier.toUpperCase()} (${(update.risk_score * 100).toFixed(0)}%)`,
-            time: new Date(update.processed_at).toLocaleTimeString(),
-            tier: update.risk_tier,
-          });
-        });
-
-        setScores(nextScores);
-        setHistory(nextHistory);
-        setEvents(nextEvents);
-        setTotalCount(nextTotalCount);
-        setTierTotals(nextTierTotals);
+        setRawUpdates(data);
       })
       .catch((err: any) => {
         console.error("Failed to load historical risk data:", err);
@@ -126,35 +151,7 @@ export default function RiskDashboardPage() {
 
         if (data.type === "score_update" && data.payload) {
           const update: ScoreUpdateEvent = data.payload;
-
-          setTotalCount((n) => n + 1);
-          setTierTotals((prev) => ({
-            ...prev,
-            [update.risk_tier]: (prev[update.risk_tier] ?? 0) + 1,
-          }));
-          setScores((prev) => ({ ...prev, [update.member_token]: update }));
-          setHistory((prev) => {
-            const existing = prev[update.member_token] ?? [];
-            return {
-              ...prev,
-              [update.member_token]: [
-                ...existing.slice(-19),
-                {
-                  score: update.risk_score,
-                  tier:  update.risk_tier,
-                  time:  new Date(update.processed_at).toLocaleTimeString(),
-                },
-              ],
-            };
-          });
-          setEvents((prev) => [
-            {
-              text: `${update.client_name} — ${update.risk_tier.toUpperCase()} (${(update.risk_score * 100).toFixed(0)}%)`,
-              time: new Date().toLocaleTimeString(),
-              tier: update.risk_tier,
-            },
-            ...prev.slice(0, 49),
-          ]);
+          setRawUpdates((prev) => [...prev, update]);
           setLastPing(new Date().toLocaleTimeString());
         }
       } catch { /* ignore parse errors */ }
@@ -164,14 +161,174 @@ export default function RiskDashboardPage() {
     return () => es.close();
   }, []);
 
-  const scoreList = Object.values(scores).sort((a, b) => b.risk_score - a.risk_score);
+  // Extract unique patients list for filter
+  const allPatients = useMemo(() => {
+    if (role === "coach") {
+      return assignedMembers.map((m) => {
+        const updates = rawUpdates.filter((u) => u.member_token === m.id);
+        const latestTier = updates.length > 0 ? updates[updates.length - 1].risk_tier : "low";
+        return {
+          token: m.id,
+          name: m.name || "Member",
+          latestTier,
+        };
+      }).sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      const map = new Map<string, { token: string; name: string; latestTier: string }>();
+      rawUpdates.forEach((u) => {
+        if (!map.has(u.member_token)) {
+          map.set(u.member_token, {
+            token: u.member_token,
+            name: u.client_name,
+            latestTier: u.risk_tier,
+          });
+        } else {
+          const existing = map.get(u.member_token)!;
+          existing.latestTier = u.risk_tier;
+        }
+      });
+      return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }
+  }, [role, assignedMembers, rawUpdates]);
+
+  const filteredPatientsForDropdown = useMemo(() => {
+    return allPatients.filter((p) =>
+      p.name.toLowerCase().includes(patientSearchQuery.toLowerCase())
+    );
+  }, [allPatients, patientSearchQuery]);
+
+  // Derived filter updates
+  const filteredUpdates = useMemo(() => {
+    return rawUpdates.filter((u) => {
+      // 1. Coach restriction: only show assigned members' updates
+      if (role === "coach" && !assignedMemberTokens.has(u.member_token)) {
+        return false;
+      }
+
+      // 2. Patient selection filter
+      if (isFilterEnabled) {
+        if (!selectedPatients.includes(u.member_token)) {
+          return false;
+        }
+      }
+
+      // 3. Time range filter
+      const date = new Date(u.processed_at);
+      if (selectedPeriod === "7d") {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 7);
+        if (date < cutoff) return false;
+      } else if (selectedPeriod === "30d") {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 30);
+        if (date < cutoff) return false;
+      } else if (selectedPeriod === "60d") {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 60);
+        if (date < cutoff) return false;
+      } else if (selectedPeriod === "custom") {
+        if (customStartDate) {
+          const start = new Date(customStartDate);
+          start.setHours(0, 0, 0, 0);
+          if (date < start) return false;
+        }
+        if (customEndDate) {
+          const end = new Date(customEndDate);
+          end.setHours(23, 59, 59, 999);
+          if (date > end) return false;
+        }
+      }
+      return true;
+    });
+  }, [rawUpdates, role, assignedMemberTokens, isFilterEnabled, selectedPatients, selectedPeriod, customStartDate, customEndDate]);
+
+  // Derive metrics
+  const totalCount = filteredUpdates.length;
+
+  const tierTotals = useMemo(() => {
+    const totals = { low: 0, moderate: 0, high: 0, crisis: 0 };
+    filteredUpdates.forEach((u) => {
+      if (u.risk_tier in totals) {
+        totals[u.risk_tier]++;
+      }
+    });
+    return totals;
+  }, [filteredUpdates]);
+
+  const scoreList = useMemo(() => {
+    const latestMap: Record<string, ScoreUpdateEvent> = {};
+    filteredUpdates.forEach((u) => {
+      latestMap[u.member_token] = u;
+    });
+    return Object.values(latestMap).sort((a, b) => b.risk_score - a.risk_score);
+  }, [filteredUpdates]);
+
+  const history = useMemo(() => {
+    const histMap: Record<string, HistoryEntry[]> = {};
+    filteredUpdates.forEach((u) => {
+      if (!histMap[u.member_token]) {
+        histMap[u.member_token] = [];
+      }
+      histMap[u.member_token].push({
+        score: u.risk_score,
+        tier:  u.risk_tier,
+        time:  new Date(u.processed_at).toLocaleTimeString(),
+      });
+    });
+    Object.keys(histMap).forEach((k) => {
+      histMap[k] = histMap[k].slice(-20);
+    });
+    return histMap;
+  }, [filteredUpdates]);
+
+  const events = useMemo(() => {
+    return filteredUpdates.map((u) => ({
+      text: `${u.client_name} — ${u.risk_tier.toUpperCase()} (${(u.risk_score * 100).toFixed(0)}%)`,
+      time: new Date(u.processed_at).toLocaleTimeString(),
+      tier: u.risk_tier,
+    })).reverse();
+  }, [filteredUpdates]);
+
+  // Dropdown Label
+  const dropdownLabel = useMemo(() => {
+    if (!isFilterEnabled) return "All Patients";
+    if (selectedPatients.length === 0) return "No Patients Selected";
+    if (selectedPatients.length === 1) {
+      const match = allPatients.find((p) => p.token === selectedPatients[0]);
+      return match ? match.name : "1 Patient Selected";
+    }
+    return `${selectedPatients.length} Patients Selected`;
+  }, [isFilterEnabled, selectedPatients, allPatients]);
+
+  const handleTogglePatient = (token: string) => {
+    if (!isFilterEnabled) {
+      const otherTokens = allPatients
+        .map((p) => p.token)
+        .filter((t) => t !== token);
+      setIsFilterEnabled(true);
+      setSelectedPatients(otherTokens);
+    } else {
+      setSelectedPatients((prev) => {
+        const next = prev.includes(token)
+          ? prev.filter((t) => t !== token)
+          : [...prev, token];
+
+        if (next.length === allPatients.length) {
+          setIsFilterEnabled(false);
+          return [];
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleToggleAllPatients = () => {
+    setIsFilterEnabled(false);
+    setSelectedPatients([]);
+  };
 
   function clearHistory() {
-    setScores({});
-    setHistory({});
-    setEvents([]);
-    setTotalCount(0);
-    setTierTotals({ low: 0, moderate: 0, high: 0, crisis: 0 });
+    setRawUpdates([]);
   }
 
   return (
@@ -206,6 +363,146 @@ export default function RiskDashboardPage() {
         </div>
       }
     >
+      {/* ── Filter Controls Row ── */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-card border border-line bg-card p-4 shadow-soft">
+        {/* Left side: Patient selector dropdown */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold uppercase tracking-wider text-dim">Filter:</span>
+          {/* Patient Dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center justify-between gap-2.5 rounded-lg border border-line bg-canvas px-4 py-2 text-xs font-bold text-ink transition-all hover:bg-card hover:shadow-sm"
+              type="button"
+            >
+              <span>{dropdownLabel}</span>
+              <ChevronDownIcon />
+            </button>
+
+            {isDropdownOpen && (
+              <div className="absolute left-0 mt-2 z-30 w-72 rounded-card border border-line bg-card p-3 shadow-soft animate-fadeIn">
+                {/* Search box */}
+                <div className="relative mb-2.5">
+                  <span className="absolute left-2.5 top-2">
+                    <SearchIcon />
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Search patients..."
+                    value={patientSearchQuery}
+                    onChange={(e) => setPatientSearchQuery(e.target.value)}
+                    className="w-full rounded-lg border border-line bg-canvas pl-8 pr-3 py-1.5 text-xs font-semibold text-ink focus:outline-none focus:ring-1 focus:ring-sage animate-fadeIn"
+                  />
+                </div>
+
+                {/* Patient List */}
+                <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                  {/* All Patients Option */}
+                  <label
+                    onClick={handleToggleAllPatients}
+                    className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-bold text-ink transition-colors hover:bg-canvas cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!isFilterEnabled}
+                      readOnly
+                      className="h-3.5 w-3.5 rounded border-line text-sage focus:ring-sage cursor-pointer"
+                    />
+                    <span>All Patients</span>
+                  </label>
+
+                  <div className="h-px bg-line my-1" />
+
+                  {filteredPatientsForDropdown.length === 0 ? (
+                    <div className="py-4 text-center text-xs text-dim">No patients found</div>
+                  ) : (
+                    filteredPatientsForDropdown.map((p) => {
+                      const isChecked = isFilterEnabled ? selectedPatients.includes(p.token) : true;
+                      return (
+                        <label
+                          key={p.token}
+                          onClick={() => handleTogglePatient(p.token)}
+                          className="flex items-center justify-between rounded-md px-2.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-canvas cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              readOnly
+                              className="h-3.5 w-3.5 rounded border-line text-sage focus:ring-sage cursor-pointer"
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-ink">{p.name}</span>
+                              <span className="font-mono text-[9.5px] text-dim">{p.token.slice(0, 10)}…</span>
+                            </div>
+                          </div>
+                          {/* Risk Badge Indicator */}
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className="h-2 w-2 rounded-full"
+                              style={{ background: TIER_COLORS[p.latestTier] || "#4E8C58" }}
+                            />
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-dim">
+                              {p.latestTier}
+                            </span>
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right side: Day/Date selection */}
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs font-bold uppercase tracking-wider text-dim">Timeframe:</span>
+          <div className="flex items-center gap-1 rounded-lg border border-line bg-canvas p-1">
+            {[
+              { id: "all", label: "All Time" },
+              { id: "7d", label: "7 Days" },
+              { id: "30d", label: "30 Days" },
+              { id: "60d", label: "60 Days" },
+              { id: "custom", label: "Custom" },
+            ].map((period) => (
+              <button
+                key={period.id}
+                onClick={() => setSelectedPeriod(period.id as any)}
+                className={`rounded-md px-3 py-1 text-xs font-bold transition-all ${
+                  selectedPeriod === period.id
+                    ? "bg-card text-ink shadow-sm"
+                    : "text-dim hover:text-ink"
+                }`}
+                type="button"
+              >
+                {period.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom Date Inputs */}
+          {selectedPeriod === "custom" && (
+            <div className="flex items-center gap-2 animate-fadeIn">
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="rounded-lg border border-line bg-canvas px-2.5 py-1 text-xs font-semibold text-ink focus:outline-none focus:ring-1 focus:ring-sage"
+              />
+              <span className="text-xs text-dim">to</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="rounded-lg border border-line bg-canvas px-2.5 py-1 text-xs font-semibold text-ink focus:outline-none focus:ring-1 focus:ring-sage"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* ── Stats row ── */}
       <div className="mb-5 grid grid-cols-5 gap-4">
         {[

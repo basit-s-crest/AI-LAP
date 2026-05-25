@@ -3,9 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateOrgSettings = exports.getOrgSettings = exports.getOrgCoaches = exports.getOrgMembers = exports.getOrgOverview = exports.orgLogin = exports.orgRegister = void 0;
+exports.updateOrgSettings = exports.getOrgSettings = exports.getOrgOutcomes = exports.getOrgCoaches = exports.getOrgMembers = exports.getOrgOverview = exports.orgLogin = exports.orgRegister = void 0;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const auth_service_1 = require("../services/auth.service");
+const orgStats_service_1 = require("../services/orgStats.service");
 const orgRegister = async (req, res) => {
     try {
         const { email, password, firstName, lastName, organizationName, organizationType } = req.body;
@@ -98,23 +99,17 @@ const getOrgOverview = async (req, res) => {
         const organization = await prisma_1.default.organization.findUnique({ where: { id: orgId } });
         if (!organization)
             return res.status(404).json({ message: "Organization not found" });
-        const [totalMembers, activeMembers, totalCoaches] = await Promise.all([
-            prisma_1.default.user.count({ where: { organizationId: orgId } }),
-            prisma_1.default.user.count({ where: { organizationId: orgId, isVerified: true } }),
+        const [metrics, totalCoaches] = await Promise.all([
+            (0, orgStats_service_1.buildOrgOverviewMetrics)(orgId),
             prisma_1.default.organizationCoach.count({ where: { organizationId: orgId } }),
         ]);
-        const engagementRate = totalMembers > 0 ? (activeMembers / totalMembers) * 100 : 0;
         return res.status(200).json({
             orgName: organization.name,
             type: organization.type,
             plan: organization.plan,
             status: organization.status,
-            totalMembers,
-            activeMembers,
             totalCoaches,
-            engagementRate: Number(engagementRate.toFixed(2)),
-            sessionsThisMonth: 0,
-            avgPhqScore: null,
+            ...metrics,
         });
     }
     catch (error) {
@@ -184,6 +179,23 @@ const getOrgCoaches = async (req, res) => {
     }
 };
 exports.getOrgCoaches = getOrgCoaches;
+const getOrgOutcomes = async (req, res) => {
+    try {
+        const orgId = req.user?.orgId;
+        if (!orgId)
+            return res.status(401).json({ message: "Unauthorized" });
+        const organization = await prisma_1.default.organization.findUnique({ where: { id: orgId } });
+        if (!organization)
+            return res.status(404).json({ message: "Organization not found" });
+        const outcomes = await (0, orgStats_service_1.buildOrgOutcomesMetrics)(orgId);
+        return res.status(200).json(outcomes);
+    }
+    catch (error) {
+        console.error("[getOrgOutcomes]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getOrgOutcomes = getOrgOutcomes;
 const getOrgSettings = async (req, res) => {
     try {
         const orgId = req.user?.orgId;

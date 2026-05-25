@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.adminGetScoresHistory = exports.adminGetOverviewStats = exports.adminGetMoodDistribution = exports.adminGetActivity = exports.adminGetOrgOverview = exports.adminUpdateOrg = exports.adminCreateOrg = exports.adminGetOrgs = exports.adminGetOrgStats = exports.adminArchiveGroup = exports.adminUpdateGroup = exports.adminCreateGroup = exports.adminGetGroups = exports.removeCoach = exports.updateCoach = exports.createCoach = exports.getAllCoaches = exports.createSuperAdmin = exports.deleteUser = exports.updateUser = exports.createUser = exports.getUserById = exports.getAllUsers = void 0;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const auth_service_1 = require("../services/auth.service");
+const notificationEmail_service_1 = require("../services/notificationEmail.service");
 // ─── USER MANAGEMENT ──────────────────────────────────────────────────────────
 const getAllUsers = async (req, res) => {
     try {
@@ -136,6 +137,9 @@ const createUser = async (req, res) => {
                 organizationId: true,
             },
         });
+        if (user.organizationId) {
+            void (0, notificationEmail_service_1.notifyOrganizationMemberJoined)(user.organizationId, user.id);
+        }
         return res.status(201).json({
             id: user.id,
             email: user.email,
@@ -172,6 +176,12 @@ const updateUser = async (req, res) => {
         if (organizationId !== undefined) {
             updatedData.organizationId = organizationId === "" ? null : organizationId;
         }
+        const prior = organizationId !== undefined
+            ? await prisma_1.default.user.findUnique({
+                where: { id: req.params.id },
+                select: { organizationId: true },
+            })
+            : null;
         const user = await prisma_1.default.user.update({
             where: { id: req.params.id },
             data: updatedData,
@@ -186,6 +196,12 @@ const updateUser = async (req, res) => {
                 organizationId: true,
             },
         });
+        const newOrgId = organizationId !== undefined && organizationId !== ""
+            ? organizationId
+            : null;
+        if (newOrgId && prior && !prior.organizationId) {
+            void (0, notificationEmail_service_1.notifyOrganizationMemberJoined)(newOrgId, user.id);
+        }
         return res.status(200).json(user);
     }
     catch (error) {
@@ -851,13 +867,24 @@ const adminGetScoresHistory = async (req, res) => {
             throw new Error(`Failed to fetch from Python backend: ${response.statusText}`);
         }
         const rawEvents = await response.json();
-        const tokens = Array.from(new Set(rawEvents.map((e) => e.member_token)));
+        let tokens = Array.from(new Set(rawEvents.map((e) => e.member_token)));
+        // If role is coach, only find users assigned to this coach
+        if (req.user && req.user.role === "coach") {
+            const coachMembers = await prisma_1.default.coachMember.findMany({
+                where: { coachId: req.user.id },
+                select: { userId: true },
+            });
+            const assignedUserIds = new Set(coachMembers.map((cm) => cm.userId));
+            tokens = tokens.filter((t) => assignedUserIds.has(t));
+        }
         const users = await prisma_1.default.user.findMany({
             where: { id: { in: tokens } },
             select: { id: true, name: true },
         });
         const nameMap = new Map(users.map((u) => [u.id, u.name]));
-        const history = rawEvents.map((e) => ({
+        const history = rawEvents
+            .filter((e) => nameMap.has(e.member_token))
+            .map((e) => ({
             member_token: e.member_token,
             client_name: nameMap.get(e.member_token) ?? "Member",
             risk_tier: e.risk_tier,

@@ -8,6 +8,7 @@ exports.forwardPeerPostToSentiment = forwardPeerPostToSentiment;
 const crypto_1 = require("crypto");
 const ioredis_1 = __importDefault(require("ioredis"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
+const notificationEmail_service_1 = require("./notificationEmail.service");
 const SCORE_CHANNEL = "vasl_score_updates";
 // ── Redis pub client (singleton) ────────────────────────────────────────────
 let redisClient = null;
@@ -138,6 +139,18 @@ function forwardToSentiment(message, messageId) {
             };
             await safePublish(SCORE_CHANNEL, scoreUpdate);
             console.log("[sentiment] published to Redis channel=", SCORE_CHANNEL, "tier=", scoreUpdate.risk_tier);
+            const tier = (resp.risk_tier ?? "low").toLowerCase();
+            if (tier === "crisis" || tier === "high") {
+                const member = await prisma_1.default.user.findUnique({
+                    where: { id: message.userId },
+                    select: { organizationId: true, name: true },
+                });
+                if (member?.organizationId) {
+                    void (0, notificationEmail_service_1.emailOrgCrisisAlert)(member.organizationId, clientName, tier, resp.recommended_action
+                        ? `Recommended action: ${resp.recommended_action}`
+                        : undefined);
+                }
+            }
         }
         catch (err) {
             const reason = err instanceof Error && err.name === "TimeoutError"
