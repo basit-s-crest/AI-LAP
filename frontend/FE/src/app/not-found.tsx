@@ -4,7 +4,7 @@ import { ArrowLeft, Compass } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Page not found",
-  description: "This page isn’t available. Return to Azadi Health to continue.",
+  description: "This page isn't available. Return to the platform to continue.",
 };
 
 export default function NotFound() {

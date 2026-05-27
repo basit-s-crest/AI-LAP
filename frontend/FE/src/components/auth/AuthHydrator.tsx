@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useAppDispatch } from "@/hooks/redux";
 import { hydrateFromStorage, setSession } from "@/store/slices/authSlice";
 import { logout } from "@/store/slices/authSlice";
+import { setCurrentOrgName } from "@/store/slices/organizationSlice";
 import type { AuthUser } from "@/types/auth";
 import { AUTH_TOKEN_KEY, AUTH_USER_JSON_KEY } from "@/constants/storage";
 import api from "@/lib/api";
@@ -31,6 +32,10 @@ export function AuthHydrator() {
       user = JSON.parse(raw) as AuthUser;
       // Hydrate immediately from cookie so UI is not blank
       dispatch(hydrateFromStorage({ token, user }));
+      // Restore org name for organization role
+      if (user.role === "organization") {
+        dispatch(setCurrentOrgName(user.firstName));
+      }
     } catch {
       dispatch(logout());
       return;

@@ -18,7 +18,12 @@ const QUICK_ACCESS = [
 
 export function UserDashboard() {
   const user = useAppSelector((s) => s.auth.user);
-  const name = user?.firstName ?? "Amara";
+  const name = user?.firstName || user?.lastName || "there";
+
+  // Time-aware greeting
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const { data: coaches = [] } = useCoachesQuery();
   const { data: groups = [], isLoading: groupsLoading } = useGroups();
   const { data: weekMood } = useMoodTrend(7);
@@ -38,7 +43,7 @@ export function UserDashboard() {
         <div className="relative z-[1] flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="mb-1.5 text-[11px] uppercase tracking-[2px] text-sage-light">
-              Good morning
+              {greeting}
             </div>
             <h2 className="font-serif text-[30px] font-bold">Hello, {name} ✦</h2>
             <p className="text-sm text-[#FDFAF5]/50">How are you showing up for yourself today?</p>

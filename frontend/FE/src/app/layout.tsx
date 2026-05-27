@@ -27,14 +27,32 @@ const jetbrains = JetBrains_Mono({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "Mental Wellness Platform",
-    template: "%s · Mental Wellness Platform",
-  },
-  description:
-    "Culturally responsive mental wellness for marginalized youth — coaching, community, and care.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+  let brandTitle = process.env.NEXT_PUBLIC_DEFAULT_BRAND_TITLE ?? "Platform";
+  let brandTagline = process.env.NEXT_PUBLIC_DEFAULT_BRAND_TAGLINE ?? "Mental Wellness Platform";
+
+  try {
+    const res = await fetch(`${base}/api/auth/platform-settings`, {
+      next: { revalidate: 60 },
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { brandTitle?: string; brandTagline?: string };
+      if (data.brandTitle?.trim()) brandTitle = data.brandTitle.trim();
+      if (data.brandTagline?.trim()) brandTagline = data.brandTagline.trim();
+    }
+  } catch {
+    // fall through to env defaults
+  }
+
+  return {
+    title: {
+      default: brandTitle,
+      template: `%s · ${brandTitle}`,
+    },
+    description: `${brandTagline} — culturally responsive coaching, community, and care.`,
+  };
+}
 
 export default function RootLayout({
   children,

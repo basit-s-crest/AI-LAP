@@ -50,7 +50,7 @@ export function OnboardingFlow() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const user = useAppSelector((s) => s.auth.user);
-  const name = user?.firstName ?? "Amara";
+  const name = user?.firstName || user?.lastName || "there";
   const [onboardStep, setOnboardStep] = useState(0);
   const [assessType, setAssessType] = useState<"PHQ" | "GAD">("PHQ");
   const [qIdx, setQIdx] = useState(0);

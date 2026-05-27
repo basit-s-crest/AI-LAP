@@ -10,17 +10,7 @@ import { useAdminOrgOverview } from "@/hooks/admin/useAdminOrgOverview";
 import { PlatformActivityChart } from "@/components/charts/PlatformActivityChart";
 import { Button } from "@/components/ui/Button";
 
-const moodRows = [
-  ["😊 Great", 22, "#4E8C58"],
-  ["🙂 Good", 38, "#7AB882"],
-  ["😐 Okay", 25, "#B8832A"],
-  ["😟 Low", 10, "#B35A38"],
-  ["😔 Struggling", 5, "#C0392B"],
-] as const;
 
-const engagement = [
-  28, 35, 42, 38, 55, 48, 62, 58, 70, 65, 78, 82, 90, 85, 95,
-].map((value, index) => ({ label: String(index + 1), value }));
 
 export default function AdminOrgDashboardPage({ params }: { params: Promise<{ orgId: string }> }) {
   const { orgId } = use(params);
@@ -84,19 +74,19 @@ export default function AdminOrgDashboardPage({ params }: { params: Promise<{ or
             <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
               <Card>
                 <h3 className="mb-4 font-serif text-lg font-semibold">Member Engagement</h3>
-                <PlatformActivityChart data={engagement} color="#B8832A" />
+                <PlatformActivityChart data={data.engagementSeries ?? []} color="#B8832A" />
               </Card>
 
               <Card>
                 <h3 className="mb-3 font-serif text-lg font-semibold">Mood Distribution</h3>
-                {moodRows.map(([label, percent, color]) => (
-                  <div key={label} className="mb-3">
+                {(data.moodDistribution ?? []).map((row) => (
+                  <div key={row.key} className="mb-3">
                     <div className="mb-1 flex items-center justify-between">
-                      <div className="text-sm">{label}</div>
-                      <div className="font-mono text-xs text-mid">{percent}%</div>
+                      <div className="text-sm">{row.label}</div>
+                      <div className="font-mono text-xs text-mid">{row.percent}%</div>
                     </div>
                     <div className="h-1.5 overflow-hidden rounded bg-[#EDE7DC]">
-                      <div className="h-full rounded" style={{ width: `${percent}%`, background: color }} />
+                      <div className="h-full rounded" style={{ width: `${row.percent}%`, background: row.color }} />
                     </div>
                   </div>
                 ))}
@@ -104,11 +94,7 @@ export default function AdminOrgDashboardPage({ params }: { params: Promise<{ or
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {[
-                { label: "Completed Onboarding", percent: 92, color: "#4E8C58" },
-                { label: "PHQ-8 Assessed", percent: 77, color: "#3A6E99" },
-                { label: "At Least 1 Session", percent: 63, color: "#B8832A" },
-              ].map((item) => (
+              {(data.completionStats ?? []).map((item) => (
                 <Card key={item.label} className="text-center">
                   <div className="font-serif text-[40px] font-bold" style={{ color: item.color }}>
                     {item.percent}%
@@ -116,6 +102,7 @@ export default function AdminOrgDashboardPage({ params }: { params: Promise<{ or
                   <div className="mt-2 text-[10.5px] font-bold uppercase tracking-wide text-dim">
                     {item.label}
                   </div>
+                  <div className="mt-1 text-xs text-dim">{item.count} members</div>
                 </Card>
               ))}
             </div>

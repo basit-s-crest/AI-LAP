@@ -5,7 +5,7 @@ interface OrganizationState {
 }
 
 const initialState: OrganizationState = {
-  currentOrgName: "State University System",
+  currentOrgName: "",
 };
 
 const organizationSlice = createSlice({

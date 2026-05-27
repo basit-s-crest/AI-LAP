@@ -11,6 +11,7 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { authService } from "@/services/auth.service";
 import { useAppDispatch } from "@/hooks/redux";
 import { setSession } from "@/store/slices/authSlice";
+import { setCurrentOrgName } from "@/store/slices/organizationSlice";
 import { loginSchema } from "@/validations/auth.validation";
 import { useMaintenanceRedirect } from "@/hooks/useMaintenanceRedirect";
 import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
@@ -32,6 +33,8 @@ export default function OrgLoginPage() {
     try {
       const session = await authService.orgLogin(data);
       dispatch(setSession(session));
+      // org name is stored in firstName by orgLogin service mapping
+      dispatch(setCurrentOrgName(session.user.firstName));
       window.location.href = "/org/dashboard";
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Login failed");
