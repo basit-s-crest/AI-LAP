@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { StatsCard } from "@/components/cards/StatsCard";
 import { useOrgOverview } from "@/hooks/org/useOrgOverview";
-import { PlatformActivityChart } from "@/components/charts/PlatformActivityChart";
+import { OrgEngagementChart } from "@/components/charts/OrgEngagementChart";
 
 export default function OrgDashboardPage() {
   const { data, isPending, isError, error } = useOrgOverview();
@@ -53,7 +53,7 @@ export default function OrgDashboardPage() {
           <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
             <Card>
               <h3 className="mb-4 font-serif text-lg font-semibold">Member Engagement</h3>
-              <PlatformActivityChart
+              <OrgEngagementChart
                 data={data.engagementSeries ?? []}
                 color="#B8832A"
               />
