@@ -7,6 +7,13 @@ const api = axios.create({
   timeout: 30_000,
 });
 
+/** Flag to prevent 401 interceptor during logout */
+let isLoggingOut = false;
+
+export function setLoggingOut(value: boolean) {
+  isLoggingOut = value;
+}
+
 /** Read a cookie value by name (client-side only). */
 function getCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
@@ -43,7 +50,8 @@ api.interceptors.response.use(
     }
 
     // 401 anywhere else (expired/missing token) → clear cookies and redirect
-    if (error.response?.status === 401 && typeof window !== "undefined") {
+    // Skip this during logout to prevent showing 401 error
+    if (error.response?.status === 401 && typeof window !== "undefined" && !isLoggingOut) {
       clearAuthCookies();
       window.location.href = "/login";
       return Promise.reject(error);

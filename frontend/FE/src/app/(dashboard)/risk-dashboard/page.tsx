@@ -90,15 +90,22 @@ export default function RiskDashboardPage() {
   const [selectedPatients, setSelectedPatients] = useState<string[]>([]);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isRiskTierFilterEnabled, setIsRiskTierFilterEnabled] = useState(false);
+  const [selectedRiskTiers, setSelectedRiskTiers] = useState<string[]>([]);
+  const [isRiskTierDropdownOpen, setIsRiskTierDropdownOpen] = useState(false);
   const [role, setRole] = useState<string | null>(null);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const riskTierDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
+      }
+      if (riskTierDropdownRef.current && !riskTierDropdownRef.current.contains(event.target as Node)) {
+        setIsRiskTierDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -212,7 +219,14 @@ export default function RiskDashboardPage() {
         }
       }
 
-      // 3. Time range filter
+      // 3. Risk tier filter
+      if (isRiskTierFilterEnabled) {
+        if (!selectedRiskTiers.includes(u.risk_tier)) {
+          return false;
+        }
+      }
+
+      // 4. Time range filter
       const date = new Date(u.processed_at);
       if (selectedPeriod === "7d") {
         const cutoff = new Date();
@@ -240,7 +254,7 @@ export default function RiskDashboardPage() {
       }
       return true;
     });
-  }, [rawUpdates, role, assignedMemberTokens, isFilterEnabled, selectedPatients, selectedPeriod, customStartDate, customEndDate]);
+  }, [rawUpdates, role, assignedMemberTokens, isFilterEnabled, selectedPatients, isRiskTierFilterEnabled, selectedRiskTiers, selectedPeriod, customStartDate, customEndDate]);
 
   // Derive metrics
   const totalCount = filteredUpdates.length;
@@ -300,6 +314,16 @@ export default function RiskDashboardPage() {
     return `${selectedPatients.length} Patients Selected`;
   }, [isFilterEnabled, selectedPatients, allPatients]);
 
+  // Risk Tier Dropdown Label
+  const riskTierDropdownLabel = useMemo(() => {
+    if (!isRiskTierFilterEnabled) return "All Risk Tiers";
+    if (selectedRiskTiers.length === 0) return "No Risk Tiers Selected";
+    if (selectedRiskTiers.length === 1) {
+      return selectedRiskTiers[0].charAt(0).toUpperCase() + selectedRiskTiers[0].slice(1);
+    }
+    return `${selectedRiskTiers.length} Risk Tiers Selected`;
+  }, [isRiskTierFilterEnabled, selectedRiskTiers]);
+
   const handleTogglePatient = (token: string) => {
     if (!isFilterEnabled) {
       const otherTokens = allPatients
@@ -325,6 +349,32 @@ export default function RiskDashboardPage() {
   const handleToggleAllPatients = () => {
     setIsFilterEnabled(false);
     setSelectedPatients([]);
+  };
+
+  const handleToggleRiskTier = (tier: string) => {
+    if (!isRiskTierFilterEnabled) {
+      const allTiers = ["low", "moderate", "high", "crisis"];
+      const otherTiers = allTiers.filter((t) => t !== tier);
+      setIsRiskTierFilterEnabled(true);
+      setSelectedRiskTiers(otherTiers);
+    } else {
+      setSelectedRiskTiers((prev) => {
+        const next = prev.includes(tier)
+          ? prev.filter((t) => t !== tier)
+          : [...prev, tier];
+
+        if (next.length === 4) {
+          setIsRiskTierFilterEnabled(false);
+          return [];
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleToggleAllRiskTiers = () => {
+    setIsRiskTierFilterEnabled(false);
+    setSelectedRiskTiers([]);
   };
 
   function clearHistory() {
@@ -450,6 +500,75 @@ export default function RiskDashboardPage() {
                       );
                     })
                   )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Risk Tier Dropdown */}
+          <div className="relative" ref={riskTierDropdownRef}>
+            <button
+              onClick={() => setIsRiskTierDropdownOpen(!isRiskTierDropdownOpen)}
+              className="flex items-center justify-between gap-2.5 rounded-lg border border-line bg-canvas px-4 py-2 text-xs font-bold text-ink transition-all hover:bg-card hover:shadow-sm"
+              type="button"
+            >
+              <span>{riskTierDropdownLabel}</span>
+              <ChevronDownIcon />
+            </button>
+
+            {isRiskTierDropdownOpen && (
+              <div className="absolute left-0 mt-2 z-30 w-64 rounded-card border border-line bg-card p-3 shadow-soft animate-fadeIn">
+                {/* Risk Tier List */}
+                <div className="space-y-1">
+                  {/* All Risk Tiers Option */}
+                  <label
+                    onClick={handleToggleAllRiskTiers}
+                    className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-bold text-ink transition-colors hover:bg-canvas cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!isRiskTierFilterEnabled}
+                      readOnly
+                      className="h-3.5 w-3.5 rounded border-line text-sage focus:ring-sage cursor-pointer"
+                    />
+                    <span>All Risk Tiers</span>
+                  </label>
+
+                  <div className="h-px bg-line my-1" />
+
+                  {[
+                    { tier: "crisis", label: "Crisis", emoji: "🔴" },
+                    { tier: "high", label: "High Risk", emoji: "🟠" },
+                    { tier: "moderate", label: "Moderate", emoji: "🟡" },
+                    { tier: "low", label: "Low Risk", emoji: "🟢" },
+                  ].map(({ tier, label, emoji }) => {
+                    const isChecked = isRiskTierFilterEnabled ? selectedRiskTiers.includes(tier) : true;
+                    return (
+                      <label
+                        key={tier}
+                        onClick={() => handleToggleRiskTier(tier)}
+                        className="flex items-center justify-between rounded-md px-2.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-canvas cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            readOnly
+                            className="h-3.5 w-3.5 rounded border-line text-sage focus:ring-sage cursor-pointer"
+                          />
+                          <span className="font-semibold text-ink">{label}</span>
+                        </div>
+                        {/* Risk Tier Indicator */}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm">{emoji}</span>
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ background: TIER_COLORS[tier] }}
+                          />
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             )}

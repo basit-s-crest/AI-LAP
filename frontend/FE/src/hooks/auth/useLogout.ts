@@ -7,6 +7,7 @@ import { clearAllReadNotifications } from "@/lib/notificationReadStore";
 import { setActiveCoachMessagesPartner } from "@/lib/activeView";
 import { logout } from "@/store/slices/authSlice";
 import { clearNotifications } from "@/store/slices/notificationSlice";
+import { setLoggingOut } from "@/lib/api";
 
 export function useLogout() {
   const dispatch = useAppDispatch();
@@ -14,15 +15,12 @@ export function useLogout() {
   const queryClient = useQueryClient();
 
   return () => {
-    localStorage.removeItem("vasl_token");
-    localStorage.removeItem("vasl_user");
-    clearAllReadNotifications();
-    setActiveCoachMessagesPartner(null);
-
+    setLoggingOut(true);
+    queryClient.clear();
     dispatch(clearNotifications());
     dispatch(logout());
-    queryClient.clear();
-
+    clearAllReadNotifications();
+    setActiveCoachMessagesPartner(null);
     router.replace("/login");
   };
 }

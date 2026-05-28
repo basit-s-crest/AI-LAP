@@ -148,7 +148,6 @@ export default function ProfilePage() {
     { key: "notifyGroupActivity" as const, l: "Group Activity", d: "New posts in your groups" },
     { key: "notifySessionReminders" as const, l: "Session Reminders", d: "24h before your session" },
     { key: "notifyDailyCheckin" as const, l: "Daily Check-in", d: "Morning reminder at 9am" },
-    { key: "notifyWeeklySummary" as const, l: "Weekly Summary", d: "Your weekly wellbeing report" },
   ];
 
   const getPhqLabel = (score: number, taken: boolean) => {
