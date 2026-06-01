@@ -43,6 +43,7 @@ export default function AdminGroupsPage() {
   const archiveGroup = useArchiveAdminGroup();
   const modal = useAppSelector((s) => s.ui.modal);
 
+  const [searchQuery, setSearchQuery] = useState("");
   // Create group state
   const [gname, setGname] = useState("");
   const [tags, setTags] = useState("");
@@ -123,6 +124,15 @@ export default function AdminGroupsPage() {
     );
   };
 
+  const filteredGroups = groups.filter((g) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      g.name.toLowerCase().includes(query) ||
+      (g.mod && g.mod.toLowerCase().includes(query))
+    );
+  });
+
   // Reusable moderator dropdown
 const ModeratorSelect = ({
   value,
@@ -159,6 +169,15 @@ const ModeratorSelect = ({
         </div>
         <TableWrap>
           <TableToolbar title={`All Groups (${groups.length})`} />
+          <div className="px-[22px] py-3 border-b border-[rgba(60,50,40,0.08)]">
+            <input
+              type="text"
+              placeholder="Search by group name or moderator..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+            />
+          </div>
           <table className="w-full border-collapse">
             <thead>
               <tr>
@@ -180,7 +199,7 @@ const ModeratorSelect = ({
                   </td>
                 </tr>
               ) : (
-                groups.map((g) => (
+                filteredGroups.map((g) => (
                   <tr key={g.id} className="group">
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <div className="flex items-center gap-2">

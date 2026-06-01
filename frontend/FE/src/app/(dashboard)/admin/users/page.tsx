@@ -30,6 +30,7 @@ export default function AdminUsersPage() {
   const updateUser = useUpdateAdminUser();
   const deleteUser = useDeleteAdminUser();
 
+  const [searchQuery, setSearchQuery] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [viewingUser, setViewingUser] = useState<AdminUser | null>(null);
   const [addName, setAddName] = useState("");
@@ -105,6 +106,15 @@ export default function AdminUsersPage() {
     );
   };
 
+  const filteredUsers = users.filter((u) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      u.name.toLowerCase().includes(query) ||
+      u.email.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <DashboardLayout title="User Management">
       <TableWrap>
@@ -113,10 +123,19 @@ export default function AdminUsersPage() {
             + Add User
           </Button>
         </TableToolbar>
+        <div className="px-[22px] py-3 border-b border-[rgba(60,50,40,0.08)]">
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+          />
+        </div>
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              {["User", "Role", "Verified", "Groups", "Messages", ""].map((h) => (
+              {["User", "Role", "Verified", "Groups", "Last Active", ""].map((h) => (
                 <th
                   key={h}
                   className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
@@ -134,7 +153,7 @@ export default function AdminUsersPage() {
                 </td>
               </tr>
             ) : (
-              users.map((u) => (
+              filteredUsers.map((u) => (
                 <tr key={u.id} className="group">
                   <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                     <div className="font-semibold">{u.name}</div>
@@ -150,7 +169,16 @@ export default function AdminUsersPage() {
                     {u.groupCount}
                   </td>
                   <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                    {u.messageCount}
+                    {u.lastActiveAt
+                      ? new Date(u.lastActiveAt).toLocaleString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : "---"}
                   </td>
                   <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                     <Button

@@ -10,7 +10,6 @@ type PlatformSettingsPatch = Partial<{
   brandTitle: string;
   brandTagline: string;
   logoUrl: string | null;
-  loaderUrl: string | null;
   primaryColor: string;
   supportEmail: string;
   maxMembersPerCoach: number;
@@ -78,6 +77,7 @@ export const getPublicPlatformSettings = async (_req: Request, res: Response): P
       brandTitle: settings.brandTitle,
       brandTagline: settings.brandTagline,
       primaryColor: settings.primaryColor,
+      logoUrl: settings.logoUrl,
       allowSelfRegistration: settings.allowSelfRegistration,
       maintenanceMode: settings.maintenanceMode,
       sessionDurationMax: settings.sessionDurationMax,
@@ -99,7 +99,6 @@ export const updatePlatformSettings = async (req: Request, res: Response): Promi
     if (patch.brandTitle !== undefined) data.brandTitle = patch.brandTitle;
     if (patch.brandTagline !== undefined) data.brandTagline = patch.brandTagline;
     if (patch.logoUrl !== undefined) data.logoUrl = patch.logoUrl;
-    if (patch.loaderUrl !== undefined) data.loaderUrl = patch.loaderUrl;
     if (patch.primaryColor !== undefined) data.primaryColor = patch.primaryColor;
     if (patch.supportEmail !== undefined) data.supportEmail = patch.supportEmail;
     if (patch.maxMembersPerCoach !== undefined) data.maxMembersPerCoach = Number(patch.maxMembersPerCoach);
@@ -132,18 +131,6 @@ export const uploadLogo = async (req: Request, res: Response): Promise<Response>
     return res.status(200).json(saved);
   } catch (error) {
     console.error("[uploadLogo]", error);
-    return res.status(400).json({ message: "Invalid upload payload" });
-  }
-};
-
-export const uploadLoader = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const base64 = (req.body?.base64 ?? "") as string;
-    if (!base64) return res.status(400).json({ message: "base64 is required" });
-    const saved = await saveUpload(base64, "loader");
-    return res.status(200).json(saved);
-  } catch (error) {
-    console.error("[uploadLoader]", error);
     return res.status(400).json({ message: "Invalid upload payload" });
   }
 };

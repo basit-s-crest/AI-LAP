@@ -5,7 +5,6 @@ export interface PlatformSettings {
   brandTitle: string;
   brandTagline: string;
   logoUrl: string | null;
-  loaderUrl: string | null;
   primaryColor: string;
   supportEmail: string;
   maxMembersPerCoach: number;
@@ -29,11 +28,6 @@ export const platformSettingsService = {
   uploadLogo(base64: string) {
     return api
       .post<{ url: string }>("/api/admin/settings/upload-logo", { base64 })
-      .then((r) => r.data);
-  },
-  uploadLoader(base64: string) {
-    return api
-      .post<{ url: string }>("/api/admin/settings/upload-loader", { base64 })
       .then((r) => r.data);
   },
 };

@@ -5,6 +5,7 @@ export interface AdminUser {
   role: string;
   avatar: string | null;
   isVerified: boolean;
+  lastActiveAt: string | null;
   createdAt: string;
   updatedAt: string;
   groupCount: number;

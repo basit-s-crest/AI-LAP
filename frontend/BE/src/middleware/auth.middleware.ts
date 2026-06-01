@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import prisma from "../lib/prisma";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +23,7 @@ declare global {
 /**
  * Validates the Bearer JWT from the Authorization header.
  * Attaches { id, role } to req.user on success.
+ * Updates lastActiveAt for member users.
  */
 export const authMiddleware = (
   req: Request,
@@ -53,6 +55,16 @@ export const authMiddleware = (
       role: decoded.role as "member" | "coach" | "organization" | "superadmin",
       orgId: decoded.orgId,
     };
+
+    // Update lastActiveAt for member users (async, don't wait)
+    if (decoded.role === "member") {
+      void prisma.user.update({
+        where: { id: decoded.id },
+        data: { lastActiveAt: new Date() },
+      }).catch(() => {
+        // Silently fail - don't block the request
+      });
+    }
 
     return next();
   } catch {

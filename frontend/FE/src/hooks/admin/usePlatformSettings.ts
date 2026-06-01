@@ -32,13 +32,3 @@ export function useUploadLogo() {
   });
 }
 
-export function useUploadLoader() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (base64: string) => platformSettingsService.uploadLoader(base64),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-    },
-  });
-}
-

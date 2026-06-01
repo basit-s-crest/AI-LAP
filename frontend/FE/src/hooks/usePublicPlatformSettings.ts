@@ -6,6 +6,7 @@ export interface PublicPlatformSettings {
   brandTitle: string;
   brandTagline: string;
   primaryColor: string;
+  logoUrl: string | null;
   allowSelfRegistration: boolean;
   maintenanceMode: boolean;
 }

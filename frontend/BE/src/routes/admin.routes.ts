@@ -5,13 +5,12 @@ import {
   getAllCoaches, createCoach, updateCoach, removeCoach,
   adminGetGroups, adminCreateGroup, adminUpdateGroup, adminArchiveGroup,
   adminGetOrgStats, adminGetOrgs, adminCreateOrg, adminUpdateOrg, adminGetOrgOverview,
-  adminGetActivity, adminGetMoodDistribution, adminGetOverviewStats,
+  adminGetActivity, adminGetMoodDistribution, adminGetOverviewStats, adminGetActivityChart,
 } from "../controllers/admin.controller";
 import {
   getPlatformSettings,
   updatePlatformSettings,
   uploadLogo,
-  uploadLoader,
 } from "../controllers/platformSettings.controller";
 
 const router = Router();
@@ -20,6 +19,7 @@ router.use(authMiddleware);
 router.use(requireRole("superadmin"));
 
 router.get("/activity", adminGetActivity);
+router.get("/activity-chart", adminGetActivityChart);
 router.get("/mood-distribution", adminGetMoodDistribution);
 router.get("/overview-stats", adminGetOverviewStats);
 
@@ -53,6 +53,5 @@ router.put("/orgs/:id", adminUpdateOrg);
 router.get("/settings", getPlatformSettings);
 router.patch("/settings", updatePlatformSettings);
 router.post("/settings/upload-logo", uploadLogo);
-router.post("/settings/upload-loader", uploadLoader);
 
 export default router;

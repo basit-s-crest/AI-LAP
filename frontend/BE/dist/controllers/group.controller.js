@@ -7,6 +7,7 @@ exports.getPosts = exports.getRecentJoins = exports.getRecentPosts = exports.get
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const sentimentForwarder_1 = require("../services/sentimentForwarder");
 const realtime_1 = require("../lib/realtime");
+const groupColors_1 = require("../utils/groupColors");
 const getGroups = async (req, res) => {
     try {
         if (!req.user?.id) {
@@ -33,7 +34,7 @@ const getGroups = async (req, res) => {
             name: group.name,
             emoji: group.emoji,
             desc: group.description ?? "",
-            color: group.color,
+            color: (0, groupColors_1.getGroupColor)(group.emoji, group.name),
             tags: group.tags,
             mod: group.mod ?? "",
             status: group.status,
@@ -54,8 +55,9 @@ const getGroupById = async (req, res) => {
             return res.status(401).json({ message: "Unauthorized" });
         }
         const userId = req.user.id;
+        const groupId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         const group = await prisma_1.default.communityGroup.findUnique({
-            where: { id: req.params.id },
+            where: { id: groupId },
             include: {
                 memberships: {
                     where: { memberId: userId, isActive: true },
@@ -86,7 +88,7 @@ const getGroupById = async (req, res) => {
             name: group.name,
             emoji: group.emoji,
             desc: group.description ?? "",
-            color: group.color,
+            color: (0, groupColors_1.getGroupColor)(group.emoji, group.name),
             tags: group.tags,
             mod: group.mod ?? "",
             status: group.status,
@@ -116,7 +118,7 @@ const joinGroup = async (req, res) => {
             return res.status(401).json({ message: "Unauthorized" });
         }
         const userId = req.user.id;
-        const groupId = req.params.id;
+        const groupId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         const group = await prisma_1.default.communityGroup.findUnique({
             where: { id: groupId },
         });
@@ -161,7 +163,7 @@ const leaveGroup = async (req, res) => {
             return res.status(401).json({ message: "Unauthorized" });
         }
         const userId = req.user.id;
-        const groupId = req.params.id;
+        const groupId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         const membership = await prisma_1.default.groupMembership.findUnique({
             where: { memberId_groupId: { memberId: userId, groupId } },
         });
@@ -197,7 +199,6 @@ const createGroup = async (req, res) => {
                 name,
                 emoji: emoji ?? "👥",
                 description: description ?? null,
-                color: color ?? "#4E8C58",
                 tags: Array.isArray(tags) ? tags : [],
                 mod: mod ?? null,
                 memberIds: [],
@@ -217,7 +218,7 @@ const createPost = async (req, res) => {
             return res.status(401).json({ message: "Unauthorized" });
         }
         const userId = req.user.id;
-        const groupId = req.params.id;
+        const groupId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         const { body } = req.body;
         if (!body?.trim()) {
             return res.status(400).json({ message: "Post body is required" });
@@ -303,7 +304,7 @@ const getMyGroups = async (req, res) => {
             name: m.group.name,
             emoji: m.group.emoji,
             desc: m.group.description ?? "",
-            color: m.group.color,
+            color: (0, groupColors_1.getGroupColor)(m.group.emoji, m.group.name),
             tags: m.group.tags,
             mod: m.group.mod ?? "",
             status: m.group.status,
@@ -407,8 +408,9 @@ const getRecentJoins = async (req, res) => {
 exports.getRecentJoins = getRecentJoins;
 const getPosts = async (req, res) => {
     try {
+        const groupId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         const posts = await prisma_1.default.peerGroupPost.findMany({
-            where: { groupId: req.params.id, isFlagged: false },
+            where: { groupId, isFlagged: false },
             orderBy: { createdAt: "desc" },
             include: { member: { select: { id: true, name: true } } },
         });

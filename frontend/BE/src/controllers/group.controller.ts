@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { forwardPeerPostToSentiment } from "../services/sentimentForwarder";
 import { notifyMembers } from "../lib/realtime";
+import { getGroupColor } from "../utils/groupColors";
 
 export const getGroups = async (req: Request, res: Response): Promise<Response> => {
   try {
@@ -32,7 +33,7 @@ export const getGroups = async (req: Request, res: Response): Promise<Response> 
         name: group.name,
         emoji: group.emoji,
         desc: group.description ?? "",
-        color: group.color,
+        color: getGroupColor(group.emoji, group.name),
         tags: group.tags,
         mod: group.mod ?? "",
         status: group.status,
@@ -54,9 +55,10 @@ export const getGroupById = async (req: Request, res: Response): Promise<Respons
       return res.status(401).json({ message: "Unauthorized" });
     }
     const userId = req.user.id;
+    const groupId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
     const group = await prisma.communityGroup.findUnique({
-      where: { id: req.params.id },
+      where: { id: groupId },
       include: {
         memberships: {
           where: { memberId: userId, isActive: true },
@@ -90,7 +92,7 @@ export const getGroupById = async (req: Request, res: Response): Promise<Respons
       name: group.name,
       emoji: group.emoji,
       desc: group.description ?? "",
-      color: group.color,
+      color: getGroupColor(group.emoji, group.name),
       tags: group.tags,
       mod: group.mod ?? "",
       status: group.status,
@@ -120,7 +122,7 @@ export const joinGroup = async (req: Request, res: Response): Promise<Response> 
       return res.status(401).json({ message: "Unauthorized" });
     }
     const userId = req.user.id;
-    const groupId = req.params.id;
+    const groupId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
     const group = await prisma.communityGroup.findUnique({
       where: { id: groupId },
@@ -173,7 +175,7 @@ export const leaveGroup = async (req: Request, res: Response): Promise<Response>
       return res.status(401).json({ message: "Unauthorized" });
     }
     const userId = req.user.id;
-    const groupId = req.params.id;
+    const groupId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
     const membership = await prisma.groupMembership.findUnique({
       where: { memberId_groupId: { memberId: userId, groupId } },
@@ -212,7 +214,6 @@ export const createGroup = async (req: Request, res: Response): Promise<Response
         name,
         emoji: emoji ?? "👥",
         description: description ?? null,
-        color: color ?? "#4E8C58",
         tags: Array.isArray(tags) ? tags : [],
         mod: mod ?? null,
         memberIds: [],
@@ -232,7 +233,7 @@ export const createPost = async (req: Request, res: Response): Promise<Response>
       return res.status(401).json({ message: "Unauthorized" });
     }
     const userId = req.user.id;
-    const groupId = req.params.id;
+    const groupId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { body } = req.body;
 
     if (!body?.trim()) {
@@ -334,7 +335,7 @@ export const getMyGroups = async (req: Request, res: Response): Promise<Response
           name: m.group.name,
           emoji: m.group.emoji,
           desc: m.group.description ?? "",
-          color: m.group.color,
+          color: getGroupColor(m.group.emoji, m.group.name),
           tags: m.group.tags,
           mod: m.group.mod ?? "",
           status: m.group.status,
@@ -452,8 +453,10 @@ export const getRecentJoins = async (req: Request, res: Response): Promise<Respo
 
 export const getPosts = async (req: Request, res: Response): Promise<Response> => {
   try {
+    const groupId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    
     const posts = await prisma.peerGroupPost.findMany({
-      where: { groupId: req.params.id, isFlagged: false },
+      where: { groupId, isFlagged: false },
       orderBy: { createdAt: "desc" },
       include: { member: { select: { id: true, name: true } } },
     });

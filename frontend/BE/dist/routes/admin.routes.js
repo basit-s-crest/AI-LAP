@@ -36,5 +36,4 @@ router.put("/orgs/:id", admin_controller_1.adminUpdateOrg);
 router.get("/settings", platformSettings_controller_1.getPlatformSettings);
 router.patch("/settings", platformSettings_controller_1.updatePlatformSettings);
 router.post("/settings/upload-logo", platformSettings_controller_1.uploadLogo);
-router.post("/settings/upload-loader", platformSettings_controller_1.uploadLoader);
 exports.default = router;

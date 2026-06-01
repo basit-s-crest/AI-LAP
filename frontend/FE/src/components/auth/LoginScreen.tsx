@@ -158,15 +158,17 @@ export function LoginScreen({ initialRole }: LoginScreenProps) {
             </div>
 
             {role !== "user" || platformSettings?.allowSelfRegistration !== false ? (
-              <p className="text-center text-sm text-mid">
-                New to {brandTitle}?{" "}
-                <Link
-                  href={`/register?role=${role}`}
-                  className="font-bold text-sage hover:underline"
-                >
-                  Create account
-                </Link>
-              </p>
+              role !== "superadmin" && (
+                <p className="text-center text-sm text-mid">
+                  New to {brandTitle}?{" "}
+                  <Link
+                    href={`/register?role=${role}`}
+                    className="font-bold text-sage hover:underline"
+                  >
+                    Create account
+                  </Link>
+                </p>
+              )
             ) : null}
             <p className="mt-3 text-center text-xs text-dim">
               Organization admin?{" "}

@@ -184,6 +184,7 @@ export default function AdminCoachesPage() {
   const removeCoach = useRemoveAdminCoach();
   const modal = useAppSelector((s) => s.ui.modal);
 
+  const [searchQuery, setSearchQuery] = useState("");
   const [name, setName] = useState("");
   const [spec, setSpec] = useState("");
   const [bio, setBio] = useState("");
@@ -247,6 +248,16 @@ export default function AdminCoachesPage() {
     );
   };
 
+  const filteredCoaches = coaches.filter((c) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    const orgNames = c.organizations?.map((o) => o.name.toLowerCase()).join(" ") || "";
+    return (
+      c.name.toLowerCase().includes(query) ||
+      orgNames.includes(query)
+    );
+  });
+
   return (
     <DashboardLayout title="Coach Management">
       <div className="animate-fadeIn">
@@ -258,6 +269,15 @@ export default function AdminCoachesPage() {
         </div>
         <TableWrap>
           <TableToolbar title={`All Coaches (${coaches.length})`} />
+          <div className="px-[22px] py-3 border-b border-[rgba(60,50,40,0.08)]">
+            <input
+              type="text"
+              placeholder="Search by name or organization..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+            />
+          </div>
           <table className="w-full border-collapse">
             <thead>
               <tr>
@@ -279,7 +299,7 @@ export default function AdminCoachesPage() {
                   </td>
                 </tr>
               ) : (
-                coaches.map((c) => (
+                filteredCoaches.map((c) => (
                   <tr key={c.id} className="group">
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <div className="flex items-center gap-2">
@@ -332,20 +352,40 @@ export default function AdminCoachesPage() {
                       >
                         Edit
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        type="button"
-                        className="text-danger"
-                        onClick={() =>
-                          removeCoach.mutate(c.id, {
-                            onSuccess: () => toast.success("Coach removed"),
-                            onError: () => toast.error("Failed to remove coach"),
-                          })
-                        }
-                      >
-                        Remove
-                      </Button>
+                      {c.isActive ? (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          type="button"
+                          className="text-danger"
+                          onClick={() =>
+                            removeCoach.mutate(c.id, {
+                              onSuccess: () => toast.success("Coach removed"),
+                              onError: () => toast.error("Failed to remove coach"),
+                            })
+                          }
+                        >
+                          Remove
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          type="button"
+                          className="text-sage"
+                          onClick={() =>
+                            updateCoach.mutate(
+                              { id: c.id, data: { isActive: true } },
+                              {
+                                onSuccess: () => toast.success("Coach activated"),
+                                onError: () => toast.error("Failed to activate coach"),
+                              }
+                            )
+                          }
+                        >
+                          Activate
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))

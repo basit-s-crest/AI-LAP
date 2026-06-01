@@ -28,7 +28,6 @@ function makeMessage(overrides: Partial<CoachMessage> = {}): CoachMessage {
     senderRole: "member",
     read: false,
     createdAt: new Date("2024-01-01T10:00:00.000Z"),
-    updatedAt: new Date("2024-01-01T10:00:00.000Z"),
     ...overrides,
   };
 }

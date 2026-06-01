@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import type { Role } from "@/types/role";
 import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
+import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
+import Image from "next/image";
 
 const cards: {
   role: Role;
@@ -51,6 +53,7 @@ const cards: {
 export function RoleGate() {
   const router = useRouter();
   const { brandTitle, brandTagline } = useHydratedPlatformBranding();
+  const { data: platformSettings } = usePublicPlatformSettings();
 
   const enter = (role: Role) => {
     router.push(`/login?role=${role}`);
@@ -60,7 +63,20 @@ export function RoleGate() {
     <div className="flex min-h-screen items-center justify-center bg-canvas p-8">
       <div className="w-full max-w-[740px]">
         <div className="mb-8 flex w-fit items-center gap-2.5 rounded-xl bg-sidebar px-[18px] py-2.5">
-          <span>🌿</span>
+          {platformSettings?.logoUrl ? (
+            <div className="relative flex h-6 w-6 items-center justify-center overflow-hidden rounded">
+              <Image
+                src={platformSettings.logoUrl}
+                alt=""
+                width={24}
+                height={24}
+                className="h-full w-full object-contain"
+                unoptimized
+              />
+            </div>
+          ) : (
+            <span>🌿</span>
+          )}
           <span className="text-xs text-[#FDFAF5]/55">
             {brandTitle} &nbsp;·&nbsp;{" "}
             <strong className="text-sage-light">{brandTagline}</strong> &nbsp;·&nbsp; Click any

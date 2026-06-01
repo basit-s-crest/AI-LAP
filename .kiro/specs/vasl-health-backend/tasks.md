@@ -6,7 +6,7 @@ This spec contains test verification tasks for the VASL Health Backend system. E
 
 ## Tasks
 
-- [x] 1. Test ingestion endpoint consent validation - Verify `POST /v1/ingest/peer-post` returns 403 when `consent_active: false`
+- [ ] 1. Test ingestion endpoint consent validation - Verify `POST /v1/ingest/peer-post` returns 403 when `consent_active: false`
 - [ ] 2. Test ingestion endpoint with consent - Verify `POST /v1/ingest/peer-post` returns 202 with risk result when consent is true
 - [ ] 3. Test peer-post text length validation - Verify `POST /v1/ingest/peer-post` rejects `text` longer than 2000 characters
 - [ ] 4. Test journal mood score validation - Verify `POST /v1/ingest/journal` validates `mood_score` is 1–5

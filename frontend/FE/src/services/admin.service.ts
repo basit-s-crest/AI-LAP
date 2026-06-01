@@ -124,4 +124,9 @@ export const adminService = {
       totalSessions: Number(data?.totalSessions) || 0,
     };
   },
+
+  async getActivityChart(days: number = 30): Promise<Array<{ date: string; users: number; coaches: number; orgs: number }>> {
+    const { data } = await api.get(`/api/admin/activity-chart?days=${days}`);
+    return Array.isArray(data) ? data : [];
+  },
 };

@@ -36,6 +36,14 @@ export function useAdminOverviewStatsQuery() {
   });
 }
 
+export function useActivityChartQuery(days: number = 30) {
+  return useQuery({
+    queryKey: [...queryKeys.admin.activity(), "chart", days],
+    queryFn: () => adminService.getActivityChart(days),
+    retry: 1,
+  });
+}
+
 export function useAppendAdminGroupMutation() {
   const queryClient = useQueryClient();
   return useMutation({

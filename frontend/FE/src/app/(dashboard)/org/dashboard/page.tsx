@@ -1,15 +1,15 @@
 "use client";
-
+ 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { StatsCard } from "@/components/cards/StatsCard";
 import { useOrgOverview } from "@/hooks/org/useOrgOverview";
 import { OrgEngagementChart } from "@/components/charts/OrgEngagementChart";
-
+ 
 export default function OrgDashboardPage() {
   const { data, isPending, isError, error } = useOrgOverview();
-
+ 
   return (
     <DashboardLayout title="Overview">
       {isPending ? (
@@ -33,7 +33,7 @@ export default function OrgDashboardPage() {
               <Badge variant="gold">{data.type}</Badge>
             </div>
           </Card>
-
+ 
           <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatsCard label="Total Members" value={data.totalMembers} accent="sage" />
             <StatsCard
@@ -49,7 +49,7 @@ export default function OrgDashboardPage() {
               accent="terra"
             />
           </div>
-
+ 
           <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
             <Card>
               <h3 className="mb-4 font-serif text-lg font-semibold">Member Engagement</h3>
@@ -58,7 +58,7 @@ export default function OrgDashboardPage() {
                 color="#B8832A"
               />
             </Card>
-
+ 
             <Card>
               <h3 className="mb-3 font-serif text-lg font-semibold">Mood Distribution</h3>
               {(data.moodDistribution ?? []).map((row) => (
@@ -77,7 +77,7 @@ export default function OrgDashboardPage() {
               ))}
             </Card>
           </div>
-
+ 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {(data.completionStats ?? []).map((item) => (
               <Card key={item.label} className="text-center">
@@ -96,3 +96,4 @@ export default function OrgDashboardPage() {
     </DashboardLayout>
   );
 }
+ 

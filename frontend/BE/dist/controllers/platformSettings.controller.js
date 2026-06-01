@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadLoader = exports.uploadLogo = exports.updatePlatformSettings = exports.getPublicPlatformSettings = exports.getPlatformSettings = void 0;
+exports.uploadLogo = exports.updatePlatformSettings = exports.getPublicPlatformSettings = exports.getPlatformSettings = void 0;
 const fs_1 = require("fs");
 const path_1 = __importDefault(require("path"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
@@ -87,8 +87,6 @@ const updatePlatformSettings = async (req, res) => {
             data.brandTagline = patch.brandTagline;
         if (patch.logoUrl !== undefined)
             data.logoUrl = patch.logoUrl;
-        if (patch.loaderUrl !== undefined)
-            data.loaderUrl = patch.loaderUrl;
         if (patch.primaryColor !== undefined)
             data.primaryColor = patch.primaryColor;
         if (patch.supportEmail !== undefined)
@@ -134,17 +132,3 @@ const uploadLogo = async (req, res) => {
     }
 };
 exports.uploadLogo = uploadLogo;
-const uploadLoader = async (req, res) => {
-    try {
-        const base64 = (req.body?.base64 ?? "");
-        if (!base64)
-            return res.status(400).json({ message: "base64 is required" });
-        const saved = await saveUpload(base64, "loader");
-        return res.status(200).json(saved);
-    }
-    catch (error) {
-        console.error("[uploadLoader]", error);
-        return res.status(400).json({ message: "Invalid upload payload" });
-    }
-};
-exports.uploadLoader = uploadLoader;

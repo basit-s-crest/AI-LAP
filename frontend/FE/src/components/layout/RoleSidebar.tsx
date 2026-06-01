@@ -10,6 +10,8 @@ import { useAppDispatch, useAppSelector } from "@/hooks/redux";
 import { useLogout } from "@/hooks/auth/useLogout";
 import { useRouter } from "next/navigation";
 import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
+import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
+import Image from "next/image";
 
 function groupItems(items: NavItem[]) {
   const sections: { section: string; items: NavItem[] }[] = [];
@@ -46,14 +48,31 @@ export function RoleSidebar({
   const items = navForRole(role);
   const groups = groupItems(items);
   const { brandTitle, brandTagline } = useHydratedPlatformBranding();
+  const { data: platformSettings } = usePublicPlatformSettings();
 
   const inner = (
     <>
       <div className="border-b border-white/[0.08] px-[22px] pb-[18px] pt-6">
-        <div className="font-serif text-[21px] font-bold tracking-wide text-[#FDFAF5]">
-          {brandTitle}
+        <div className="flex items-center gap-3">
+          {platformSettings?.logoUrl && (
+            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/5">
+              <Image
+                src={platformSettings.logoUrl}
+                alt=""
+                width={48}
+                height={48}
+                className="h-full w-full object-contain"
+                unoptimized
+              />
+            </div>
+          )}
+          <div className="flex-1">
+            <div className="font-serif text-[21px] font-bold tracking-wide text-[#FDFAF5]">
+              {brandTitle}
+            </div>
+            <div className="mt-0.5 text-[10px] leading-tight text-white/35">{brandTagline}</div>
+          </div>
         </div>
-        <div className="mt-0.5 text-[10px] leading-tight text-white/35">{brandTagline}</div>
       </div>
       <nav className="flex-1 overflow-y-auto py-2.5">
         {groups.map((g, gi) => (

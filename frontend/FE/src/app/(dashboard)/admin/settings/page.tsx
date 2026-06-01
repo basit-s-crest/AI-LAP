@@ -11,7 +11,6 @@ import { cn } from "@/lib/cn";
 import {
   usePlatformSettings,
   useUpdatePlatformSettings,
-  useUploadLoader,
   useUploadLogo,
 } from "@/hooks/admin/usePlatformSettings";
 
@@ -35,12 +34,10 @@ export default function AdminSettingsPage() {
   const { data, isPending, isError, error } = usePlatformSettings();
   const updateSettings = useUpdatePlatformSettings();
   const uploadLogo = useUploadLogo();
-  const uploadLoader = useUploadLoader();
 
   const [brandTitle, setBrandTitle] = useState("");
   const [brandTagline, setBrandTagline] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [loaderUrl, setLoaderUrl] = useState<string | null>(null);
 
   const [supportEmail, setSupportEmail] = useState("");
   const [sessionDurationDefault, setSessionDurationDefault] = useState(50);
@@ -52,7 +49,6 @@ export default function AdminSettingsPage() {
     setBrandTitle(data.brandTitle);
     setBrandTagline(data.brandTagline);
     setLogoUrl(data.logoUrl);
-    setLoaderUrl(data.loaderUrl);
     setSupportEmail(data.supportEmail);
     setSessionDurationDefault(data.sessionDurationDefault);
     setSessionDurationMax(data.sessionDurationMax ?? 90);
@@ -61,7 +57,7 @@ export default function AdminSettingsPage() {
 
   const saveBranding = () => {
     updateSettings.mutate(
-      { brandTitle, brandTagline, logoUrl, loaderUrl },
+      { brandTitle, brandTagline, logoUrl },
       {
         onSuccess: () => {
           localStorage.setItem("platform_brand_title", brandTitle || "Azadi Health");
@@ -102,18 +98,6 @@ export default function AdminSettingsPage() {
       toast.success("Logo uploaded");
     } catch (err) {
       toast.error((err as Error).message || "Failed to upload logo");
-    }
-  };
-
-  const onUploadLoader = async (file: File | null) => {
-    if (!file) return;
-    try {
-      const base64 = await toBase64(file);
-      const saved = await uploadLoader.mutateAsync(base64);
-      setLoaderUrl(saved.url);
-      toast.success("Loader uploaded");
-    } catch (err) {
-      toast.error((err as Error).message || "Failed to upload loader");
     }
   };
 
@@ -175,21 +159,6 @@ export default function AdminSettingsPage() {
                   type="file"
                   accept="image/*"
                   onChange={(e) => void onUploadLogo(e.target.files?.[0] ?? null)}
-                />
-              </div>
-              <div>
-                <Label>Loader Upload</Label>
-                {loaderUrl ? (
-                  <img
-                    src={assetUrl(loaderUrl)}
-                    alt="Loader preview"
-                    className="mb-2 mt-2 h-14 rounded-md border border-line object-contain p-1"
-                  />
-                ) : null}
-                <Input
-                  type="file"
-                  accept="image/*,.gif,.svg"
-                  onChange={(e) => void onUploadLoader(e.target.files?.[0] ?? null)}
                 />
               </div>
             </div>

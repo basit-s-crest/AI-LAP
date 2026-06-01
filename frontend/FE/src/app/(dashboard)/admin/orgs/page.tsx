@@ -241,6 +241,7 @@ export default function AdminOrgsPage() {
   const createOrg = useCreateOrg();
   const updateOrg = useUpdateOrg();
 
+  const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingOrg, setEditingOrg] = useState<AdminOrg | null>(null);
 
@@ -317,6 +318,16 @@ export default function AdminOrgsPage() {
     );
   };
 
+  const filteredOrgs = orgs.filter((org) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      org.name.toLowerCase().includes(query) ||
+      org.plan.toLowerCase().includes(query) ||
+      org.type.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <DashboardLayout title="Client Organizations">
       <div className="animate-fadeIn">
@@ -364,6 +375,16 @@ export default function AdminOrgsPage() {
             </Button>
           </TableToolbar>
 
+          <div className="px-[22px] py-3 border-b border-[rgba(60,50,40,0.08)]">
+            <input
+              type="text"
+              placeholder="Search by name, type, or plan..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+            />
+          </div>
+
           <table className="w-full border-collapse">
             <thead>
               <tr>
@@ -394,7 +415,7 @@ export default function AdminOrgsPage() {
                   </td>
                 </tr>
               ) : (
-                orgs.map((org) => (
+                filteredOrgs.map((org) => (
                   <tr key={org.id} className="group">
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <p className="font-semibold text-ink">{org.name}</p>

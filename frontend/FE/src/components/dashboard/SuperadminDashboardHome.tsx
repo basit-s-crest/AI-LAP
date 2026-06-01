@@ -8,11 +8,22 @@ import {
   useActivityQuery,
   useAdminOverviewStatsQuery,
   useMoodDistributionQuery,
+  useActivityChartQuery,
 } from "@/hooks/api/use-admin";
 import { useOrganizationsQuery } from "@/hooks/api/use-organizations";
 import { useAdminCoaches } from "@/hooks/admin/useAdminCoaches";
 import { useAdminGroups } from "@/hooks/admin/useAdminGroups";
 import { useAdminUsers } from "@/hooks/admin/useAdminUsers";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  Legend,
+} from "recharts";
 
 function formatShortDate(date: Date) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -20,8 +31,8 @@ function formatShortDate(date: Date) {
 
 const CHART_RANGE_OPTIONS = [
   { label: "7D", days: 7 as const },
+  { label: "15D", days: 15 as const },
   { label: "30D", days: 30 as const },
-  { label: "90D", days: 90 as const },
 ] as const;
 
 export function SuperadminDashboardHome() {
@@ -33,34 +44,20 @@ export function SuperadminDashboardHome() {
   const { data: groups = [] } = useAdminGroups();
   const { data: moodApi } = useMoodDistributionQuery();
 
-  const [chartDays, setChartDays] = useState<7 | 30 | 90>(30);
+  const [chartDays, setChartDays] = useState<7 | 15 | 30>(30);
+  const { data: chartData = [], isLoading: chartLoading } = useActivityChartQuery(chartDays);
 
-  const bars = useMemo(() => {
-    const today = new Date();
-    const n = chartDays;
-    const days = Array.from({ length: n }, (_, index) => {
-      const date = new Date(today);
-      date.setHours(0, 0, 0, 0);
-      date.setDate(today.getDate() - (n - 1 - index));
-      return date;
-    });
-
-    const counts = days.map((day) => {
-      const next = new Date(day);
-      next.setDate(day.getDate() + 1);
-      return users.filter((user) => {
-        const created = new Date(user.createdAt);
-        return created >= day && created < next;
-      }).length;
-    });
-
-    const max = Math.max(...counts, 1);
-    return days.map((day, index) => ({
-      date: day,
-      v: counts[index],
-      h: Math.max((counts[index] / max) * 100, counts[index] > 0 ? 8 : 2),
+  const chartFormattedData = useMemo(() => {
+    console.log('[SuperadminDashboard] Raw chart data:', chartData);
+    const formatted = chartData.map((d) => ({
+      label: formatShortDate(new Date(d.date)),
+      Users: d.users,
+      Coaches: d.coaches,
+      Organizations: d.orgs,
     }));
-  }, [users, chartDays]);
+    console.log('[SuperadminDashboard] Formatted chart data:', formatted);
+    return formatted;
+  }, [chartData]);
 
   const moodRows = useMemo(() => {
     const g = moodApi?.great ?? 0;
@@ -142,21 +139,55 @@ export function SuperadminDashboardHome() {
               ))}
             </div>
           </div>
-          <div className="flex h-[110px] items-end gap-0.5">
-            {bars.map((b) => (
-              <div
-                key={b.date.toISOString()}
-                title={`${formatShortDate(b.date)}: ${b.v} new users`}
-                className="flex-1 rounded-t bg-sage opacity-80"
-                style={{ height: `${b.h}%` }}
-              />
-            ))}
-          </div>
-          <div className="mt-2 flex justify-between font-mono text-xs text-dim">
-            {bars.filter((_, index) => index % 7 === 0 || index === bars.length - 1).map((bar) => (
-              <span key={bar.date.toISOString()}>{formatShortDate(bar.date)}</span>
-            ))}
-          </div>
+
+          {chartLoading ? (
+            <div className="flex h-[350px] items-center justify-center text-sm text-dim">
+              Loading activity data...
+            </div>
+          ) : chartFormattedData.length === 0 ? (
+            <div className="flex h-[350px] items-center justify-center text-sm text-dim">
+              No activity data available for this period
+            </div>
+          ) : (
+            <div className="h-[350px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartFormattedData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }} barCategoryGap="40%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(60,50,40,0.06)" />
+                  <XAxis 
+                    dataKey="label" 
+                    tick={{ fontSize: 11, fill: "#9C8E7E" }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 11, fill: "#9C8E7E" }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={24}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "rgba(60,50,40,0.04)" }}
+                    contentStyle={{
+                      borderRadius: 8,
+                      border: "1px solid rgba(60,50,40,0.12)",
+                      fontSize: 12,
+                      backgroundColor: "#FDFAF5",
+                    }}
+                  />
+                  <Legend 
+                    verticalAlign="top"
+                    align="right"
+                    wrapperStyle={{ fontSize: 12 }}
+                    iconType="circle"
+                  />
+                  <Bar dataKey="Users" fill="#4E8C58" radius={[3, 3, 0, 0]} opacity={0.9} barSize={6} />
+                  <Bar dataKey="Coaches" fill="#3A6E99" radius={[3, 3, 0, 0]} opacity={0.9} barSize={6} />
+                  <Bar dataKey="Organizations" fill="#B8832A" radius={[3, 3, 0, 0]} opacity={0.9} barSize={6} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
         <Card>
           <h3 className="mb-3 font-serif text-lg font-semibold">Live Activity</h3>

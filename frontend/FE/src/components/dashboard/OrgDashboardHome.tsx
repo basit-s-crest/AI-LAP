@@ -1,14 +1,14 @@
 "use client";
-
+ 
 import { Card } from "@/components/ui/Card";
 import { StatsCard } from "@/components/cards/StatsCard";
 import { Badge } from "@/components/ui/Badge";
 import { PlatformActivityChart } from "@/components/charts/PlatformActivityChart";
 import { useOrgOverview } from "@/hooks/org/useOrgOverview";
-
+ 
 export function OrgDashboardHome() {
   const { data, isPending, isError, error } = useOrgOverview();
-
+ 
   if (isPending) {
     return (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -18,7 +18,7 @@ export function OrgDashboardHome() {
       </div>
     );
   }
-
+ 
   if (isError) {
     return (
       <Card className="text-sm text-danger">
@@ -26,9 +26,9 @@ export function OrgDashboardHome() {
       </Card>
     );
   }
-
+ 
   if (!data) return null;
-
+ 
   return (
     <div className="animate-fadeIn">
       <Card className="mb-6 border-l-4 border-gold">
@@ -42,7 +42,7 @@ export function OrgDashboardHome() {
           <Badge variant="gold">{data.type}</Badge>
         </div>
       </Card>
-
+ 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatsCard label="Total Members" value={data.totalMembers} accent="sage" />
         <StatsCard
@@ -58,13 +58,13 @@ export function OrgDashboardHome() {
           accent="terra"
         />
       </div>
-
+ 
       <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Card>
           <h3 className="mb-4 font-serif text-lg font-semibold">Member Engagement</h3>
           <PlatformActivityChart data={data.engagementSeries ?? []} color="#B8832A" />
         </Card>
-
+ 
         <Card>
           <h3 className="mb-3 font-serif text-lg font-semibold">Mood Distribution</h3>
           {(data.moodDistribution ?? []).map((row) => (
@@ -83,7 +83,7 @@ export function OrgDashboardHome() {
           ))}
         </Card>
       </div>
-
+ 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {(data.completionStats ?? []).map((item) => (
           <Card key={item.label} className="text-center">
@@ -100,3 +100,5 @@ export function OrgDashboardHome() {
     </div>
   );
 }
+ 
+ 
