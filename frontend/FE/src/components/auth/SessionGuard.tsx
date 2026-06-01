@@ -37,7 +37,7 @@ export function SessionGuard() {
     if (!authed) {
       if (reduxUser) dispatch(logout());
       if (!isPublicPath(pathname)) {
-        router.replace("/login");
+        router.replace("/");
       }
       return;
     }

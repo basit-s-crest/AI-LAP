@@ -53,7 +53,7 @@ api.interceptors.response.use(
     // Skip this during logout to prevent showing 401 error
     if (error.response?.status === 401 && typeof window !== "undefined" && !isLoggingOut) {
       clearAuthCookies();
-      window.location.href = "/login";
+      window.location.href = "/";
       return Promise.reject(error);
     }
 

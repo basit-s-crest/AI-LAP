@@ -21,6 +21,6 @@ export function useLogout() {
     dispatch(logout());
     clearAllReadNotifications();
     setActiveCoachMessagesPartner(null);
-    router.replace("/login");
+    router.replace("/");
   };
 }

@@ -7,7 +7,7 @@ import { navForRole, roleAccent, roleSidebarLabel, type NavItem } from "@/consta
 import type { Role } from "@/types/role";
 import { Avatar } from "@/components/ui/Avatar";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
-import { logout } from "@/store/slices/authSlice";
+import { useLogout } from "@/hooks/auth/useLogout";
 import { useRouter } from "next/navigation";
 import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
 
@@ -40,6 +40,7 @@ export function RoleSidebar({
   const pathname = usePathname();
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const logout = useLogout();
   const accent = roleAccent(role);
   const label = roleSidebarLabel(role);
   const items = navForRole(role);
@@ -122,10 +123,7 @@ export function RoleSidebar({
         <button
           type="button"
           className="mt-3 w-full rounded-md border border-white/10 py-1.5 text-xs text-white/50 hover:bg-white/5"
-          onClick={() => {
-            dispatch(logout());
-            router.push("/");
-          }}
+          onClick={logout}
         >
           Sign out
         </button>
