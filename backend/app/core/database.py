@@ -20,9 +20,11 @@ Uses psycopg v3 (pure Python) — works on Python 3.14 without a C compiler.
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from backend directory absolutely
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env")
 
 # ── Change your database here (or in .env) ────────────────────────────────────
 DATABASE_URL: str = os.getenv(

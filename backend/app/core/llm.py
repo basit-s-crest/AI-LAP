@@ -22,12 +22,18 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env from backend directory absolutely
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env")
+
 from openai import AsyncOpenAI
 from app.core.schemas import InferenceResultIn, SignalIn, ShapIn
 
 logger = logging.getLogger(__name__)
 
-# ── OpenRouter client (lazy-initialised, one instance reused across requests) ─
+# ── Gemini / OpenRouter client (lazy-initialised, one instance reused across requests) ─
 
 _client: Optional[AsyncOpenAI] = None
 
@@ -35,18 +41,37 @@ _client: Optional[AsyncOpenAI] = None
 def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        api_key = os.getenv("OPENROUTER_API_KEY")
+        # Check GEMINI_API_KEY first, fallback to OPENROUTER_API_KEY
+        api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
-            raise RuntimeError("OPENROUTER_API_KEY is not set in environment / .env")
-        _client = AsyncOpenAI(
-            api_key=api_key,
-            base_url="https://openrouter.ai/api/v1",
-            default_headers={
-                "Authorization": f"Bearer {api_key}",
-                "HTTP-Referer":  "http://localhost:8000",
-                "X-Title":       "VASL ALAP",
-            },
-        )
+            api_key = os.getenv("OPENROUTER_API_KEY")
+            
+        if not api_key:
+            raise RuntimeError("GEMINI_API_KEY (or OPENROUTER_API_KEY) is not set in environment / .env")
+            
+        # Clean any surrounding quotes from .env parsing
+        api_key = api_key.strip().strip("'\"")
+
+        # Determine backend endpoint based on API key prefix.
+        # Google Gemini API keys from Google AI Studio typically start with "AIzaSy"
+        is_gemini = api_key.startswith("AIzaSy")
+        if is_gemini:
+            base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+            _client = AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+            )
+        else:
+            base_url = "https://openrouter.ai/api/v1"
+            _client = AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "HTTP-Referer":  "http://localhost:8000",
+                    "X-Title":       "VASL ALAP",
+                },
+            )
     return _client
 
 
@@ -403,15 +428,19 @@ async def run_inference(
     item_number: Optional[int] = None,
 ) -> InferenceResultIn:
     """
-    Call OpenRouter with raw_text, parse the JSON response,
+    Call Gemini / OpenRouter with raw_text, parse the JSON response,
     and return a fully-populated InferenceResultIn ready for crud.save_inference_result().
     """
-    model  = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+    # Prefer GEMINI_MODEL (default gemini-2.5-flash) over OPENROUTER_MODEL (default google/gemini-2.0-flash-001)
+    model = os.getenv("GEMINI_MODEL")
+    if not model:
+        model = os.getenv("OPENROUTER_MODEL", "gemini-2.5-flash")
+        
     client = _get_client()
 
-    logger.info("OpenRouter inference | event_id=%s | source=%s | model=%s", event_id, source_type, model)
+    logger.info("LLM inference | event_id=%s | source=%s | model=%s", event_id, source_type, model)
 
-    # ── Call OpenRouter (with retry on 429 / 503) ─────────────────────────────
+    # ── Call LLM (with retry on 429 / 503) ─────────────────────────────
     last_exc = None
     for attempt in range(3):
         try:
@@ -432,7 +461,7 @@ async def run_inference(
             if ("429" in err_str or "503" in err_str) and attempt < 2:
                 wait = 10 * (attempt + 1)   # 10s, 20s
                 logger.warning(
-                    "OpenRouter transient error, retrying in %ds (attempt %d/3): %s",
+                    "LLM transient error, retrying in %ds (attempt %d/3): %s",
                     wait, attempt + 1, err_str[:120],
                 )
                 await asyncio.sleep(wait)
@@ -442,14 +471,14 @@ async def run_inference(
         raise last_exc
 
     raw_json = response.choices[0].message.content
-    logger.debug("OpenRouter raw response: %s", raw_json)
+    logger.debug("LLM raw response: %s", raw_json)
 
     # ── Parse response ────────────────────────────────────────────────────────
     try:
         result = json.loads(raw_json)
     except json.JSONDecodeError as exc:
-        logger.error("OpenRouter returned invalid JSON: %s", raw_json)
-        raise ValueError(f"OpenRouter returned invalid JSON: {exc}") from exc
+        logger.error("LLM returned invalid JSON: %s", raw_json)
+        raise ValueError(f"LLM returned invalid JSON: {exc}") from exc
 
     risk_tier = result.get("risk_tier", "low")
 

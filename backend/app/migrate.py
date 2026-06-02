@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 
 # psycopg2 (sync) is used here because this is a one-off CLI script,
 # not an async web request.
