@@ -73,6 +73,12 @@ export default function GroupDetailPage() {
             placeholder="Share something with the community..."
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+            }}
             className="mb-3"
           />
           <div className="flex items-center justify-between">

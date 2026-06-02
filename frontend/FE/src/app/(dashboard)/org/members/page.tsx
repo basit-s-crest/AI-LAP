@@ -75,13 +75,22 @@ export default function OrgMembersPage() {
                       })}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      0
+                      {member.sessionCount}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      —
+                      {member.lastActiveAt 
+                        ? new Date(member.lastActiveAt).toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                          })
+                        : "—"}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      —
+                      {member.avgMood || "—"}
                     </td>
                     <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
                       <Badge variant={member.status === "active" ? "sage" : "dim"}>

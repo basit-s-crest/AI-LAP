@@ -46,7 +46,7 @@ const DEMO_OPTS = [
   },
 ] as const;
 
-export function OnboardingFlow() {
+export function OnboardingFlow({ returnTo = "/dashboard" }: { returnTo?: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const user = useAppSelector((s) => s.auth.user);
@@ -231,8 +231,8 @@ export function OnboardingFlow() {
             <p className="mb-6 text-mid">
               We&apos;ve matched you with coaches and groups based on your responses.
             </p>
-            <Button size="lg" type="button" onClick={() => router.push("/dashboard")}>
-              Enter Azadi →
+            <Button size="lg" type="button" onClick={() => router.push(returnTo)}>
+              {returnTo === "/profile" ? "Back to Settings →" : "Enter Azadi →"}
             </Button>
           </Card>
         ) : null}

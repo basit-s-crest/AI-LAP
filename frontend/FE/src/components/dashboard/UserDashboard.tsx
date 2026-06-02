@@ -45,7 +45,7 @@ export function UserDashboard() {
             <div className="mb-1.5 text-[11px] uppercase tracking-[2px] text-sage-light">
               {greeting}
             </div>
-            <h2 className="font-serif text-[30px] font-bold">Hello, {name} ✦</h2>
+            <h2 className="font-serif text-[30px] font-bold">Hello, {name}</h2>
             <p className="text-sm text-[#FDFAF5]/50">How are you showing up for yourself today?</p>
           </div>
           <Link href="/mood-mapping">

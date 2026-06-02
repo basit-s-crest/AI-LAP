@@ -54,18 +54,6 @@ export function RoleSidebar({
     <>
       <div className="border-b border-white/[0.08] px-[22px] pb-[18px] pt-6">
         <div className="flex items-center gap-3">
-          {platformSettings?.logoUrl && (
-            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/5">
-              <Image
-                src={platformSettings.logoUrl}
-                alt=""
-                width={48}
-                height={48}
-                className="h-full w-full object-contain"
-                unoptimized
-              />
-            </div>
-          )}
           <div className="flex-1">
             <div className="font-serif text-[21px] font-bold tracking-wide text-[#FDFAF5]">
               {brandTitle}

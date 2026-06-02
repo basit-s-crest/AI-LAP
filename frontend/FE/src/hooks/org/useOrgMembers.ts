@@ -9,9 +9,12 @@ export interface OrgMember {
   email: string;
   isVerified: boolean;
   createdAt: string;
+  lastActiveAt: string | null;
   avatar: string | null;
   role: string;
   status: "active" | "pending";
+  sessionCount: number;
+  avgMood: string | null;
 }
 
 export function useOrgMembers() {
