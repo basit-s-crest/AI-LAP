@@ -972,64 +972,94 @@ export const adminGetActivityChart = async (
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
 
-    // Get user registrations by date
+    // Get users: use lastActiveAt if available, otherwise createdAt (for historical data)
     const users = await prisma.user.findMany({
       where: {
-        createdAt: { gte: startDate },
         role: "member",
+        OR: [
+          { lastActiveAt: { gte: startDate } },
+          { 
+            lastActiveAt: null,
+            createdAt: { gte: startDate }
+          }
+        ]
       },
-      select: { createdAt: true },
+      select: { id: true, lastActiveAt: true, createdAt: true },
     });
 
-    // Get coach registrations by date
+    // Get coaches: use lastActiveAt if available, otherwise createdAt
     const coaches = await prisma.coach.findMany({
       where: {
-        createdAt: { gte: startDate },
+        OR: [
+          { lastActiveAt: { gte: startDate } },
+          { 
+            lastActiveAt: null,
+            createdAt: { gte: startDate }
+          }
+        ]
       },
-      select: { createdAt: true },
+      select: { id: true, lastActiveAt: true, createdAt: true },
     });
 
-    // Get organization registrations by date
+    // Get organizations: use lastActiveAt if available, otherwise createdAt
     const orgs = await prisma.organization.findMany({
       where: {
-        createdAt: { gte: startDate },
+        OR: [
+          { lastActiveAt: { gte: startDate } },
+          { 
+            lastActiveAt: null,
+            createdAt: { gte: startDate }
+          }
+        ]
       },
-      select: { createdAt: true },
+      select: { id: true, lastActiveAt: true, createdAt: true },
     });
 
-    console.log(`[adminGetActivityChart] Found ${users.length} users, ${coaches.length} coaches, ${orgs.length} orgs in last ${days} days`);
+    console.log(`[adminGetActivityChart] Found ${users.length} users, ${coaches.length} coaches, ${orgs.length} orgs with activity in last ${days} days`);
 
-    // Group by date
-    const dateMap = new Map<string, { users: number; coaches: number; orgs: number }>();
+    // Group by date - count unique users/coaches/orgs per day
+    const dateMap = new Map<string, { users: Set<string>; coaches: Set<string>; orgs: Set<string> }>();
     
     for (let i = 0; i < days; i++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
       const key = date.toISOString().split('T')[0];
-      dateMap.set(key, { users: 0, coaches: 0, orgs: 0 });
+      dateMap.set(key, { users: new Set(), coaches: new Set(), orgs: new Set() });
     }
 
+    // Track unique users per day (use lastActiveAt if available, fallback to createdAt)
     users.forEach((u) => {
-      const key = new Date(u.createdAt).toISOString().split('T')[0];
-      const entry = dateMap.get(key);
-      if (entry) entry.users++;
+      const activeDate = u.lastActiveAt || u.createdAt;
+      if (activeDate) {
+        const key = new Date(activeDate).toISOString().split('T')[0];
+        const entry = dateMap.get(key);
+        if (entry) entry.users.add(u.id);
+      }
     });
 
     coaches.forEach((c) => {
-      const key = new Date(c.createdAt).toISOString().split('T')[0];
-      const entry = dateMap.get(key);
-      if (entry) entry.coaches++;
+      const activeDate = c.lastActiveAt || c.createdAt;
+      if (activeDate) {
+        const key = new Date(activeDate).toISOString().split('T')[0];
+        const entry = dateMap.get(key);
+        if (entry) entry.coaches.add(c.id);
+      }
     });
 
     orgs.forEach((o) => {
-      const key = new Date(o.createdAt).toISOString().split('T')[0];
-      const entry = dateMap.get(key);
-      if (entry) entry.orgs++;
+      const activeDate = o.lastActiveAt || o.createdAt;
+      if (activeDate) {
+        const key = new Date(activeDate).toISOString().split('T')[0];
+        const entry = dateMap.get(key);
+        if (entry) entry.orgs.add(o.id);
+      }
     });
 
-    const chartData = Array.from(dateMap.entries()).map(([date, counts]) => ({
+    const chartData = Array.from(dateMap.entries()).map(([date, sets]) => ({
       date,
-      ...counts,
+      users: sets.users.size,
+      coaches: sets.coaches.size,
+      orgs: sets.orgs.size,
     }));
 
     console.log(`[adminGetActivityChart] Returning ${chartData.length} data points`);

@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
-import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Onboarding",
-  robots: { index: false },
-};
+import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
+import { useSearchParams } from "next/navigation";
 
 export default function OnboardingPage() {
-  return <OnboardingFlow />;
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo") || "/dashboard";
+  
+  return <OnboardingFlow returnTo={returnTo} />;
 }

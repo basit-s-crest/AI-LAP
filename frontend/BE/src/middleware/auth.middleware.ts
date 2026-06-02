@@ -56,9 +56,23 @@ export const authMiddleware = (
       orgId: decoded.orgId,
     };
 
-    // Update lastActiveAt for member users (async, don't wait)
+    // Update lastActiveAt for all user types (async, don't wait)
     if (decoded.role === "member") {
       void prisma.user.update({
+        where: { id: decoded.id },
+        data: { lastActiveAt: new Date() },
+      }).catch(() => {
+        // Silently fail - don't block the request
+      });
+    } else if (decoded.role === "coach") {
+      void prisma.coach.update({
+        where: { id: decoded.id },
+        data: { lastActiveAt: new Date() },
+      }).catch(() => {
+        // Silently fail - don't block the request
+      });
+    } else if (decoded.role === "organization") {
+      void prisma.organization.update({
         where: { id: decoded.id },
         data: { lastActiveAt: new Date() },
       }).catch(() => {

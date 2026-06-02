@@ -31,8 +31,20 @@ export const submitAssessment = async (
     const phqScore = validPhqAnswers.reduce((acc, v) => acc + v, 0);
     const gadScore = validGadAnswers.reduce((acc, v) => acc + v, 0);
 
-    const assessment = await prisma.onboardingAssessment.create({
-      data: {
+    // Use upsert to update existing assessment or create new one
+    const assessment = await prisma.onboardingAssessment.upsert({
+      where: { userId },
+      update: {
+        age: age || null,
+        identity: identity || null,
+        gender: gender || null,
+        orient: orient || null,
+        phqAnswers: validPhqAnswers,
+        phqScore,
+        gadAnswers: validGadAnswers,
+        gadScore,
+      },
+      create: {
         userId,
         age: age || null,
         identity: identity || null,

@@ -350,7 +350,7 @@ export default function ProfilePage() {
               variant="outline"
               size="sm"
               className="mt-1"
-              onClick={() => router.push("/onboarding")}
+              onClick={() => router.push("/onboarding?returnTo=/profile")}
             >
               Retake assessments →
             </Button>
