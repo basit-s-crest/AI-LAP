@@ -321,3 +321,18 @@ model PlatformSettings {
   updatedAt              DateTime @updatedAt
 }
 
+// ─── Weekly Reports ───────────────────────────────────────────────────────────
+
+model WeeklyReport {
+  id             String   @id @default(cuid())
+  organizationId String
+  weekStartDate  DateTime // Monday 00:00:00
+  weekEndDate    DateTime // Sunday 23:59:59
+  reportData     Json     // Stores complete report as JSON
+  generatedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@unique([organizationId, weekStartDate])
+  @@index([organizationId, weekStartDate(sort: Desc)])
+}
+

@@ -30,6 +30,7 @@ export interface AdminGroup {
   id: string;
   name: string;
   emoji: string;
+  description?: string | null;
   tags: string[];
   mod: string | null;
   status: string;

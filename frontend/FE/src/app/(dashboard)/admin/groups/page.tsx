@@ -235,7 +235,7 @@ const ModeratorSelect = ({
                         size="xs"
                         type="button"
                         className="mr-1"
-                        onClick={() => openEdit(g.id, g.name, g.emoji, g.description, g.mod)}
+                        onClick={() => openEdit(g.id, g.name, g.emoji, g.description ?? null, g.mod)}
                       >
                         Edit
                       </Button>
