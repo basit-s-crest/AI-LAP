@@ -8,9 +8,9 @@ const items = ["🌿", "🌱", "🌍", "🌈", "✊🏾", "🧘", "📚", "💚"
 export default function MediaPage() {
   return (
     <DashboardLayout title="Media & Photos">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <div className="mb-6 flex items-center justify-between">
-          <h3 className="font-serif text-lg font-semibold">Media Library</h3>
+          <h3 className="serif text-lg font-semibold text-ink">Media Library</h3>
           <Button size="sm" type="button">
             + Upload Photo
           </Button>
@@ -19,12 +19,12 @@ export default function MediaPage() {
           {items.map((e) => (
             <div
               key={e}
-              className="flex aspect-square cursor-pointer items-center justify-center rounded-[10px] border-[1.5px] border-line bg-[#EDE7DC] text-[32px] transition-colors hover:border-[rgba(60,50,40,0.22)]"
+              className="flex aspect-square cursor-pointer items-center justify-center rounded-[10px] border-[1.5px] border-line bg-[var(--bg-surface-2)] text-[32px] transition-colors hover:border-sage"
             >
               {e}
             </div>
           ))}
-          <div className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-[10px] border-2 border-dashed border-[rgba(60,50,40,0.18)] text-xs text-dim transition-colors hover:border-sage hover:text-sage">
+          <div className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-[10px] border-2 border-dashed border-line text-xs text-dim transition-colors hover:border-sage hover:text-sage bg-card">
             <span className="text-2xl">+</span>
             Upload
           </div>

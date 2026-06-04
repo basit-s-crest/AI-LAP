@@ -66,7 +66,7 @@ export default function OrgSettingsPage() {
       disabled={disabled}
       className={cn(
         "relative h-[22px] w-[38px] shrink-0 rounded-[11px] transition-colors",
-        on ? "bg-sage" : "border-[1.5px] border-[rgba(60,50,40,0.2)] bg-[#EDE7DC]"
+        on ? "bg-sage" : "border-[1.5px] border-line bg-[var(--bg-surface-2)]"
       )}
     >
       <div
@@ -81,15 +81,15 @@ export default function OrgSettingsPage() {
   return (
     <DashboardLayout title="Settings">
       {isPending ? (
-        <div className="h-28 animate-pulse rounded-card border-[1.5px] border-line bg-[#F0EBE1]" />
+        <div className="h-28 animate-pulse rounded-card border-[1.5px] border-line bg-[var(--bg-surface-2)]" />
       ) : isError ? (
         <Card className="text-sm text-danger">{error.message || "Failed to load settings"}</Card>
       ) : data ? (
         <div className="w-full">
-          <div className="grid animate-fadeIn grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+          <div className="grid anim-up grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
             <div className="space-y-4">
               <Card>
-                <h3 className="mb-4 font-serif text-lg font-semibold">Organization Details</h3>
+                <h3 className="mb-4 serif text-lg font-semibold text-ink">Organization Details</h3>
                 <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <Label>Organization Name</Label>
@@ -111,11 +111,11 @@ export default function OrgSettingsPage() {
                 </div>
                 <div className="mb-4">
                   <Label>Primary Contact Email</Label>
-                  <Input type="email" value={data.primaryContactEmail} disabled className="opacity-60" />
+                  <Input type="email" value={data.primaryContactEmail} disabled className="opacity-60 text-ink" />
                 </div>
                 <div className="mb-4">
                   <Label>Plan</Label>
-                  <Input value={data.plan} disabled className="opacity-60" />
+                  <Input value={data.plan} disabled className="opacity-60 text-ink" />
                 </div>
                 <Button type="button" onClick={saveDetails} disabled={updateSettings.isPending}>
                   Save Changes
@@ -129,7 +129,7 @@ export default function OrgSettingsPage() {
 
             <div className="space-y-4">
               <Card>
-                <h3 className="mb-3 font-serif text-lg font-semibold">Notifications</h3>
+                <h3 className="mb-3 serif text-lg font-semibold text-ink">Notifications</h3>
                 {[
                   {
                     label: "Weekly Outcome Reports",
@@ -152,10 +152,10 @@ export default function OrgSettingsPage() {
                 ].map((item) => (
                   <div
                     key={item.key}
-                    className="flex items-center gap-3 border-b border-[rgba(60,50,40,0.08)] py-3 last:border-b-0"
+                    className="flex items-center gap-3 border-b border-line py-3 last:border-b-0"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-semibold">{item.label}</div>
+                      <div className="text-[13px] font-semibold text-ink">{item.label}</div>
                       <div className="mt-0.5 text-xs text-dim">{item.description}</div>
                     </div>
                     <Toggle

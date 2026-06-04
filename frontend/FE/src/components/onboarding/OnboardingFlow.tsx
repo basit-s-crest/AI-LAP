@@ -119,12 +119,11 @@ export function OnboardingFlow({ returnTo = "/dashboard" }: { returnTo?: string 
     setIsSubmitting(false);
     setOnboardStep(2);
   }, [demos, phqAnswers, gadAnswers]);
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-canvas px-6 py-10">
       <div className="w-full max-w-[600px]">
         <div className="mb-8 text-center">
-          <div className="font-serif text-[26px] font-semibold text-ink">
+          <div className="serif text-[26px] font-semibold text-ink">
             Welcome, {name} 🌿
           </div>
           <p className="mt-1 text-sm text-mid">Let&apos;s personalise your experience</p>
@@ -134,7 +133,7 @@ export function OnboardingFlow({ returnTo = "/dashboard" }: { returnTo?: string 
             <div
               key={i}
               className={cn(
-                "h-2 w-2 rounded-full bg-[rgba(60,50,40,0.15)] transition-all",
+                "h-2 w-2 rounded-full bg-[var(--bg-surface-2)] transition-all",
                 i === onboardStep && "w-6 rounded bg-sage",
                 i < onboardStep && "bg-sage-light"
               )}
@@ -143,10 +142,10 @@ export function OnboardingFlow({ returnTo = "/dashboard" }: { returnTo?: string 
         </div>
 
         {onboardStep === 0 ? (
-          <Card className="animate-fadeIn">
+          <Card className="anim-up">
             <div className="mb-5 text-center">
               <div className="mb-2 text-[44px]">🌱</div>
-              <div className="font-serif text-[26px] font-semibold">A few things about you</div>
+              <div className="serif text-[26px] font-semibold text-ink">A few things about you</div>
               <p className="text-sm text-mid">All optional — skip anything you&apos;re not comfortable with.</p>
             </div>
             {DEMO_OPTS.map((q) => (
@@ -174,16 +173,16 @@ export function OnboardingFlow({ returnTo = "/dashboard" }: { returnTo?: string 
         ) : null}
 
         {onboardStep === 1 ? (
-          <Card className="animate-fadeIn">
+          <Card className="anim-up">
             <div className="mb-3 flex items-center justify-between">
-              <Badge variant={assessType === "PHQ" ? "sage" : "blue"}>
+              <Badge variant={assessType === "PHQ" ? "sage" : "teal"}>
                 {assessType === "PHQ" ? "PHQ-8 · Depression" : "GAD-7 · Anxiety"}
               </Badge>
               <span className="text-sm text-dim">
                 {qIdx + 1} of {qs.length}
               </span>
             </div>
-            <div className="mb-6 h-1.5 rounded bg-[#EDE7DC]">
+            <div className="mb-6 h-1.5 rounded bg-[var(--bg-surface-2)]">
               <div
                 className="h-full rounded bg-sage transition-[width] duration-300"
                 style={{ width: `${((qIdx + 1) / qs.length) * 100}%` }}
@@ -192,7 +191,7 @@ export function OnboardingFlow({ returnTo = "/dashboard" }: { returnTo?: string 
             <p className="mb-3 text-sm text-mid">
               Over the last 2 weeks, how often have you been bothered by:
             </p>
-            <p className="mb-5 font-serif text-[21px] font-normal leading-snug text-ink">
+            <p className="mb-5 serif text-[21px] font-normal leading-snug text-ink">
               {qs[qIdx]}
             </p>
             <div className="flex gap-2.5">
@@ -203,7 +202,7 @@ export function OnboardingFlow({ returnTo = "/dashboard" }: { returnTo?: string 
                   disabled={isSubmitting}
                   onClick={() => advanceLikert(i)}
                   className={cn(
-                    "flex-1 rounded-[11px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-1.5 py-3 text-center transition-all hover:border-sage hover:bg-sage-soft",
+                    "flex-1 rounded-[11px] border-[1.5px] border-line bg-card px-1.5 py-3 text-center transition-all hover:border-sage hover:bg-sage-soft",
                     sel === i && "border-sage bg-sage-tint",
                     isSubmitting && "pointer-events-none opacity-60"
                   )}
@@ -225,14 +224,14 @@ export function OnboardingFlow({ returnTo = "/dashboard" }: { returnTo?: string 
         ) : null}
 
         {onboardStep === 2 ? (
-          <Card className="animate-fadeIn text-center">
+          <Card className="anim-up text-center">
             <div className="mb-3 text-[44px]">🎉</div>
-            <div className="font-serif text-[28px] font-semibold">You&apos;re all set!</div>
+            <div className="serif text-[28px] font-semibold text-ink">You&apos;re all set!</div>
             <p className="mb-6 text-mid">
               We&apos;ve matched you with coaches and groups based on your responses.
             </p>
             <Button size="lg" type="button" onClick={() => router.push(returnTo)}>
-              {returnTo === "/profile" ? "Back to Settings →" : "Enter Azadi →"}
+              {returnTo === "/profile" ? "Back to Settings →" : "Enter SafeCircle →"}
             </Button>
           </Card>
         ) : null}

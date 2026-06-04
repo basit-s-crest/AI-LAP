@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TableWrap } from "@/components/ui/Table";
@@ -90,7 +90,7 @@ function OrgMultiSelect({
               setOpen((o) => !o);
             }
           }}
-          className="flex min-h-[42px] w-full flex-wrap items-center gap-1.5 rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-left text-[13.5px] text-ink outline-none focus:border-[#4E8C58] focus:shadow-[0_0_0_3px_#EBF5EC]"
+          className="flex min-h-[42px] w-full flex-wrap items-center gap-1.5 rounded-[9px] border-[1.5px] border-line bg-card px-3 py-2 text-left text-[13.5px] text-ink outline-none focus:border-sage focus:shadow-[0_0_0_3px_var(--bg-surface-2)]"
         >
           {selectedOrgs.length === 0 ? (
             <span className="text-dim">Select organizations…</span>
@@ -98,7 +98,7 @@ function OrgMultiSelect({
             selectedOrgs.map((o) => (
               <span
                 key={o.id}
-                className="flex items-center gap-1 rounded-full bg-[#EBF5EC] px-2 py-0.5 text-xs font-medium text-[#4E8C58]"
+                className="flex items-center gap-1 rounded-full bg-sage-light px-2 py-0.5 text-xs font-medium text-sage"
               >
                 {o.name}
                 <button
@@ -107,7 +107,7 @@ function OrgMultiSelect({
                     e.stopPropagation();
                     toggle(o.id);
                   }}
-                  className="ml-0.5 text-[#4E8C58] hover:text-[#2d5c35]"
+                  className="ml-0.5 text-sage hover:text-ink"
                 >
                   ×
                 </button>
@@ -126,7 +126,7 @@ function OrgMultiSelect({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search organizations…"
-                className="w-full rounded-[7px] border border-[rgba(60,50,40,0.12)] bg-[#F7F3EE] px-3 py-1.5 text-sm outline-none focus:border-[#4E8C58]"
+                className="w-full rounded-[7px] border border-line bg-canvas px-3 py-1.5 text-sm text-ink outline-none focus:border-sage"
               />
             </div>
             <ul className="max-h-52 overflow-y-auto pb-1">
@@ -140,13 +140,13 @@ function OrgMultiSelect({
                       <button
                         type="button"
                         onClick={() => toggle(org.id)}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[#F0EBE1]"
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[var(--bg-surface-2)]"
                       >
                         <span
                           className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-[1.5px] transition-colors ${
                             checked
-                              ? "border-[#4E8C58] bg-[#4E8C58]"
-                              : "border-[rgba(60,50,40,0.25)] bg-white"
+                              ? "border-sage bg-sage"
+                              : "border-line bg-white"
                           }`}
                         >
                           {checked && (
@@ -260,22 +260,22 @@ export default function AdminCoachesPage() {
 
   return (
     <DashboardLayout title="Coach Management">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <div className="mb-6 flex items-center justify-between">
-          <h3 className="font-serif text-lg font-semibold">Coach Management</h3>
+          <h3 className="serif text-lg font-semibold text-ink">Coach Management</h3>
           <Button size="sm" type="button" onClick={() => dispatch(openModal("add-coach"))}>
             + Add Coach
           </Button>
         </div>
         <TableWrap>
           <TableToolbar title={`All Coaches (${coaches.length})`} />
-          <div className="px-[22px] py-3 border-b border-[rgba(60,50,40,0.08)]">
+          <div className="px-[22px] py-3 border-b border-line">
             <input
               type="text"
               placeholder="Search by name or organization..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+              className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
             />
           </div>
           <table className="w-full border-collapse">
@@ -284,7 +284,7 @@ export default function AdminCoachesPage() {
                 {["Coach", "Specialty", "Availability", "Members", "Orgs", ""].map((h) => (
                   <th
                     key={h}
-                    className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
+                    className="border-b-[1.5px] border-line bg-[var(--bg-surface-2)] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
                   >
                     {h}
                   </th>
@@ -294,38 +294,38 @@ export default function AdminCoachesPage() {
             <tbody>
               {isPending ? (
                 <tr>
-                  <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid">
+                  <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid text-ink">
                     Loading coaches…
                   </td>
                 </tr>
               ) : (
                 filteredCoaches.map((c) => (
-                  <tr key={c.id} className="group">
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <tr key={c.id} className="group text-ink">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F5DDD4] text-base">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--bg-surface-2)] text-base">
                           {c.avatar ?? "👤"}
                         </div>
                         <span className="font-semibold">{c.name}</span>
                       </div>
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-sm text-mid group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] text-sm text-mid group-hover:bg-[var(--bg-surface-2)]">
                       {c.speciality ?? "—"}
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <Badge variant={c.isActive ? "sage" : "dim"}>
                         {c.isActive ? "active" : "inactive"}
                       </Badge>
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       {c.memberCount}
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-xs text-mid group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] text-xs text-mid group-hover:bg-[var(--bg-surface-2)]">
                       {c.organizations?.length > 0
                         ? c.organizations.map((o) => o.name).join(", ")
                         : "—"}
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <Button
                         variant="ghost"
                         size="xs"

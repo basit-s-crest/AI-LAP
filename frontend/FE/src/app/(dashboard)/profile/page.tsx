@@ -31,7 +31,7 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
       onClick={onToggle}
       className={cn(
         "relative h-[22px] w-[38px] shrink-0 rounded-[11px] transition-colors",
-        on ? "bg-sage" : "border-[1.5px] border-[rgba(60,50,40,0.2)] bg-[#EDE7DC]"
+        on ? "bg-sage" : "border-[1.5px] border-line bg-[var(--bg-surface-2)]"
       )}
     >
       <div
@@ -131,7 +131,7 @@ export default function ProfilePage() {
   if (isPending) {
     return (
       <DashboardLayout title="My Profile">
-        <div className="h-48 animate-pulse rounded-card border border-line bg-[#F0EBE1]" />
+        <div className="h-48 animate-pulse rounded-card border border-line bg-[var(--bg-surface-2)]" />
       </DashboardLayout>
     );
   }
@@ -175,7 +175,7 @@ export default function ProfilePage() {
 
   return (
     <DashboardLayout title="My Profile">
-      <div className="grid animate-fadeIn grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid anim-up grid-cols-1 gap-5 lg:grid-cols-2">
         <div>
           <ProfileCard
             emoji={data.avatar ?? "🌿"}
@@ -204,7 +204,7 @@ export default function ProfilePage() {
                   <button
                     key={it.l}
                     type="button"
-                    className="flex w-full items-center gap-3 border-b border-[rgba(60,50,40,0.08)] py-3 text-left last:border-b-0"
+                    className="flex w-full items-center gap-3 border-b border-line py-3 text-left last:border-b-0"
                     onClick={it.action}
                   >
                     <div
@@ -287,7 +287,7 @@ export default function ProfilePage() {
             {notifRows.map((n) => (
               <div
                 key={n.key}
-                className="flex items-center gap-3 border-b border-[rgba(60,50,40,0.08)] py-3 last:border-b-0"
+                className="flex items-center gap-3 border-b border-line py-3 last:border-b-0"
               >
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-semibold">{n.l}</div>
@@ -328,7 +328,7 @@ export default function ProfilePage() {
                 ].map((a) => {
                   const showAvg = a.avg && (a.key === "phq8" ? hasPhq : hasGad);
                   return (
-                    <div key={a.l} className="mb-3 flex items-center justify-between border-b border-[rgba(60,50,40,0.06)] pb-3 last:border-b-0 last:pb-0">
+                    <div key={a.l} className="mb-3 flex items-center justify-between border-b border-line pb-3 last:border-b-0 last:pb-0">
                       <div className="min-w-0 flex-1">
                         <div className="text-[13px] font-semibold">{a.l}</div>
                         {showAvg && a.avg && (

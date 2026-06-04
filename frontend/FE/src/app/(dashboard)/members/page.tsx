@@ -23,7 +23,7 @@ export default function OrgMembersPage() {
 
   return (
     <DashboardLayout title="Member Management">
-      <TableWrap className="animate-fadeIn">
+      <TableWrap className="anim-up">
         <TableToolbar title={`Members (${filtered.length})`}>
           <Input
             value={q}
@@ -38,7 +38,7 @@ export default function OrgMembersPage() {
               {["Member", "Joined", "Groups", "Messages", "Avg Mood", "Status"].map((h) => (
                 <th
                   key={h}
-                  className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
+                  className="border-b-[1.5px] border-line bg-[var(--bg-surface-2)] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
                 >
                   {h}
                 </th>
@@ -48,30 +48,30 @@ export default function OrgMembersPage() {
           <tbody>
             {isPending ? (
               <tr>
-                <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid">
+                <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid text-ink">
                   Loading members…
                 </td>
               </tr>
             ) : (
               filtered.map((u) => (
-              <tr key={u.id} className="group">
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+              <tr key={u.id} className="group text-ink">
+                <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                   <div className="font-semibold">{u.name}</div>
                   <div className="text-xs text-dim">{u.email}</div>
                 </td>
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-mono text-xs text-mid group-hover:bg-[#EDE7DC]">
+                <td className="border-b border-line px-[22px] py-[13px] font-mono text-xs text-mid group-hover:bg-[var(--bg-surface-2)]">
                   {u.joined}
                 </td>
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                   {u.groups}
                 </td>
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                   {u.sessions}
                 </td>
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                   <span className="font-mono font-semibold">{u.mood ?? "—"}</span>
                 </td>
-                <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                   <Badge variant={u.status === "flagged" ? "red" : u.status === "active" ? "sage" : "dim"}>
                     {u.status}
                   </Badge>

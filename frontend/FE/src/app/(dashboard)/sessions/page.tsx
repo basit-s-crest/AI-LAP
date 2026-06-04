@@ -114,11 +114,11 @@ export default function CoachSessionsPage() {
 
   return (
     <DashboardLayout title="Sessions">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <StatsCard label="This Week" value={String(thisWeek)} sub="sessions" accent="blue" />
+          <StatsCard label="This Week" value={String(thisWeek)} sub="sessions" accent="teal" />
           <StatsCard label="This Month" value={String(thisMonth)} sub="sessions" accent="sage" />
-          <StatsCard label="Total Hours" value={totalHours.toFixed(1)} sub="this month" accent="gold" />
+          <StatsCard label="Total Hours" value={totalHours.toFixed(1)} sub="this month" accent="amber" />
         </div>
         <TableWrap>
           <TableToolbar title="Session History" />
@@ -128,7 +128,7 @@ export default function CoachSessionsPage() {
                 {["Date & Time", "Client", "Type", "Duration", "Status", ""].map((h) => (
                   <th
                     key={h}
-                    className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
+                    className="border-b-[1.5px] border-line bg-[var(--bg-surface-2)] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
                   >
                     {h}
                   </th>
@@ -138,13 +138,13 @@ export default function CoachSessionsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid">
+                  <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid text-ink">
                     Loading sessions…
                   </td>
                 </tr>
               ) : sessions.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid">
+                  <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid text-ink">
                     No sessions yet.
                   </td>
                 </tr>
@@ -152,22 +152,22 @@ export default function CoachSessionsPage() {
                 sessions.map((s) => (
                   <tr
                     key={s.id}
-                    className="group"
+                    className="group text-ink"
                     aria-busy={cancellingId === s.id}
                   >
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-mono text-sm group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] font-mono text-sm group-hover:bg-[var(--bg-surface-2)]">
                       {formatDate(s.date)}
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-semibold group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] font-semibold group-hover:bg-[var(--bg-surface-2)]">
                       {s.memberName}
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-sm text-mid group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] text-sm text-mid group-hover:bg-[var(--bg-surface-2)]">
                       {s.type}
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       {s.duration} min
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <Badge
                         variant={
                           s.status === "upcoming"
@@ -182,7 +182,7 @@ export default function CoachSessionsPage() {
                         {s.status}
                       </Badge>
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       {s.status === "completed" ? (
                         <Button variant="ghost" size="xs" type="button">
                           View Notes
@@ -235,9 +235,9 @@ export default function CoachSessionsPage() {
               aria-modal="true"
               aria-labelledby="coach-reschedule-title"
             >
-              <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+              <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl border border-line">
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 id="coach-reschedule-title" className="font-serif text-lg font-semibold">
+                  <h3 id="coach-reschedule-title" className="serif text-lg font-semibold text-ink">
                     Reschedule Session
                   </h3>
                   <button
@@ -258,7 +258,7 @@ export default function CoachSessionsPage() {
                       value={newDate}
                       min={new Date().toISOString().split("T")[0]}
                       onChange={(e) => setNewDate(e.target.value)}
-                      className="w-full rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-[13.5px] outline-none focus:border-sage"
+                      className="w-full rounded-[9px] border-[1.5px] border-line bg-card px-3 py-2 text-[13.5px] text-ink outline-none focus:border-sage"
                     />
                   </div>
                   <div>
@@ -269,7 +269,7 @@ export default function CoachSessionsPage() {
                       type="time"
                       value={newTime}
                       onChange={(e) => setNewTime(e.target.value)}
-                      className="w-full rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-[13.5px] outline-none focus:border-sage"
+                      className="w-full rounded-[9px] border-[1.5px] border-line bg-card px-3 py-2 text-[13.5px] text-ink outline-none focus:border-sage"
                     />
                   </div>
                 </div>
@@ -305,11 +305,11 @@ export default function CoachSessionsPage() {
               aria-modal="true"
               aria-labelledby="coach-cancel-session-title"
             >
-              <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+              <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl border border-line">
                 <div className="mb-4 flex items-center justify-between">
                   <h3
                     id="coach-cancel-session-title"
-                    className="font-serif text-lg font-semibold"
+                    className="serif text-lg font-semibold text-ink"
                   >
                     Cancel Session?
                   </h3>
@@ -324,10 +324,10 @@ export default function CoachSessionsPage() {
                     ✕
                   </button>
                 </div>
-                <p className="text-sm text-mid">
+                <p className="text-sm text-mid text-ink">
                   {cancelTargetRow?.memberName
-                    ? `Are you sure you want to cancel the session with ${cancelTargetRow.memberName}?`
-                    : "Are you sure you want to cancel this session?"}
+                     ? `Are you sure you want to cancel the session with ${cancelTargetRow.memberName}?`
+                     : "Are you sure you want to cancel this session?"}
                 </p>
                 <div className="mt-5 flex justify-end gap-2">
                   <Button

@@ -14,7 +14,7 @@ export default function ActivityPage() {
 
   return (
     <DashboardLayout title="Activity Log">
-      <Card className="animate-fadeIn">
+      <Card className="anim-up">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-serif text-lg font-semibold">System Activity Log</h3>
           <div className="flex flex-wrap items-center gap-2">

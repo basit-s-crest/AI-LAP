@@ -333,7 +333,7 @@ useEffect(() => {
                   )}
                 >
                   <div className="relative shrink-0">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#D4EDD7] text-lg">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[var(--bg-surface-2)] border border-line text-lg font-bold text-sage">
                       {conv.partnerAvatar ? (
                         <img src={conv.partnerAvatar} alt={conv.partnerName} className="h-full w-full rounded-[10px] object-cover" />
                       ) : (
@@ -394,8 +394,8 @@ useEffect(() => {
 
           {/* Chat header */}
           {selectedConv ? (
-            <div className="flex shrink-0 items-center gap-3 bg-sidebar px-5 py-3.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#D4EDD7] text-lg">
+            <div className="flex shrink-0 items-center gap-3 bg-[var(--bg-surface-2)] border-b border-line px-5 py-3.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--bg-surface-2)] border border-line text-lg font-bold text-sage">
                 {selectedConv.partnerAvatar ? (
                   <img src={selectedConv.partnerAvatar} alt={selectedConv.partnerName} className="h-full w-full rounded-[10px] object-cover" />
                 ) : (
@@ -403,16 +403,16 @@ useEffect(() => {
                 )}
               </div>
               <div className="flex-1">
-                <div className="text-sm font-semibold text-[#FDFAF5]">{selectedConv.partnerName}</div>
-                <div className="text-xs text-[#FDFAF5]/40">
-                  <span className={cn("mr-1.5 inline-block h-2 w-2 rounded-full", isConnected ? "bg-[#2E7D4F]" : "bg-gray-400")} />
+                <div className="text-sm font-semibold text-ink">{selectedConv.partnerName}</div>
+                <div className="text-xs text-dim">
+                  <span className={cn("mr-1.5 inline-block h-2 w-2 rounded-full", isConnected ? "bg-[var(--sage)]" : "bg-gray-400")} />
                   {isConnected ? "Connected" : "Connecting..."}
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex shrink-0 items-center gap-3 bg-sidebar px-5 py-3.5">
-              <div className="text-sm text-[#FDFAF5]/60">Select a conversation</div>
+            <div className="flex shrink-0 items-center gap-3 bg-[var(--bg-surface-2)] border-b border-line px-5 py-3.5">
+              <div className="text-sm text-dim">Select a conversation</div>
             </div>
           )}
 

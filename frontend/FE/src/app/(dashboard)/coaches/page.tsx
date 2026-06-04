@@ -13,12 +13,12 @@ export default function OrgCoachesPage() {
 
   return (
     <DashboardLayout title="Our Coaches">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <h3 className="mb-4 font-serif text-lg font-semibold">Assigned Coaches (4)</h3>
         {coaches.slice(0, 4).map((c) => (
           <CoachCard key={c.id} coach={c} />
         ))}
-        <Card className="mt-4 border-0 bg-sage-soft">
+        <Card className="mt-4 border border-line bg-[var(--bg-surface-2)]">
           <div className="mb-2 font-semibold">Need additional coaches?</div>
           <p className="mb-3 text-sm text-mid">
             Contact your account manager to add or change coach assignments for your organization.

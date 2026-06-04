@@ -87,7 +87,7 @@ export default function OrgOutcomesPage() {
               id="week-selector"
               value={selectedWeek || "current"}
               onChange={(e) => setSelectedWeek(e.target.value === "current" ? undefined : e.target.value)}
-              className="rounded-md border border-line bg-cream px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-sage"
+              className="rounded-md border border-line bg-card px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-sage"
             >
               <option value="current">Current Week</option>
               {availableWeeks.map((week) => (
@@ -105,14 +105,14 @@ export default function OrgOutcomesPage() {
           {Array.from({ length: 8 }).map((_, index) => (
             <div
               key={index}
-              className="h-28 animate-pulse rounded-card border-[1.5px] border-line bg-[#F0EBE1]"
+              className="h-28 animate-pulse rounded-card border-[1.5px] border-line bg-[var(--bg-surface-2)]"
             />
           ))}
         </div>
       ) : isError ? (
         <Card className="text-sm text-danger">{error.message || "Failed to load report"}</Card>
       ) : reportData ? (
-        <div className="animate-fadeIn space-y-6">
+        <div className="anim-up space-y-6">
           {/* Executive Summary */}
           <Card>
             <h3 className="mb-4 font-serif text-lg font-semibold">📊 Executive Summary</h3>
@@ -149,7 +149,7 @@ export default function OrgOutcomesPage() {
             <Card>
               <h3 className="mb-4 font-serif text-lg font-semibold">🧠 Mental Health Outcomes</h3>
               <div className="space-y-4">
-                <div className="rounded-lg bg-[#F7F3EB] p-4">
+                <div className="rounded-lg bg-[var(--bg-surface-2)] p-4">
                   <div className="text-sm font-semibold text-dim">PHQ-8 (Depression)</div>
                   <div className="mt-1 font-serif text-3xl font-bold text-ink">
                     {reportData.mentalHealth.avgPhqScore ?? "—"}
@@ -158,7 +158,7 @@ export default function OrgOutcomesPage() {
                     {phqScoreCategory(reportData.mentalHealth.avgPhqScore)} severity
                   </div>
                 </div>
-                <div className="rounded-lg bg-[#F7F3EB] p-4">
+                <div className="rounded-lg bg-[var(--bg-surface-2)] p-4">
                   <div className="text-sm font-semibold text-dim">GAD-7 (Anxiety)</div>
                   <div className="mt-1 font-serif text-3xl font-bold text-ink">
                     {reportData.mentalHealth.avgGadScore ?? "—"}
@@ -167,7 +167,7 @@ export default function OrgOutcomesPage() {
                     {gadScoreCategory(reportData.mentalHealth.avgGadScore)} severity
                   </div>
                 </div>
-                <div className="rounded-lg bg-[#F7F3EB] p-4">
+                <div className="rounded-lg bg-[var(--bg-surface-2)] p-4">
                   <div className="text-sm font-semibold text-dim">Mood Check-ins</div>
                   <div className="mt-1 font-serif text-3xl font-bold text-ink">
                     {reportData.mentalHealth.moodEntries}
@@ -199,9 +199,9 @@ export default function OrgOutcomesPage() {
                       cursor={{ fill: "rgba(60,50,40,0.04)" }}
                       contentStyle={{
                         borderRadius: 8,
-                        border: "1px solid rgba(60,50,40,0.12)",
+                        border: "1px solid var(--border)",
                         fontSize: 12,
-                        backgroundColor: "#FDFAF5",
+                        backgroundColor: "var(--bg-surface)",
                       }}
                     />
                     <Bar dataKey="count" radius={[4, 4, 0, 0]} />
@@ -215,21 +215,21 @@ export default function OrgOutcomesPage() {
           <Card>
             <h3 className="mb-4 font-serif text-lg font-semibold">👥 Member Engagement</h3>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="rounded-lg bg-[#F7F3EB] p-4 text-center">
+              <div className="rounded-lg bg-[var(--bg-surface-2)] p-4 text-center">
                 <div className="font-serif text-4xl font-bold text-sage">
                   {reportData.community.groupPosts}
                 </div>
                 <div className="mt-2 text-sm font-semibold text-dim">Community Posts</div>
                 <div className="text-xs text-mid">shared in peer groups</div>
               </div>
-              <div className="rounded-lg bg-[#F7F3EB] p-4 text-center">
+              <div className="rounded-lg bg-[var(--bg-surface-2)] p-4 text-center">
                 <div className="font-serif text-4xl font-bold text-blue">
                   {reportData.community.groupMembers}
                 </div>
                 <div className="mt-2 text-sm font-semibold text-dim">Group Memberships</div>
                 <div className="text-xs text-mid">active participants</div>
               </div>
-              <div className="rounded-lg bg-[#F7F3EB] p-4 text-center">
+              <div className="rounded-lg bg-[var(--bg-surface-2)] p-4 text-center">
                 <div className="font-serif text-4xl font-bold text-gold">
                   {reportData.community.coachMessages}
                 </div>
@@ -249,7 +249,7 @@ export default function OrgOutcomesPage() {
                 {reportData.coaches.topActiveCoaches.map((coach, idx) => (
                   <div
                     key={coach.id}
-                    className="flex items-center justify-between rounded-lg bg-[#F7F3EB] p-3"
+                    className="flex items-center justify-between rounded-lg bg-[var(--bg-surface-2)] p-3"
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sage/10 font-serif text-sm font-bold text-sage">

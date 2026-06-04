@@ -123,7 +123,7 @@ export default function NotesPage() {
 
   return (
     <DashboardLayout title="Session Notes">
-      <div className="grid animate-fadeIn grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+      <div className="grid anim-up grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
         <TableWrap>
           <TableToolbar title="Recent Notes">
             <Button size="sm" type="button" onClick={resetForm}>
@@ -136,7 +136,7 @@ export default function NotesPage() {
                 {["Client", "Session Date", "Type"].map((h) => (
                   <th
                     key={h}
-                    className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
+                    className="border-b-[1.5px] border-line bg-[var(--bg-surface-2)] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
                   >
                     {h}
                   </th>
@@ -148,7 +148,7 @@ export default function NotesPage() {
                 <tr>
                   <td
                     colSpan={3}
-                    className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-sm text-dim"
+                    className="border-b border-line px-[22px] py-[13px] text-sm text-dim text-ink"
                   >
                     Loading notes…
                   </td>
@@ -157,7 +157,7 @@ export default function NotesPage() {
                 <tr>
                   <td
                     colSpan={3}
-                    className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-sm text-dim"
+                    className="border-b border-line px-[22px] py-[13px] text-sm text-dim text-ink"
                   >
                     No session notes yet.
                   </td>
@@ -167,18 +167,18 @@ export default function NotesPage() {
                   <tr
                     key={n.id}
                     className={cn(
-                      "group cursor-pointer",
+                      "group cursor-pointer text-ink",
                       selectedNoteId === n.id && "bg-sage-soft"
                     )}
                     onClick={() => loadNoteIntoForm(n)}
                   >
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-semibold group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] font-semibold group-hover:bg-[var(--bg-surface-2)]">
                       {n.clientName}
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-mono text-xs text-mid group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] font-mono text-xs text-mid group-hover:bg-[var(--bg-surface-2)]">
                       {formatSessionDate(n.sessionDate)}
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-sm text-mid group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] text-sm text-mid group-hover:bg-[var(--bg-surface-2)]">
                       {n.sessionType}
                       {n.status === "draft" && (
                         <span className="ml-2 text-[10px] font-semibold uppercase text-dim">
@@ -193,7 +193,7 @@ export default function NotesPage() {
           </table>
         </TableWrap>
         <Card>
-          <h3 className="mb-3 font-serif text-lg font-semibold">Session Note</h3>
+          <h3 className="mb-3 serif text-lg font-semibold text-ink">Session Note</h3>
           <div className="mb-4">
             <Label>Client</Label>
             <Select

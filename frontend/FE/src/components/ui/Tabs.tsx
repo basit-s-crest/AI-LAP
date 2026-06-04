@@ -12,7 +12,7 @@ export interface TabItem {
 export function Tabs({ items, className }: { items: TabItem[]; className?: string }) {
   return (
     <TabGroup className={className}>
-      <TabList className="mb-[22px] flex w-fit gap-0.5 rounded-[10px] bg-[#EDE7DC] p-1">
+      <TabList className="mb-[22px] flex w-fit gap-0.5 rounded-[10px] bg-[var(--bg-surface-2)] p-1">
         {items.map((t) => (
           <Tab
             key={t.key}

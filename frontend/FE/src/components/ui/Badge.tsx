@@ -8,7 +8,7 @@ const map: Record<BadgeVariant, string> = {
   red: "bg-danger-soft text-danger",
   blue: "bg-blue-tint text-blue",
   terra: "bg-terra-tint text-terra",
-  dim: "border border-line bg-[#F0EBE1] text-mid",
+  dim: "border border-line bg-[var(--bg-surface-2)] text-mid",
 };
 
 export function Badge({

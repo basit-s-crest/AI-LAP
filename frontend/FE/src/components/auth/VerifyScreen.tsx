@@ -65,24 +65,24 @@ export function VerifyScreen() {
 
   if (!userId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-canvas px-6">
+      <div className="flex min-h-screen items-center justify-center px-6">
         <p className="text-mid">Invalid verification link. Please register again.</p>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas px-6">
+    <div className="flex min-h-screen items-center justify-center px-6">
       <FormProvider {...methods}>
         <form
           onSubmit={onSubmit}
-          className="w-full max-w-md animate-fadeIn rounded-card border border-line bg-card p-8"
+          className="card w-full max-w-md anim-scale"
         >
           <div className="mb-4 text-center text-[42px]">📬</div>
-          <h3 className="text-center font-serif text-[28px] font-semibold text-ink">
+          <h3 className="auth-form-title text-center mb-1">
             Check your email
           </h3>
-          <p className="mb-6 text-center text-[13.5px] text-mid">
+          <p className="auth-form-sub text-center mb-6">
             We sent a 6-digit code to your email. It expires in 15 minutes.
           </p>
 
@@ -90,8 +90,7 @@ export function VerifyScreen() {
 
           <Button
             type="submit"
-            fullWidth
-            className="mt-4"
+            className="btn btn-primary w-full mt-4"
             disabled={verifyMutation.isPending}
           >
             {verifyMutation.isPending ? "Verifying…" : "Verify Code"}

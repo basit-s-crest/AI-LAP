@@ -43,19 +43,19 @@ export default function OrgLoginPage() {
 
   return (
     <div className="flex min-h-screen bg-canvas">
-      <div className="relative hidden flex-1 flex-col justify-center overflow-hidden bg-sidebar p-[60px] lg:flex">
+      <div className="relative hidden flex-1 flex-col justify-center overflow-hidden bg-[var(--teal-light)] p-[60px] lg:flex">
         <div
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse at 30% 50%, rgba(78,140,88,.2) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(179,90,56,.12) 0%, transparent 50%)",
+              "radial-gradient(ellipse at 30% 50%, rgba(83,164,208,.18) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(104,166,136,.14) 0%, transparent 50%)",
           }}
         />
         <div className="relative z-[1]">
-          <h1 className="font-serif text-[60px] font-bold leading-none tracking-wide text-[#FDFAF5]">
+          <h1 className="font-serif text-[60px] font-bold leading-none tracking-wide text-ink">
             {brandTitle}
           </h1>
-          <p className="mt-2.5 text-xs uppercase tracking-[3px] text-[#FDFAF5]/40">
+          <p className="mt-2.5 text-xs uppercase tracking-[3px] text-soft/60">
             {brandTagline}
           </p>
         </div>

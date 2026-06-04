@@ -34,6 +34,35 @@ function useCoaches() {
   });
 }
 
+// Reusable moderator dropdown
+function ModeratorSelect({
+  value,
+  onChange,
+  coaches,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  coaches: { id: string; name: string }[];
+}) {
+  return (
+    <div>
+      <Label>Moderator</Label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
+      >
+        <option value="">— Select moderator —</option>
+        {coaches.map((c) => (
+          <option key={c.id} value={c.name}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function AdminGroupsPage() {
   const dispatch = useAppDispatch();
   const { data: groups = [], isPending } = useAdminGroups();
@@ -133,49 +162,24 @@ export default function AdminGroupsPage() {
     );
   });
 
-  // Reusable moderator dropdown
-const ModeratorSelect = ({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) => (
-  <div>
-    <Label>Moderator</Label>
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
-    >
-      <option value="">— Select moderator —</option>
-      {coaches.map((c) => (
-        <option key={c.id} value={c.name}>
-          {c.name}
-        </option>
-      ))}
-    </select>
-  </div>
-);
-
   return (
     <DashboardLayout title="Community Groups">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <div className="mb-6 flex items-center justify-between">
-          <h3 className="font-serif text-lg font-semibold">Community Groups</h3>
+          <h3 className="serif text-lg font-semibold text-ink">Community Groups</h3>
           <Button size="sm" type="button" onClick={() => dispatch(openModal("add-group"))}>
             + Create Group
           </Button>
         </div>
         <TableWrap>
           <TableToolbar title={`All Groups (${groups.length})`} />
-          <div className="px-[22px] py-3 border-b border-[rgba(60,50,40,0.08)]">
+          <div className="px-[22px] py-3 border-b border-line">
             <input
               type="text"
               placeholder="Search by group name or moderator..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+              className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
             />
           </div>
           <table className="w-full border-collapse">
@@ -184,7 +188,7 @@ const ModeratorSelect = ({
                 {["Group", "Members", "Posts", "Moderator", "Status", ""].map((h) => (
                   <th
                     key={h}
-                    className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
+                    className="border-b-[1.5px] border-line bg-[var(--bg-surface-2)] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
                   >
                     {h}
                   </th>
@@ -194,29 +198,29 @@ const ModeratorSelect = ({
             <tbody>
               {isPending ? (
                 <tr>
-                  <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid">
+                  <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid text-ink">
                     Loading groups…
                   </td>
                 </tr>
               ) : (
                 filteredGroups.map((g) => (
-                  <tr key={g.id} className="group">
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <tr key={g.id} className="group text-ink">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <div className="flex items-center gap-2">
                         <span className="text-xl">{g.emoji}</span>
                         <span className="font-semibold">{g.name}</span>
                       </div>
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       {g.memberCount}
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       {g.postCount}
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-sm text-mid group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] text-sm text-mid group-hover:bg-[var(--bg-surface-2)]">
                       {g.mod ?? "—"}
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <Badge
                         variant={
                           g.status === "active"
@@ -229,7 +233,7 @@ const ModeratorSelect = ({
                         {g.status}
                       </Badge>
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <Button
                         variant="ghost"
                         size="xs"
@@ -302,7 +306,7 @@ const ModeratorSelect = ({
                   type="button"
                   onClick={() => setEmoji(e)}
                   className={cn(
-                    "flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card text-xl",
+                    "flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border-[1.5px] border-line bg-card text-xl",
                     emoji === e && "border-sage bg-sage-soft"
                   )}
                 >
@@ -315,7 +319,7 @@ const ModeratorSelect = ({
             <Label>Tags</Label>
             <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. BIPOC, LGBTQ+" />
           </div>
-          <ModeratorSelect value={mod} onChange={setMod} />
+          <ModeratorSelect value={mod} onChange={setMod} coaches={coaches} />
           <div className="flex gap-3 pt-2">
             <Button variant="ghost" className="flex-1" type="button" onClick={() => dispatch(closeModal())}>
               Cancel
@@ -347,7 +351,7 @@ const ModeratorSelect = ({
                   type="button"
                   onClick={() => setEditEmoji(e)}
                   className={cn(
-                    "flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card text-xl",
+                    "flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border-[1.5px] border-line bg-card text-xl",
                     editEmoji === e && "border-sage bg-sage-soft"
                   )}
                 >
@@ -360,7 +364,7 @@ const ModeratorSelect = ({
             <Label>Description</Label>
             <Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Optional description" />
           </div>
-          <ModeratorSelect value={editMod} onChange={setEditMod} />
+          <ModeratorSelect value={editMod} onChange={setEditMod} coaches={coaches} />
           <div className="flex gap-3 pt-2">
             <Button variant="ghost" className="flex-1" type="button" onClick={() => dispatch(closeModal())}>
               Cancel

@@ -40,7 +40,7 @@ export function Select({
       <div className={cn("relative", className)}>
         <ListboxButton
           className={cn(
-            "flex w-full items-center justify-between rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3.5 py-2.5 text-left text-[13.5px] text-ink outline-none focus:border-sage focus:shadow-[0_0_0_3px_#EBF5EC]",
+            "flex w-full items-center justify-between rounded-[9px] border-[1.5px] border-line bg-card px-3.5 py-2.5 text-left text-[13.5px] text-ink outline-none focus:border-teal focus:shadow-[0_0_0_3px_var(--teal-light)]",
             disabled && "opacity-50"
           )}
         >
@@ -62,7 +62,7 @@ export function Select({
                 key={opt.value}
                 value={opt.value}
                 disabled={opt.disabled}
-                className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-[13px] data-[focus]:bg-[#EDE7DC] data-[disabled]:opacity-40"
+                className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-[13px] data-[focus]:bg-[var(--bg-surface-2)] data-[disabled]:opacity-40"
               >
                 {({ selected: sel }) => (
                   <>

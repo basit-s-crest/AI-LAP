@@ -39,17 +39,17 @@ function CustomTooltip({
   return (
     <div
       style={{
-        background: "#FDFAF5",
-        border: "1.5px solid rgba(60,50,40,0.12)",
+        background: "var(--bg-surface)",
+        border: "1.5px solid var(--border)",
         borderRadius: 10,
         padding: "8px 12px",
-        boxShadow: "0 2px 8px rgba(60,50,40,0.10)",
+        boxShadow: "0 2px 8px rgba(92,107,115,0.10)",
         fontSize: 12,
-        color: "#3C3228",
+        color: "var(--ink)",
         minWidth: 140,
       }}
     >
-      <div style={{ fontWeight: 700, marginBottom: 2, color: "#9C9188" }}>
+      <div style={{ fontWeight: 700, marginBottom: 2, color: "var(--ink-ghost)" }}>
         Day {label}
       </div>
       <div style={{ color: "#B8832A", fontWeight: 700, fontSize: 14 }}>
@@ -162,7 +162,7 @@ export function OrgEngagementChart({ data, color = "#B8832A" }: Props) {
                 transition: "all 0.15s",
                 borderColor: range === r.days ? color : "rgba(60,50,40,0.15)",
                 background: range === r.days ? color : "transparent",
-                color: range === r.days ? "#fff" : "#9C9188",
+                color: range === r.days ? "#fff" : "var(--ink-ghost)",
               }}
             >
               {r.label}
@@ -176,7 +176,7 @@ export function OrgEngagementChart({ data, color = "#B8832A" }: Props) {
         style={{
           fontSize: 10,
           fontWeight: 700,
-          color: "#9C9188",
+          color: "var(--ink-ghost)",
           textTransform: "uppercase",
           letterSpacing: "0.06em",
           marginBottom: 2,
@@ -210,7 +210,7 @@ export function OrgEngagementChart({ data, color = "#B8832A" }: Props) {
             <XAxis
               dataKey="label"
               tickFormatter={xTickFormatter}
-              tick={{ fontSize: 11, fill: "#9C9188", fontWeight: 600 }}
+              tick={{ fontSize: 11, fill: "var(--ink-ghost)", fontWeight: 600 }}
               axisLine={{ stroke: "rgba(60,50,40,0.12)" }}
               tickLine={false}
               interval={0}
@@ -218,7 +218,7 @@ export function OrgEngagementChart({ data, color = "#B8832A" }: Props) {
             <YAxis
               domain={[0, maxVal]}
               tickCount={5}
-              tick={{ fontSize: 11, fill: "#9C9188", fontWeight: 600 }}
+              tick={{ fontSize: 11, fill: "var(--ink-ghost)", fontWeight: 600 }}
               axisLine={false}
               tickLine={false}
               width={32}
@@ -253,7 +253,7 @@ export function OrgEngagementChart({ data, color = "#B8832A" }: Props) {
         style={{
           fontSize: 10,
           fontWeight: 700,
-          color: "#9C9188",
+          color: "var(--ink-ghost)",
           textTransform: "uppercase",
           letterSpacing: "0.06em",
           textAlign: "center",
@@ -270,10 +270,10 @@ export function OrgEngagementChart({ data, color = "#B8832A" }: Props) {
             marginTop: 10,
             padding: "10px 14px",
             borderRadius: 10,
-            background: "#F7F3EE",
-            border: "1.5px solid rgba(60,50,40,0.10)",
+            background: "var(--bg-surface-2)",
+            border: "1.5px solid var(--border)",
             fontSize: 12,
-            color: "#3C3228",
+            color: "var(--ink)",
             display: "flex",
             alignItems: "center",
             gap: 10,
@@ -320,7 +320,7 @@ export function OrgEngagementChart({ data, color = "#B8832A" }: Props) {
               background: "none",
               border: "none",
               cursor: "pointer",
-              color: "#9C9188",
+              color: "var(--ink-ghost)",
               fontSize: 16,
               lineHeight: 1,
               padding: 0,

@@ -43,7 +43,7 @@ export function DashboardLayout({
   useEffect(() => {
     if (!reduxUser || !reduxToken) return;
     // Only sync for members — coaches/admins have their own profile endpoints
-    if (reduxUser.role !== "user" && reduxUser.role !== "member") return;
+    if (reduxUser.role !== "user") return;
 
     api.get<{ firstName: string; lastName: string; avatar: string | null }>(
       "/api/auth/profile"

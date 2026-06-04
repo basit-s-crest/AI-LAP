@@ -22,7 +22,7 @@ export function Drawer({
       <div className="fixed inset-0 flex">
         <DialogPanel
           className={cn(
-            "h-full w-[min(100%,320px)] bg-sidebar p-4 text-white shadow-xl transition data-[closed]:opacity-0",
+            "h-full w-[min(100%,320px)] bg-card border-r border-line p-4 text-ink shadow-xl transition data-[closed]:opacity-0",
             side === "left" ? "mr-auto data-[closed]:-translate-x-4" : "ml-auto data-[closed]:translate-x-4",
             className
           )}

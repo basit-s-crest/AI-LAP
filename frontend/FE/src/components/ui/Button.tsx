@@ -12,7 +12,7 @@ const variants: Record<ButtonVariant, string> = {
   outline:
     "bg-transparent text-sage border-[1.5px] border-sage hover:bg-sage-soft",
   ghost:
-    "bg-transparent text-mid border-[1.5px] border-[rgba(60,50,40,0.12)] hover:bg-[#F0EBE1] hover:text-ink hover:border-[rgba(60,50,40,0.22)]",
+    "bg-transparent text-mid border-[1.5px] border-line hover:bg-[var(--bg-surface-2)] hover:text-ink hover:border-[var(--border)]",
   danger: "bg-danger text-white hover:bg-[#A0302A]",
   gold: "bg-gold text-white hover:opacity-95",
 };

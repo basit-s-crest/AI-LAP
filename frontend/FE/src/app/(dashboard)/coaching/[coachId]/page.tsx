@@ -678,7 +678,7 @@ useEffect(() => {
     <Card className="mb-4">
       <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-dim">Book a Session</div>
       <div className="mb-3 flex items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#F5DDD4] text-2xl">
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[var(--bg-surface-2)] border border-line text-2xl">
           {coach.avatar ?? "👤"}
         </div>
         <div>
@@ -717,8 +717,8 @@ useEffect(() => {
                 !s.b && "hover:border-sage hover:bg-sage-soft",
                 selSlot === s.t && "border-sage bg-sage-tint text-sage",
                 s.isMySession && "cursor-not-allowed border-sage bg-sage-tint text-sage",
-                s.b && !s.assignedToOther && !s.isMySession && "cursor-not-allowed border-dashed bg-[#EDE7DC] text-dim",
-                s.assignedToOther && "cursor-not-allowed border-dashed bg-[#F5E6E6] text-[#A0522D]"
+                s.b && !s.assignedToOther && !s.isMySession && "cursor-not-allowed border-dashed bg-[var(--bg-surface-2)] text-dim",
+                s.assignedToOther && "cursor-not-allowed border-dashed bg-danger-soft text-danger"
               )}
             >
               {s.t}
@@ -796,7 +796,7 @@ useEffect(() => {
   if (bookOnly) {
     return (
       <DashboardLayout title="Book session">
-        <div className="mx-auto max-w-[520px] animate-fadeIn">
+        <div className="mx-auto max-w-[520px] anim-up">
           <Button variant="ghost" size="sm" className="mb-4" type="button" onClick={() => router.push("/coaching")}>
             ← Back to Coaches
           </Button>
@@ -810,20 +810,25 @@ useEffect(() => {
 
   return (
     <DashboardLayout title={coach.name}>
-      <div className="animate-fadeIn">
-        <Button variant="ghost" size="sm" className="mb-4" type="button" onClick={() => router.push("/coaching")}>
+      <div className="anim-up">
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm mb-4"
+          style={{ padding: "8px 18px", fontSize: "13px" }}
+          onClick={() => router.push("/coaching")}
+        >
           ← Back to Coaches
-        </Button>
+        </button>
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
           <div className="flex h-[460px] flex-col overflow-hidden rounded-card border border-line">
-            <div className="flex items-center gap-3 bg-sidebar px-[18px] py-3.5">
-              <div className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] bg-[#F5DDD4] text-[19px]">
+            <div className="flex items-center gap-3 border-b border-line bg-[var(--bg-surface-2)] px-[18px] py-3.5">
+              <div className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] bg-card border border-line text-[19px]">
                 {coach.avatar ?? "👤"}
               </div>
               <div>
-                <div className="text-sm font-semibold text-[#FDFAF5]">{coach.name}</div>
-                <div className="text-xs text-[#FDFAF5]/40">
-                  <span className={cn("mr-1 inline-block h-2 w-2 rounded-full", isConnected ? "bg-[#2E7D4F]" : "bg-gray-400")} />
+                <div className="text-sm font-bold text-ink">{coach.name}</div>
+                <div className="text-xs text-soft flex items-center gap-1.5">
+                  <span className={cn("inline-block h-2 w-2 rounded-full", isConnected ? "bg-[var(--sage)]" : "bg-gray-400")} />
                   {isConnected ? "Active now" : "Connecting..."}
                 </div>
               </div>
@@ -831,7 +836,7 @@ useEffect(() => {
             <div
               ref={chatScrollRef}
               onScroll={handleChatScroll}
-              className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-[18px]"
+              className="flex flex-1 flex-col gap-3 overflow-y-auto bg-[var(--bg-surface-2)] p-[18px]"
             >
               {isFetchingNextPage && (
                 <div className="flex justify-center py-2">
@@ -888,17 +893,23 @@ useEffect(() => {
               )}
               <div ref={messagesEndRef} />
             </div>
-            <div className="flex items-center gap-2 border-t border-line bg-card px-3.5 py-3">
+            <div className="flex items-center gap-2.5 border-t border-line bg-card px-4 py-3">
               <input
-                className="flex-1 rounded-[22px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-canvas px-4 py-2 text-[13.5px] outline-none focus:border-sage"
-                placeholder="Type a message..."
+                className="flex-1 rounded-[12px] border border-[var(--border-mid)] bg-[var(--bg-surface-2)] px-4 py-2 text-[13.5px] outline-none focus:border-sage text-ink"
+                placeholder={`Type a message to ${coach.name.split(" ")[1] || coach.name}…`}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
               />
-              <Button size="sm" type="button" onClick={send} disabled={!isConnected}>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={send}
+                disabled={!isConnected}
+                style={{ borderRadius: "var(--r-sm)", padding: "8px 18px", fontSize: "13px" }}
+              >
                 Send
-              </Button>
+              </button>
             </div>
           </div>
           <div>

@@ -43,64 +43,49 @@ export function RoleSidebar({
   const dispatch = useAppDispatch();
   const router = useRouter();
   const logout = useLogout();
-  const accent = roleAccent(role);
   const label = roleSidebarLabel(role);
   const items = navForRole(role);
   const groups = groupItems(items);
-  const { brandTitle, brandTagline } = useHydratedPlatformBranding();
-  const { data: platformSettings } = usePublicPlatformSettings();
+  const { brandTitle } = useHydratedPlatformBranding();
 
-  const inner = (
+  const getActiveClass = (item: NavItem) => {
+    const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+    if (!isActive) return "";
+    if (role === "coach") return "active-teal";
+    if (role === "organization" || role === "superadmin") return "active-amber";
+    return "active";
+  };
+
+  const navBody = (
     <>
-      <div className="border-b border-white/[0.08] px-[22px] pb-[18px] pt-6">
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <div className="font-serif text-[21px] font-bold tracking-wide text-[#FDFAF5]">
-              {brandTitle}
-            </div>
-            <div className="mt-0.5 text-[10px] leading-tight text-white/35">{brandTagline}</div>
-          </div>
-        </div>
+      <div className="nav-brand">
+        <div className="nav-logo">{brandTitle}</div>
+        <div className="nav-role" style={{ color: role === "coach" ? "var(--teal)" : role === "superadmin" || role === "organization" ? "var(--amber)" : "var(--sage)" }}>{label}</div>
       </div>
-      <nav className="flex-1 overflow-y-auto py-2.5">
+      <div className="nav-body">
         {groups.map((g, gi) => (
           <div key={`${g.section}-${gi}`}>
             {gi > 0 && g.section === "Switch Portal" ? (
-              <div className="mx-[22px] my-2.5 h-px bg-white/[0.08]" />
+              <div className="nav-divider" />
             ) : null}
             {g.section ? (
-              <div
-                className={cn(
-                  "px-[22px] pb-1.5 pt-4 text-[9px] font-bold uppercase tracking-[2px] text-white/25",
-                  g.section === "Switch Portal" && "text-blue/80 opacity-80"
-                )}
-              >
+              <div className="nav-group-label">
                 {g.section}
               </div>
             ) : null}
             {g.items.map((item) => {
-              const active =
-                pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const activeClass = getActiveClass(item);
               const Icon = item.icon;
-              const memberActive =
-                role === "coach"
-                  ? "border-l-blue bg-blue/25 text-[#FDFAF5]"
-                  : "border-l-sage-light bg-sage/[0.18] text-[#FDFAF5]";
               return (
                 <Link
                   key={`${item.href}::${item.label}`}
                   href={item.href}
-                  className={cn(
-                    "flex cursor-pointer items-center gap-2.5 border-l-[2.5px] border-transparent px-[22px] py-2.5 text-[13.5px] text-white/[0.48] transition-all hover:bg-white/[0.04] hover:text-white/[0.85]",
-                    active && !item.portal && memberActive,
-                    active && item.portal && "border-l-blue bg-blue/25 text-[#FDFAF5]",
-                    item.portal && "text-white/[0.42] hover:bg-blue/10"
-                  )}
+                  className={`nav-item ${activeClass}`}
                 >
-                  <Icon className="h-[18px] w-[18px] shrink-0 opacity-90" />
-                  <span className="flex-1 truncate">{item.label}</span>
+                  <span className="nav-icon"><Icon className="h-[18px] w-[18px]" /></span>
+                  <span className="nav-label">{item.label}</span>
                   {item.badge ? (
-                    <span className="ml-auto rounded-[10px] bg-terra px-[7px] py-0.5 text-[9px] font-bold text-white">
+                    <span className="nav-badge">
                       {item.badge}
                     </span>
                   ) : null}
@@ -109,50 +94,53 @@ export function RoleSidebar({
             })}
           </div>
         ))}
-      </nav>
-      <div className="border-t border-white/[0.08] px-[22px] pb-[18px] pt-3.5">
-        <div className="flex items-center gap-2.5">
-          <Avatar label={userName} style={{ background: accent }} />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-xs font-semibold text-[#FDFAF5]">{userName}</div>
-            <div className="text-[10px] text-white/30">{brandTagline}</div>
+      </div>
+      <div className="nav-foot">
+        <div className="nav-user">
+          <div className="nav-avatar" style={{ background: role === "coach" ? "var(--teal)" : role === "superadmin" || role === "organization" ? "var(--amber)" : "var(--sage)" }}>
+            {userName[0]?.toUpperCase() || "U"}
+          </div>
+          <div>
+            <div className="nav-uname">{userName}</div>
+            <div className="nav-urole">{label}</div>
           </div>
           {onSwitchRole ? (
             <button
               type="button"
-              className="ml-auto rounded-md border border-white/15 px-2 py-1 text-[11px] text-white/40 transition-colors hover:border-white/35 hover:text-[#FDFAF5]"
+              className="nav-switch"
               onClick={onSwitchRole}
             >
               ⇄
             </button>
           ) : null}
         </div>
-        <button
-          type="button"
-          className="mt-3 w-full rounded-md border border-white/10 py-1.5 text-xs text-white/50 hover:bg-white/5"
-          onClick={logout}
-        >
-          Sign out
-        </button>
       </div>
+      <button
+        type="button"
+        className="mt-3 w-full btn btn-ghost btn-sm"
+        style={{ borderRadius: "var(--r-sm)" }}
+        onClick={logout}
+      >
+        Sign out
+      </button>
     </>
   );
 
   if (variant === "drawer") {
     return (
-      <aside className="flex h-full min-h-0 w-full flex-col bg-sidebar">{inner}</aside>
+      <aside className="flex h-full min-h-0 w-full flex-col bg-white p-6 border-r border-[#D2DBE3]">{navBody}</aside>
     );
   }
 
   return (
-    <div className="relative w-[240px] shrink-0 md:h-full">
+    <div className="relative w-[260px] shrink-0 md:h-full">
       <div
         aria-hidden
-        className="pointer-events-none hidden h-full min-h-screen w-[240px] shrink-0 md:block"
+        className="pointer-events-none hidden h-full min-h-screen w-[260px] shrink-0 md:block"
       />
-      <aside className="flex h-full min-h-0 w-[240px] shrink-0 flex-col bg-sidebar md:fixed md:left-0 md:top-0 md:z-30 md:h-screen">
-        {inner}
-      </aside>
+      <nav className="nav md:fixed md:left-0 md:top-0 md:z-30">
+        {navBody}
+      </nav>
     </div>
   );
 }

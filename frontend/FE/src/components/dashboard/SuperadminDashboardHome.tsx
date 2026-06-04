@@ -89,37 +89,47 @@ export function SuperadminDashboardHome() {
   const totalSessions = overviewStats?.totalSessions ?? 0;
 
   return (
-    <div className="animate-fadeIn">
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatsCard
-          label="Total Users"
-          value={String(totalUsers)}
-          sub={`${verifiedUsers} verified`}
-          accent="sage"
-        />
-        <StatsCard
-          label="Active Coaches"
-          value={String(activeCoaches)}
-          sub={`${coaches.length} total`}
-          accent="blue"
-        />
-        <StatsCard
-          label="Total Sessions"
-          value={String(totalSessions)}
-          sub="booked across platform"
-          accent="gold"
-        />
-        <StatsCard
-          label="Pending Users"
-          value={String(pendingUsers)}
-          sub="not verified"
-          accent="red"
-        />
+    <div className="flex flex-col gap-6 anim-up">
+      {/* Top Stats Row */}
+      <div className="stat-grid sg-4">
+        {/* Card 1: Total Users */}
+        <div className="stat-card sc-sage">
+          <div className="stat-label">Total Users</div>
+          <div className="stat-value">{totalUsers}</div>
+          <div className="stat-sub">{verifiedUsers} verified</div>
+          <div className="stat-icon bg-sage">👥</div>
+        </div>
+
+        {/* Card 2: Active Coaches */}
+        <div className="stat-card sc-teal">
+          <div className="stat-label">Active Coaches</div>
+          <div className="stat-value">{activeCoaches}</div>
+          <div className="stat-sub">{coaches.length} total</div>
+          <div className="stat-icon bg-teal">🧑‍⚕️</div>
+        </div>
+
+        {/* Card 3: Total Sessions */}
+        <div className="stat-card sc-amber">
+          <div className="stat-label">Total Sessions</div>
+          <div className="stat-value">{totalSessions}</div>
+          <div className="stat-sub">booked across platform</div>
+          <div className="stat-icon bg-amber">💬</div>
+        </div>
+
+        {/* Card 4: Pending Users */}
+        <div className="stat-card sc-rose">
+          <div className="stat-label">Pending Users</div>
+          <div className="stat-value">{pendingUsers}</div>
+          <div className="stat-sub">not verified</div>
+          <div className="stat-icon bg-rose">⚠️</div>
+        </div>
       </div>
-      <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
-        <Card>
+
+      {/* Asymmetric Two-Column Workspace */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
+        <div className="card">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="font-serif text-lg font-semibold">
+            <h3 className="serif text-lg text-ink">
               Platform Activity — {chartDays} Days
             </h3>
             <div className="flex gap-2">
@@ -130,8 +140,8 @@ export function SuperadminDashboardHome() {
                   onClick={() => setChartDays(days)}
                   className={
                     chartDays === days
-                      ? "rounded-md border border-sage px-2 py-1 text-[11.5px] font-semibold text-sage"
-                      : "rounded-md border border-[rgba(60,50,40,0.12)] px-2 py-1 text-[11.5px] font-semibold text-mid"
+                      ? "btn btn-xs active"
+                      : "btn btn-xs"
                   }
                 >
                   {label}
@@ -141,38 +151,39 @@ export function SuperadminDashboardHome() {
           </div>
 
           {chartLoading ? (
-            <div className="flex h-[350px] items-center justify-center text-sm text-dim">
+            <div className="flex h-[350px] items-center justify-center text-sm text-ghost">
               Loading activity data...
             </div>
           ) : chartFormattedData.length === 0 ? (
-            <div className="flex h-[350px] items-center justify-center text-sm text-dim">
+            <div className="flex h-[350px] items-center justify-center text-sm text-ghost">
               No activity data available for this period
             </div>
           ) : (
             <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartFormattedData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }} barCategoryGap="40%">
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(60,50,40,0.06)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(92,107,115,0.06)" />
                   <XAxis 
                     dataKey="label" 
-                    tick={{ fontSize: 11, fill: "#9C8E7E" }}
+                    tick={{ fontSize: 11, fill: "#8D99AE" }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis 
-                    tick={{ fontSize: 11, fill: "#9C8E7E" }}
+                    tick={{ fontSize: 11, fill: "#8D99AE" }}
                     tickLine={false}
                     axisLine={false}
                     width={24}
                     allowDecimals={false}
                   />
                   <Tooltip
-                    cursor={{ fill: "rgba(60,50,40,0.04)" }}
+                    cursor={{ fill: "rgba(92,107,115,0.04)" }}
                     contentStyle={{
-                      borderRadius: 8,
-                      border: "1px solid rgba(60,50,40,0.12)",
+                      borderRadius: 12,
+                      border: "1px solid var(--border)",
                       fontSize: 12,
-                      backgroundColor: "#FDFAF5",
+                      backgroundColor: "#FFFFFF",
+                      boxShadow: "var(--shadow-md)"
                     }}
                   />
                   <Legend 
@@ -181,72 +192,88 @@ export function SuperadminDashboardHome() {
                     wrapperStyle={{ fontSize: 12 }}
                     iconType="circle"
                   />
-                  <Bar dataKey="Users" fill="#4E8C58" radius={[3, 3, 0, 0]} opacity={0.9} barSize={6} />
-                  <Bar dataKey="Coaches" fill="#3A6E99" radius={[3, 3, 0, 0]} opacity={0.9} barSize={6} />
-                  <Bar dataKey="Organizations" fill="#B8832A" radius={[3, 3, 0, 0]} opacity={0.9} barSize={6} />
+                  <Bar dataKey="Users" fill="#68A688" radius={[3, 3, 0, 0]} opacity={0.9} barSize={6} />
+                  <Bar dataKey="Coaches" fill="#53A4D0" radius={[3, 3, 0, 0]} opacity={0.9} barSize={6} />
+                  <Bar dataKey="Organizations" fill="#FF8D69" radius={[3, 3, 0, 0]} opacity={0.9} barSize={6} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           )}
-        </Card>
-        <Card>
-          <h3 className="mb-3 font-serif text-lg font-semibold">Live Activity</h3>
-          {activity.slice(0, 5).map((a, i) => (
-            <ActivityCardRow key={a.id ?? `activity-${i}`} {...a} />
-          ))}
-        </Card>
-      </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card>
-          <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-dim">
-            Mood Distribution
+        </div>
+
+        <div className="card">
+          <div className="section-label">Live Activity</div>
+          <div className="flex flex-col gap-4">
+            {activity.slice(0, 5).map((a, i) => (
+              <div key={a.id ?? `activity-${i}`} className="activity-item">
+                <div className="a-icon bg-white text-lg border border-[#D2DBE3] shadow-sm">
+                  {a.type === "alert" ? "⚠️" : a.type === "moderation" ? "💬" : a.type === "join" ? "🧑‍🤝‍🧑" : a.type === "session" ? "📅" : "🆕"}
+                </div>
+                <div className="a-body">
+                  <span dangerouslySetInnerHTML={{ __html: a.html }} />
+                  <div className="a-time">{a.time}</div>
+                </div>
+              </div>
+            ))}
           </div>
+        </div>
+      </div>
+
+      {/* Row of Grids */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Mood Distribution */}
+        <div className="card">
+          <div className="section-label">Mood Distribution</div>
           {moodRows.map(([l, p, c]) => (
             <div key={String(l)} className="mb-3">
               <div className="mb-1 flex items-center justify-between">
-                <div className="text-sm">{l}</div>
-                <div className="font-mono text-xs text-mid">{Math.round(Number(p) * 100)}%</div>
+                <div className="text-sm font-semibold">{l}</div>
+                <div className="text-xs text-soft font-bold">{Math.round(Number(p) * 100)}%</div>
               </div>
-              <div className="h-1.5 overflow-hidden rounded bg-[#EDE7DC]">
+              <div className="progress" style={{ height: "6px" }}>
                 <div
-                  className="h-full rounded"
+                  className="progress-fill"
                   style={{ width: `${Number(p) * 100}%`, background: c as string }}
                 />
               </div>
             </div>
           ))}
-        </Card>
-        <Card>
-          <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-dim">
-            Top Groups by Activity
+        </div>
+
+        {/* Top Groups */}
+        <div className="card">
+          <div className="section-label">Top Groups by Activity</div>
+          <div className="flex flex-col gap-3">
+            {topGroups.map((g) => (
+              <div key={g.id} className="flex items-center justify-between py-1.5 border-b border-[#D2DBE3] last:border-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{g.emoji}</span>
+                  <span className="text-sm font-bold text-ink">{g.name}</span>
+                </div>
+                <span className="text-xs font-semibold text-ghost">{g.postCount} posts</span>
+              </div>
+            ))}
           </div>
-          {topGroups.map((g) => (
-            <div key={g.id} className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-base">{g.emoji}</span>
-                <span className="text-sm font-semibold">{g.name}</span>
+        </div>
+
+        {/* Client Orgs */}
+        <div className="card">
+          <div className="section-label">Client Orgs</div>
+          <div className="flex flex-col gap-3">
+            {orgs.map((o) => (
+              <div key={o.id} className="flex items-center justify-between py-1.5 border-b border-[#D2DBE3] last:border-0">
+                <div>
+                  <div className="text-sm font-bold text-ink">{o.name}</div>
+                  <div className="text-xs text-soft">{o.type}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs font-bold text-sage">{o.users} users</div>
+                  <div className="text-[10px] text-ghost font-semibold uppercase">{o.plan}</div>
+                </div>
               </div>
-              <span className="font-mono text-xs text-mid">{g.postCount} posts</span>
-            </div>
-          ))}
-        </Card>
-        <Card>
-          <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-dim">
-            Client Orgs
+            ))}
           </div>
-          {orgs.map((o) => (
-            <div key={o.id} className="mb-3 flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold">{o.name}</div>
-                <div className="text-xs text-dim">{o.type}</div>
-              </div>
-              <div className="text-right">
-                <div className="font-mono text-xs text-sage">{o.users}</div>
-                <div className="text-xs text-dim">{o.plan}</div>
-              </div>
-            </div>
-          ))}
-        </Card>
+        </div>
       </div>
     </div>
   );

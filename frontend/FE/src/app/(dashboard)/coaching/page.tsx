@@ -11,12 +11,12 @@ export default function CoachingPage() {
 
   return (
     <DashboardLayout title="Coaching">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <div className="mb-6">
-          <div className="mb-0.5 text-[10px] font-bold uppercase tracking-wide text-dim">
-            Your Care Team
+          <div className="section-label mb-1">
+            Find Your Coach
           </div>
-          <p className="text-sm text-mid">Culturally matched coaches available now</p>
+          <p className="text-sm text-soft">Browse and message our culturally matched care specialists.</p>
         </div>
 
         {isLoading && (
@@ -35,15 +35,18 @@ export default function CoachingPage() {
           </div>
         )}
 
-        {!isLoading && !isError &&
-          coaches?.map((c) => (
-            <CoachCard
-              key={c.id}
-              coach={c}
-              onMessage={() => assignAndNavigate(c.id)}
-              disabled={isPending && pendingCoachId === c.id}
-            />
-          ))}
+        {!isLoading && !isError && coaches && coaches.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {coaches.map((c) => (
+              <CoachCard
+                key={c.id}
+                coach={c}
+                onMessage={() => assignAndNavigate(c.id)}
+                disabled={isPending && pendingCoachId === c.id}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

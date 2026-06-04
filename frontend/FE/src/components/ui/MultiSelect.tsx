@@ -53,7 +53,7 @@ export function MultiSelect({
                   type="button"
                   className={cn(
                     "flex w-full items-center px-3 py-2 text-left text-[13px]",
-                    focus && "bg-[#EDE7DC]"
+                    focus && "bg-[var(--bg-surface-2)]"
                   )}
                   onClick={() => toggle(opt.value)}
                 >

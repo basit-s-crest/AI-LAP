@@ -28,7 +28,7 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
       onClick={onToggle}
       className={cn(
         "relative h-[22px] w-[38px] shrink-0 rounded-[11px] transition-colors",
-        on ? "bg-sage" : "border-[1.5px] border-[rgba(60,50,40,0.2)] bg-[#EDE7DC]"
+        on ? "bg-sage" : "border-[1.5px] border-line bg-[var(--bg-surface-2)]"
       )}
     >
       <div
@@ -117,7 +117,7 @@ function CoachSettings() {
   };
 
   if (isPending) {
-    return <div className="h-40 animate-pulse rounded-card border border-line bg-[#F0EBE1]" />;
+    return <div className="h-40 animate-pulse rounded-card border border-line bg-[var(--bg-surface-2)]" />;
   }
   if (isError || !data) {
     return <Card className="text-sm text-danger">{error?.message ?? "Failed to load settings"}</Card>;
@@ -131,23 +131,23 @@ function CoachSettings() {
 
   return (
     <div className="w-full">
-      <div className="grid animate-fadeIn grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+      <div className="grid anim-up grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
         <div className="space-y-4">
-          <Card className="border-0 bg-sidebar p-6 text-[#FDFAF5]">
+          <Card className="border-line bg-card p-6">
             <div className="flex items-start gap-4">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[14px] bg-sage text-3xl">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[14px] bg-teal text-3xl">
                 {avatar}
               </div>
               <div>
-                <div className="font-serif text-xl font-semibold">{name}</div>
-                {speciality && <div className="mt-1 text-sm text-white/60">{speciality}</div>}
-                {bio && <p className="mt-2 text-xs leading-relaxed text-white/50">{bio}</p>}
+                <div className="serif text-xl font-semibold text-ink">{name}</div>
+                {speciality && <div className="mt-1 text-sm text-dim">{speciality}</div>}
+                {bio && <p className="mt-2 text-xs leading-relaxed text-mid">{bio}</p>}
               </div>
             </div>
           </Card>
 
           <Card>
-            <h3 className="mb-4 font-serif text-lg font-semibold">Profile</h3>
+            <h3 className="mb-4 serif text-lg font-semibold">Profile</h3>
             <div className="mb-4">
               <Label>Name</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -207,11 +207,11 @@ function CoachSettings() {
 
         <div className="space-y-4">
           <Card>
-            <h3 className="mb-3 font-serif text-lg font-semibold">Notifications</h3>
+            <h3 className="mb-3 serif text-lg font-semibold">Notifications</h3>
             {notifRows.map((n) => (
               <div
                 key={n.key}
-                className="flex items-center gap-3 border-b border-[rgba(60,50,40,0.08)] py-3 last:border-b-0"
+                className="flex items-center gap-3 border-b border-line py-3 last:border-b-0"
               >
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-semibold">{n.l}</div>

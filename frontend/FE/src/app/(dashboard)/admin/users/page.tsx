@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -117,19 +117,19 @@ export default function AdminUsersPage() {
 
   return (
     <DashboardLayout title="User Management">
-      <TableWrap>
+      <TableWrap className="anim-up">
         <TableToolbar title={`All Users (${users.length})`}>
           <Button size="sm" type="button" onClick={() => setAddOpen(true)}>
             + Add User
           </Button>
         </TableToolbar>
-        <div className="px-[22px] py-3 border-b border-[rgba(60,50,40,0.08)]">
+        <div className="px-[22px] py-3 border-b border-line">
           <input
             type="text"
             placeholder="Search by name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+            className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
           />
         </div>
         <table className="w-full border-collapse">
@@ -138,7 +138,7 @@ export default function AdminUsersPage() {
               {["User", "Role", "Verified", "Groups", "Last Active", ""].map((h) => (
                 <th
                   key={h}
-                  className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
+                  className="border-b-[1.5px] border-line bg-[var(--bg-surface-2)] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
                 >
                   {h}
                 </th>
@@ -148,27 +148,27 @@ export default function AdminUsersPage() {
           <tbody>
             {isPending ? (
               <tr>
-                <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid">
+                <td colSpan={6} className="px-[22px] py-8 text-center text-sm text-mid text-ink">
                   Loading users…
                 </td>
               </tr>
             ) : (
               filteredUsers.map((u) => (
-                <tr key={u.id} className="group">
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                <tr key={u.id} className="group text-ink">
+                  <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     <div className="font-semibold">{u.name}</div>
                     <div className="text-xs text-mid">{u.email}</div>
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     {u.role}
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     <Badge variant={u.isVerified ? "sage" : "gold"}>{u.isVerified ? "verified" : "pending"}</Badge>
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     {u.groupCount}
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     {u.lastActiveAt
                       ? new Date(u.lastActiveAt).toLocaleString("en-US", {
                           month: "short",
@@ -180,7 +180,7 @@ export default function AdminUsersPage() {
                         })
                       : "---"}
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     <Button
                       variant="ghost"
                       size="xs"
@@ -227,12 +227,12 @@ export default function AdminUsersPage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) setViewingUser(null); }}
         >
-          <div className="w-[480px] max-w-[95vw] rounded-2xl border border-[rgba(60,50,40,0.10)] bg-[#FDFAF5] p-7 shadow-xl">
+          <div className="w-[480px] max-w-[95vw] rounded-2xl border border-line bg-card p-7 shadow-xl">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="font-serif text-xl font-semibold text-[#1E1A16]">{viewingUser.name}</h2>
+              <h2 className="serif text-xl font-semibold text-ink">{viewingUser.name}</h2>
               <button
                 onClick={() => setViewingUser(null)}
-                className="rounded-md border border-[rgba(60,50,40,0.12)] px-2.5 py-1 text-xs text-[#5C5248] hover:bg-[#F0EBE1]"
+                className="rounded-md border border-line px-2.5 py-1 text-xs text-ink hover:bg-[var(--bg-surface-2)]"
               >
                 ✕
               </button>
@@ -241,11 +241,11 @@ export default function AdminUsersPage() {
             <div className="space-y-4">
               <div>
                 <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Email</p>
-                <p className="text-[13.5px] text-[#1E1A16]">{viewingUser.email}</p>
+                <p className="text-[13.5px] text-ink">{viewingUser.email}</p>
               </div>
               <div>
                 <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Role</p>
-                <p className="text-[13.5px] text-[#1E1A16]">{viewingUser.role}</p>
+                <p className="text-[13.5px] text-ink">{viewingUser.role}</p>
               </div>
               <div>
                 <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Verified</p>
@@ -255,21 +255,21 @@ export default function AdminUsersPage() {
               </div>
               <div>
                 <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Groups</p>
-                <p className="text-[13.5px] text-[#1E1A16]">{viewingUser.groupCount}</p>
+                <p className="text-[13.5px] text-ink">{viewingUser.groupCount}</p>
               </div>
               <div>
                 <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Messages</p>
-                <p className="text-[13.5px] text-[#1E1A16]">{viewingUser.messageCount}</p>
+                <p className="text-[13.5px] text-ink">{viewingUser.messageCount}</p>
               </div>
               <div>
                 <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Organization</p>
-                <p className="text-[13.5px] text-[#1E1A16]">
+                <p className="text-[13.5px] text-ink">
                   {orgs.find((o) => o.id === viewingUser.organizationId)?.name || "None"}
                 </p>
               </div>
               <div>
                 <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-dim">Created</p>
-                <p className="text-[13.5px] text-[#1E1A16]">
+                <p className="text-[13.5px] text-ink">
                   {new Date(viewingUser.createdAt).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "long",
@@ -296,12 +296,12 @@ export default function AdminUsersPage() {
             if (e.target === e.currentTarget) setAddOpen(false);
           }}
         >
-          <div className="w-[480px] max-w-[95vw] rounded-2xl border border-[rgba(60,50,40,0.10)] bg-[#FDFAF5] p-7 shadow-xl">
+          <div className="w-[480px] max-w-[95vw] rounded-2xl border border-line bg-card p-7 shadow-xl">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="font-serif text-xl font-semibold text-[#1E1A16]">Add User</h2>
+              <h2 className="serif text-xl font-semibold text-ink">Add User</h2>
               <button
                 onClick={() => setAddOpen(false)}
-                className="rounded-md border border-[rgba(60,50,40,0.12)] px-2.5 py-1 text-xs text-[#5C5248] hover:bg-[#F0EBE1]"
+                className="rounded-md border border-line px-2.5 py-1 text-xs text-ink hover:bg-[var(--bg-surface-2)]"
               >
                 ✕
               </button>
@@ -312,7 +312,7 @@ export default function AdminUsersPage() {
                 Full Name
               </label>
               <input
-                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
                 value={addName}
                 onChange={(e) => setAddName(e.target.value)}
                 placeholder="Member name"
@@ -324,7 +324,7 @@ export default function AdminUsersPage() {
                 Email
               </label>
               <input
-                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
                 value={addEmail}
                 onChange={(e) => setAddEmail(e.target.value)}
                 placeholder="member@example.com"
@@ -337,7 +337,7 @@ export default function AdminUsersPage() {
                 Temporary Password
               </label>
               <input
-                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
                 value={addPassword}
                 onChange={(e) => setAddPassword(e.target.value)}
                 placeholder="Set temporary password"
@@ -350,7 +350,7 @@ export default function AdminUsersPage() {
                 Verified
               </label>
               <select
-                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
                 value={String(addVerified)}
                 onChange={(e) => setAddVerified(e.target.value === "true")}
               >
@@ -364,7 +364,7 @@ export default function AdminUsersPage() {
                 Organization
               </label>
               <select
-                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
                 value={addOrgId}
                 onChange={(e) => setAddOrgId(e.target.value)}
               >
@@ -400,13 +400,13 @@ export default function AdminUsersPage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) setEditTarget(null); }}
         >
-          <div className="w-[480px] max-w-[95vw] rounded-2xl border border-[rgba(60,50,40,0.10)] bg-[#FDFAF5] p-7 shadow-xl">
+          <div className="w-[480px] max-w-[95vw] rounded-2xl border border-line bg-card p-7 shadow-xl">
             
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="font-serif text-xl font-semibold text-[#1E1A16]">Edit User</h2>
+              <h2 className="serif text-xl font-semibold text-ink">Edit User</h2>
               <button
                 onClick={() => setEditTarget(null)}
-                className="rounded-md border border-[rgba(60,50,40,0.12)] px-2.5 py-1 text-xs text-[#5C5248] hover:bg-[#F0EBE1]"
+                className="rounded-md border border-line px-2.5 py-1 text-xs text-ink hover:bg-[var(--bg-surface-2)]"
               >
                 ✕
               </button>
@@ -417,7 +417,7 @@ export default function AdminUsersPage() {
                 Full Name
               </label>
               <input
-                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
               />
@@ -428,7 +428,7 @@ export default function AdminUsersPage() {
                 Verified
               </label>
               <select
-                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
                 value={String(editVerified)}
                 onChange={(e) => setEditVerified(e.target.value === "true")}
               >
@@ -442,7 +442,7 @@ export default function AdminUsersPage() {
                 Organization
               </label>
               <select
-                className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+                className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
                 value={editOrgId}
                 onChange={(e) => setEditOrgId(e.target.value)}
               >

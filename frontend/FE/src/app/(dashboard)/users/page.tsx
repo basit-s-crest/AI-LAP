@@ -104,7 +104,7 @@ export default function AdminUsersPage() {
 
   return (
     <DashboardLayout title="User Management">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatsCard label="Total Registered" value={String(data.length)} sub="from database" accent="sage" />
           <StatsCard label="Active" value={String(activeUsers)} sub="verified users" accent="blue" />

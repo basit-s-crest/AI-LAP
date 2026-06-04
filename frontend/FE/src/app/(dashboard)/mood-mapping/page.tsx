@@ -132,7 +132,7 @@ export default function MoodMappingPage() {
 
   return (
     <DashboardLayout title="Mood Mapping">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
           <Card>
             <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-dim">
@@ -175,7 +175,7 @@ export default function MoodMappingPage() {
             </div>
 
             {moodSel && !moodLogged ? (
-              <div className="animate-fadeIn mt-3">
+              <div className="anim-up mt-3">
                 <div className="mb-4">
                   <Label>What&apos;s contributing? (optional)</Label>
                   <Textarea
@@ -204,7 +204,7 @@ export default function MoodMappingPage() {
             ) : null}
 
             {moodLogged ? (
-              <div className="mt-3 flex animate-fadeIn items-center gap-2.5 rounded-[10px] bg-sage-tint px-4 py-3">
+              <div className="mt-3 flex anim-up items-center gap-2.5 rounded-[10px] bg-sage-tint px-4 py-3">
                 <span className="text-lg text-sage">✓</span>
                 <div>
                   <div className="text-sm font-semibold">Mood logged!</div>
@@ -308,17 +308,17 @@ export default function MoodMappingPage() {
           ) : selectedRecords.length ? (
             <>
               <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-[12px] bg-card p-3">
+                <div className="rounded-[12px] bg-[var(--bg-surface-2)] p-3">
                   <div className="text-[10px] uppercase tracking-wide text-dim">Tracked days</div>
                   <div className="mt-1 text-lg font-semibold">{selectedTrendQuery.data?.totalTracked ?? 0}</div>
                 </div>
 
-                <div className="rounded-[12px] bg-card p-3">
+                <div className="rounded-[12px] bg-[var(--bg-surface-2)] p-3">
                   <div className="text-[10px] uppercase tracking-wide text-dim">Average mood</div>
                   <div className="mt-1 text-lg font-semibold">{selectedTrendQuery.data?.averageMood ?? 0}</div>
                 </div>
 
-                <div className="rounded-[12px] bg-card p-3">
+                <div className="rounded-[12px] bg-[var(--bg-surface-2)] p-3">
                   <div className="text-[10px] uppercase tracking-wide text-dim">Most frequent</div>
                   <div className="mt-1 text-lg font-semibold">
                     {selectedTrendQuery.data?.mostFrequentMood
@@ -327,7 +327,7 @@ export default function MoodMappingPage() {
                   </div>
                 </div>
 
-                <div className="rounded-[12px] bg-card p-3">
+                <div className="rounded-[12px] bg-[var(--bg-surface-2)] p-3">
                   <div className="text-[10px] uppercase tracking-wide text-dim">Consistency</div>
                   <div className="mt-1 text-lg font-semibold">
                     {selectedTrendQuery.data?.consistency ?? 0}%

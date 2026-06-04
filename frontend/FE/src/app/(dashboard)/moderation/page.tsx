@@ -16,11 +16,11 @@ const flags = [
 export default function ModerationPage() {
   return (
     <DashboardLayout title="Content Moderation">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <StatsCard label="High Priority" value="1" sub="Action required" accent="red" />
-          <StatsCard label="Medium Priority" value="1" sub="Review when able" accent="gold" />
-          <StatsCard label="Low Priority" value="1" sub="Monitor" accent="blue" />
+          <StatsCard label="High Priority" value="1" sub="Action required" accent="rose" />
+          <StatsCard label="Medium Priority" value="1" sub="Review when able" accent="amber" />
+          <StatsCard label="Low Priority" value="1" sub="Monitor" accent="teal" />
         </div>
         <TableWrap>
           <TableToolbar title="Flagged Content (3)" />
@@ -30,7 +30,7 @@ export default function ModerationPage() {
                 {["User", "Group", "Issue", "Time", "Severity", "Action"].map((h) => (
                   <th
                     key={h}
-                    className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
+                    className="border-b-[1.5px] border-line bg-[var(--bg-surface-2)] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
                   >
                     {h}
                   </th>
@@ -39,20 +39,20 @@ export default function ModerationPage() {
             </thead>
             <tbody>
               {flags.map((f) => (
-                <tr key={`${f.user}-${f.group}-${f.time}`} className="group">
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-semibold group-hover:bg-[#EDE7DC]">
+                <tr key={`${f.user}-${f.group}-${f.time}`} className="group text-ink">
+                  <td className="border-b border-line px-[22px] py-[13px] font-semibold group-hover:bg-[var(--bg-surface-2)]">
                     {f.user}
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-sm text-mid group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] text-sm text-mid group-hover:bg-[var(--bg-surface-2)]">
                     {f.group}
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-sm group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] text-sm group-hover:bg-[var(--bg-surface-2)]">
                     {f.content}
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-mono text-xs text-dim group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] font-mono text-xs text-dim group-hover:bg-[var(--bg-surface-2)]">
                     {f.time}
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     <Badge
                       variant={
                         f.severity === "high" ? "red" : f.severity === "medium" ? "gold" : "blue"
@@ -61,7 +61,7 @@ export default function ModerationPage() {
                       {f.severity}
                     </Badge>
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     <Button variant="ghost" size="xs" type="button" className="mr-1">
                       Resolve
                     </Button>

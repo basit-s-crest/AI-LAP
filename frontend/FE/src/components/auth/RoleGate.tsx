@@ -9,44 +9,47 @@ import Image from "next/image";
 const cards: {
   role: Role;
   chip: string;
-  chipClass: string;
+  cardClass: string;
+  iconBg: string;
   icon: string;
   title: string;
   desc: string;
-  full?: boolean;
 }[] = [
   {
     role: "user",
-    chip: "MEMBER",
-    chipClass: "bg-sage-tint text-sage",
+    chip: "Member",
+    cardClass: "c-sage",
+    iconBg: "bg-sage",
     icon: "🌿",
     title: "Member App",
-    desc: "The full Azadi member experience — sign up, onboarding assessments, mood tracking, coaching sessions, community groups, and resources.",
+    desc: "Sign up, onboarding, mood tracking, coaching sessions, community groups, and resources.",
   },
   {
     role: "superadmin",
-    chip: "FULL ACCESS",
-    chipClass: "bg-terra-tint text-terra",
+    chip: "Full Access",
+    cardClass: "c-amber",
+    iconBg: "bg-amber",
     icon: "🛡️",
     title: "Super Admin",
-    desc: "Full platform control — manage users, coaches, groups, media, content moderation, client orgs, and activity logs.",
+    desc: "Full platform control — manage users, coaches, groups, orgs, and content.",
   },
   {
     role: "organization",
-    chip: "ORG ADMIN",
-    chipClass: "bg-gold-tint text-gold",
+    chip: "Org Admin",
+    cardClass: "c-teal",
+    iconBg: "bg-teal",
     icon: "🏢",
     title: "Client Organization",
-    desc: "University, insurer, or NGO portal — view member outcomes, engagement metrics, coach assignments, and reports.",
+    desc: "University, insurer, or NGO portal — member outcomes, engagement, and reports.",
   },
   {
     role: "coach",
-    chip: "COACH",
-    chipClass: "bg-blue-tint text-blue",
+    chip: "Coach",
+    cardClass: "c-rose",
+    iconBg: "bg-rose",
     icon: "🧑‍⚕️",
     title: "Coach Portal",
-    desc: "Manage your schedule, clients, messages, session notes, and availability for on-demand sessions.",
-    full: true,
+    desc: "Manage your schedule, clients, messages, session notes, and availability.",
   },
 ];
 
@@ -60,47 +63,56 @@ export function RoleGate() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas p-8">
-      <div className="w-full max-w-[740px]">
-        <div className="mb-8 flex w-fit items-center gap-2.5 rounded-xl bg-sidebar px-[18px] py-2.5">
+    <div className="gate anim-scale">
+      <div className="gate-header">
+        <div className="gate-brand-row">
+          <div className="gate-wordmark">{brandTitle}</div>
+          <div className="gate-tagline">{brandTagline}</div>
+        </div>
+        <div className="gate-proto-badge">
           <span>🌿</span>
-          <span className="text-xs text-[#FDFAF5]/55">
-            {brandTitle} &nbsp;·&nbsp;{" "}
-            <strong className="text-sage-light">{brandTagline}</strong> &nbsp;·&nbsp; Click any
-            role to explore
-          </span>
+          <span>{brandTitle} &nbsp;·&nbsp; <strong>Platform Prototype V1</strong></span>
         </div>
-        <h1 className="mb-1 font-serif text-[52px] font-bold leading-none tracking-tight text-ink">
-          {brandTitle}
-        </h1>
-        <p className="mb-10 text-[15px] text-mid">{brandTagline}</p>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {cards.map((c) => (
-            <button
-              key={c.role}
-              type="button"
-              onClick={() => enter(c.role)}
-              className={
-                c.full
-                  ? "group col-span-1 flex cursor-pointer items-start gap-7 overflow-hidden rounded-[20px] border-[1.5px] border-[rgba(60,50,40,0.1)] bg-card p-8 text-left transition-all hover:-translate-y-0.5 hover:border-[rgba(60,50,40,0.22)] hover:shadow-[0_8px_32px_rgba(60,50,40,0.12)] disabled:pointer-events-none disabled:opacity-60 md:col-span-2 md:flex-row md:items-center"
-                  : "group cursor-pointer rounded-[20px] border-[1.5px] border-[rgba(60,50,40,0.1)] bg-card p-8 text-left transition-all hover:-translate-y-0.5 hover:border-[rgba(60,50,40,0.22)] hover:shadow-[0_8px_32px_rgba(60,50,40,0.12)] disabled:pointer-events-none disabled:opacity-60"
-              }
-            >
-              <div className={c.full ? "text-[44px] leading-none" : "mb-3.5 text-[38px]"}>
-                {c.icon}
-              </div>
-              <div>
-                <span
-                  className={`mb-3 inline-block rounded-md px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${c.chipClass}`}
-                >
-                  {c.chip}
-                </span>
-                <div className="font-serif text-[21px] font-semibold text-ink">{c.title}</div>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-mid">{c.desc}</p>
-              </div>
-            </button>
-          ))}
+      </div>
+      
+      <div className="gate-welcome-section">
+        <div className="gate-welcome-left">
+          <div className="gate-mission-text">
+            Support that <em>actually sees you</em> — built for BIPOC, LGBTQIA+, immigrant, and first-gen young people.
+          </div>
+          <div className="gate-pills">
+            <div className="gate-pill">BIPOC</div>
+            <div className="gate-pill">LGBTQIA+</div>
+            <div className="gate-pill">Immigrant</div>
+            <div className="gate-pill">First-Gen</div>
+            <div className="gate-pill">Youth 14–30</div>
+          </div>
         </div>
+        <div className="gate-welcome-right">
+          <div className="gate-right-head">
+            <h2>Choose your portal</h2>
+            <p>Select a role to explore the full platform experience</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="portal-grid">
+        {cards.map((c, i) => (
+          <button
+            key={c.role}
+            type="button"
+            onClick={() => enter(c.role)}
+            className={`portal-card ${c.cardClass} anim-up text-left`}
+            style={{ animationDelay: `${(i + 1) * 0.05}s` }}
+          >
+            <div>
+              <div className={`pc-icon ${c.iconBg}`}>{c.icon}</div>
+              <div className="pc-label">{c.chip}</div>
+              <div className="pc-title">{c.title}</div>
+              <div className="pc-desc">{c.desc}</div>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ export default function ResourcesPage() {
   const links = resources.links as { title: string; description: string }[];
   return (
     <DashboardLayout title="Resources">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
           <Card className="border-0 bg-danger-soft">
             <div className="mb-3 text-4xl">🆘</div>

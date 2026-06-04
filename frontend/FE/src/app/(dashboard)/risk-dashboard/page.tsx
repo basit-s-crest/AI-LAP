@@ -752,7 +752,7 @@ export default function RiskDashboardPage() {
               <div className="flex items-center gap-1.5">
                 <div
                   className="h-2 w-2 rounded-full"
-                  style={{ background: connected ? "#2E7D4F" : "#9C9188" }}
+                  style={{ background: connected ? "#2E7D4F" : "var(--ink-ghost)" }}
                 />
                 <span className="text-[11px] text-dim">{connected ? "Live" : "Offline"}</span>
               </div>
@@ -770,7 +770,7 @@ export default function RiskDashboardPage() {
                   >
                     <div
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-sm"
-                      style={{ background: TIER_BG[ev.tier] ?? "#F0EBE1" }}
+                      style={{ background: TIER_BG[ev.tier] ?? "var(--bg-surface-2)" }}
                     >
                       {TIER_EMOJI[ev.tier] ?? "📊"}
                     </div>
@@ -791,7 +791,7 @@ export default function RiskDashboardPage() {
           </div>
 
           {/* Pipeline explanation */}
-          <div className="mt-4 rounded-card bg-sidebar p-5">
+          <div className="mt-4 rounded-card border border-line bg-[var(--bg-surface-2)] p-5">
             <div className="mb-3 text-xs font-bold uppercase tracking-wider text-sage">
               How it works
             </div>
@@ -807,7 +807,7 @@ export default function RiskDashboardPage() {
                 <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sage text-[10px] font-bold text-white">
                   {i + 1}
                 </div>
-                <div className="text-xs leading-relaxed text-[rgba(253,250,245,0.65)]">{step}</div>
+                <div className="text-xs leading-relaxed text-soft">{step}</div>
               </div>
             ))}
           </div>

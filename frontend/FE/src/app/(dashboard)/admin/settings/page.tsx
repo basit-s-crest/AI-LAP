@@ -107,7 +107,7 @@ export default function AdminSettingsPage() {
       onClick={onClick}
       className={cn(
         "relative h-[22px] w-[38px] shrink-0 rounded-[11px] transition-colors",
-        on ? "bg-sage" : "border-[1.5px] border-[rgba(60,50,40,0.2)] bg-[#EDE7DC]"
+        on ? "bg-sage" : "border-[1.5px] border-line bg-[var(--bg-surface-2)]"
       )}
     >
       <div
@@ -122,109 +122,109 @@ export default function AdminSettingsPage() {
   return (
     <DashboardLayout title="Settings">
       {isPending ? (
-        <div className="h-28 animate-pulse rounded-card border-[1.5px] border-line bg-[#F0EBE1]" />
+        <div className="h-28 animate-pulse rounded-card border-[1.5px] border-line bg-[var(--bg-surface-2)]" />
       ) : isError ? (
         <Card className="text-sm text-danger">{error?.message || "Failed to load settings"}</Card>
       ) : data ? (
-        <div className="animate-fadeIn">
+        <div className="anim-up">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
             <div className="space-y-6">
-          <div className="rounded-2xl border border-line bg-card p-7 shadow-sm">
-            <h3 className="mb-5 font-serif text-lg font-semibold">Branding</h3>
-            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <Label>Brand Title</Label>
-                <Input value={brandTitle} onChange={(e) => setBrandTitle(e.target.value)} />
+              <div className="rounded-2xl border border-line bg-card p-7 shadow-sm">
+                <h3 className="mb-5 serif text-lg font-semibold text-ink">Branding</h3>
+                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>Brand Title</Label>
+                    <Input value={brandTitle} onChange={(e) => setBrandTitle(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>Brand Tagline</Label>
+                    <Input value={brandTagline} onChange={(e) => setBrandTagline(e.target.value)} />
+                  </div>
+                </div>
+                <div className="mb-4 rounded-[10px] border border-line bg-canvas px-3 py-2">
+                  <div className="serif text-lg font-semibold text-ink">{brandTitle || "Azadi Health"}</div>
+                  <div className="text-xs text-dim">{brandTagline || "Mental Wellness Platform"}</div>
+                </div>
+                <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label>Logo Upload</Label>
+                    {logoUrl ? (
+                      <img
+                        src={assetUrl(logoUrl)}
+                        alt="Logo preview"
+                        className="mb-2 mt-2 h-14 rounded-md border border-line object-contain p-1"
+                      />
+                    ) : null}
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => void onUploadLogo(e.target.files?.[0] ?? null)}
+                    />
+                  </div>
+                </div>
+                <Button type="button" onClick={saveBranding} disabled={updateSettings.isPending}>
+                  Save Branding
+                </Button>
               </div>
-              <div>
-                <Label>Brand Tagline</Label>
-                <Input value={brandTagline} onChange={(e) => setBrandTagline(e.target.value)} />
-              </div>
-            </div>
-            <div className="mb-4 rounded-[10px] border border-line bg-canvas px-3 py-2">
-              <div className="font-serif text-lg font-semibold text-ink">{brandTitle || "Azadi Health"}</div>
-              <div className="text-xs text-dim">{brandTagline || "Mental Wellness Platform"}</div>
-            </div>
-            <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <Label>Logo Upload</Label>
-                {logoUrl ? (
-                  <img
-                    src={assetUrl(logoUrl)}
-                    alt="Logo preview"
-                    className="mb-2 mt-2 h-14 rounded-md border border-line object-contain p-1"
+
+              <div className="rounded-2xl border border-line bg-card p-7 shadow-sm">
+                <h3 className="mb-5 serif text-lg font-semibold text-ink">Platform Config</h3>
+                <div className="mb-4">
+                  <Label>Support Email</Label>
+                  <Input
+                    type="email"
+                    value={supportEmail}
+                    onChange={(e) => setSupportEmail(e.target.value)}
                   />
-                ) : null}
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => void onUploadLogo(e.target.files?.[0] ?? null)}
-                />
+                </div>
+                <div className="mb-4">
+                  <Label>Maximum Session Duration (minutes)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={sessionDurationMax}
+                    onChange={(e) => setSessionDurationMax(Number(e.target.value))}
+                  />
+                  <p className="mt-1 text-xs text-dim">Coaches cannot set a session duration above this value.</p>
+                </div>
+                <div className="mb-4">
+                  <Label>Minimum Session Duration (minutes)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={sessionDurationMin}
+                    onChange={(e) => setSessionDurationMin(Number(e.target.value))}
+                  />
+                  <p className="mt-1 text-xs text-dim">Coaches cannot set a session duration below this value.</p>
+                </div>
+                <Button type="button" onClick={saveConfig} disabled={updateSettings.isPending}>
+                  Save Config
+                </Button>
               </div>
-            </div>
-            <Button type="button" onClick={saveBranding} disabled={updateSettings.isPending}>
-              Save Branding
-            </Button>
-          </div>
 
-            <div className="rounded-2xl border border-line bg-card p-7 shadow-sm">
-              <h3 className="mb-5 font-serif text-lg font-semibold">Platform Config</h3>
-              <div className="mb-4">
-                <Label>Support Email</Label>
-                <Input
-                  type="email"
-                  value={supportEmail}
-                  onChange={(e) => setSupportEmail(e.target.value)}
-                />
+              <div className="rounded-2xl border border-line bg-card p-7 shadow-sm">
+                <h3 className="mb-5 serif text-lg font-semibold text-ink">Email Settings</h3>
+                <div className="space-y-2 text-sm text-mid text-ink">
+                  <p>
+                    Emails sent from: <span className="font-semibold text-ink">{data.emailFrom || "Not configured"}</span>
+                  </p>
+                  <p className="text-mid">
+                    Email notifications are sent for: OTP verification, session reminders, weekly
+                    reports, crisis alerts
+                  </p>
+                  <p className="text-xs text-dim">
+                    To change email config, update GMAIL_USER and GMAIL_PASS in .env and restart the
+                    server
+                  </p>
+                </div>
               </div>
-              <div className="mb-4">
-                <Label>Maximum Session Duration (minutes)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={sessionDurationMax}
-                  onChange={(e) => setSessionDurationMax(Number(e.target.value))}
-                />
-                <p className="mt-1 text-xs text-dim">Coaches cannot set a session duration above this value.</p>
-              </div>
-              <div className="mb-4">
-                <Label>Minimum Session Duration (minutes)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={sessionDurationMin}
-                  onChange={(e) => setSessionDurationMin(Number(e.target.value))}
-                />
-                <p className="mt-1 text-xs text-dim">Coaches cannot set a session duration below this value.</p>
-              </div>
-              <Button type="button" onClick={saveConfig} disabled={updateSettings.isPending}>
-                Save Config
-              </Button>
             </div>
 
             <div className="rounded-2xl border border-line bg-card p-7 shadow-sm">
-            <h3 className="mb-5 font-serif text-lg font-semibold">Email Settings</h3>
-            <div className="space-y-2 text-sm text-mid">
-              <p>
-                Emails sent from: <span className="font-semibold text-ink">{data.emailFrom || "Not configured"}</span>
-              </p>
-              <p>
-                Email notifications are sent for: OTP verification, session reminders, weekly
-                reports, crisis alerts
-              </p>
-              <p className="text-xs text-dim">
-                To change email config, update GMAIL_USER and GMAIL_PASS in .env and restart the
-                server
-              </p>
-            </div>
-            </div>
-            </div>
-
-            <div className="rounded-2xl border border-line bg-card p-7 shadow-sm">
-              <h3 className="mb-5 font-serif text-lg font-semibold">Platform Controls</h3>
-              <div className="flex items-center gap-3 border-b border-[rgba(60,50,40,0.08)] py-3">
+              <h3 className="mb-5 serif text-lg font-semibold text-ink">Platform Controls</h3>
+              <div className="flex items-center gap-3 border-b border-line py-3">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-semibold">Allow Self Registration</div>
+                  <div className="text-[13px] font-semibold text-ink">Allow Self Registration</div>
                   <div className="mt-0.5 text-xs text-dim">Members can register themselves</div>
                 </div>
                 <Toggle
@@ -234,7 +234,7 @@ export default function AdminSettingsPage() {
               </div>
               <div className="flex items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-semibold">Maintenance Mode</div>
+                  <div className="text-[13px] font-semibold text-ink">Maintenance Mode</div>
                   <div className="mt-0.5 text-xs text-dim">
                     Blocks new sign-ins; active sessions stay open
                   </div>

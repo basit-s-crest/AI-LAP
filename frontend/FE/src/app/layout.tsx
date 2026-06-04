@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Nunito, JetBrains_Mono } from "next/font/google";
+import { Inter, Outfit, JetBrains_Mono } from "next/font/google";
 import { StoreProvider } from "@/store/provider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthHydrator } from "@/components/auth/AuthHydrator";
@@ -10,15 +10,15 @@ import { PlatformBrandSync } from "@/components/platform/PlatformBrandSync";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const nunito = Nunito({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-nunito",
+  variable: "--font-inter",
   display: "swap",
 });
 
-const playfair = Playfair_Display({
+const outfit = Outfit({
   subsets: ["latin"],
-  variable: "--font-playfair",
+  variable: "--font-outfit",
   display: "swap",
 });
 
@@ -63,7 +63,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${nunito.variable} ${playfair.variable} ${jetbrains.variable}`}
+      className={`${inter.variable} ${outfit.variable} ${jetbrains.variable}`}
       suppressHydrationWarning
     >
       <head></head>

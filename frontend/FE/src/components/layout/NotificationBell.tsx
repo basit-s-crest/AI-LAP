@@ -37,7 +37,7 @@ export function NotificationBell() {
   const panelRef = useRef<HTMLDivElement>(null);
   const moodAutoOpenedRef = useRef(false);
 
-  const isMember = role === "user" || role === "member";
+  const isMember = role === "user";
   const isCoach = role === "coach";
   const isOrg = role === "organization";
   const enabled = isMember || isCoach || isOrg;
@@ -113,7 +113,7 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-canvas text-ink transition-colors hover:bg-[#EDE7DC]"
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-canvas text-ink transition-colors hover:bg-[var(--bg-surface-2)]"
         aria-label="Notifications"
       >
         <Bell className="h-[18px] w-[18px]" />
@@ -148,7 +148,7 @@ export function NotificationBell() {
                   type="button"
                   onClick={() => handleClick(n.id, n.link)}
                   className={cn(
-                    "flex w-full gap-3 border-b border-[rgba(60,50,40,0.06)] px-4 py-3 text-left transition-colors hover:bg-[#EDE7DC]",
+                    "flex w-full gap-3 border-b border-[rgba(60,50,40,0.06)] px-4 py-3 text-left transition-colors hover:bg-[var(--bg-surface-2)]",
                     !n.read && "bg-sage-soft/40"
                   )}
                 >

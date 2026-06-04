@@ -17,24 +17,26 @@ export function Topbar({
   onMenu?: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-[100] flex h-[58px] items-center justify-between border-b-[1.5px] border-line bg-card px-4 shadow-topbar md:px-8">
-      <div className="flex min-w-0 items-center gap-3">
+    <header className="topbar">
+      <div className="topbar-left">
         <Button
           variant="ghost"
           size="sm"
           type="button"
-          className="md:hidden"
+          className="md:hidden p-1 mr-1 text-[#5C6B73] hover:text-[#1E252B]"
           aria-label="Open menu"
           onClick={onMenu}
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="min-w-0">
-          <h1 className="truncate font-serif text-[22px] font-semibold text-ink">{title}</h1>
-          {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} className="mt-0.5 hidden sm:flex" /> : null}
-        </div>
+        <div className="topbar-title">{title}</div>
+        {breadcrumbs?.length ? (
+          <span className="topbar-sub font-semibold">
+            {breadcrumbs[breadcrumbs.length - 1].label}
+          </span>
+        ) : null}
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="topbar-right">
         <NotificationBell />
         {right}
       </div>

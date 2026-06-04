@@ -11,25 +11,25 @@ export function UserCardRow({ user }: { user: PlatformUser }) {
         : "#B8832A";
   return (
     <tr className="group">
-      <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+      <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
         <div className="font-semibold">{user.name}</div>
         <div className="text-xs text-dim">{user.tags.join(" · ")}</div>
       </td>
-      <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-mono text-xs text-mid group-hover:bg-[#EDE7DC]">
+      <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-mono text-xs text-mid group-hover:bg-[var(--bg-surface-2)]">
         {user.joined}
       </td>
-      <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+      <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
         {user.groups}
       </td>
-      <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+      <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
         {user.sessions}
       </td>
-      <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+      <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
         <span className="font-mono font-semibold" style={{ color: moodColor }}>
           {user.mood ?? "—"}
         </span>
       </td>
-      <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+      <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
         <Badge
           variant={
             user.status === "flagged" ? "red" : user.status === "active" ? "sage" : "dim"

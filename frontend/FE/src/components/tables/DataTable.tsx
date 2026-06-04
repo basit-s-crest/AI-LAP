@@ -45,7 +45,7 @@ export function DataTable<T>({ data, columns, pageSize = 10, className }: DataTa
               {hg.headers.map((h) => (
                 <th
                   key={h.id}
-                  className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
+                  className="border-b-[1.5px] border-line bg-[var(--bg-surface-2)] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
                 >
                   {h.isPlaceholder
                     ? null
@@ -61,7 +61,7 @@ export function DataTable<T>({ data, columns, pageSize = 10, className }: DataTa
               {row.getVisibleCells().map((cell) => (
                 <td
                   key={cell.id}
-                  className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-[13.5px] text-ink group-hover:bg-[#EDE7DC]"
+                  className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-[13.5px] text-ink group-hover:bg-[var(--bg-surface-2)]"
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>

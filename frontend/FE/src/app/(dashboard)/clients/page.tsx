@@ -63,7 +63,7 @@ export default function CoachClientsPage() {
 
   return (
     <DashboardLayout title="My Clients">
-      <TableWrap className="animate-fadeIn">
+      <TableWrap className="anim-up">
         <TableToolbar title={`My Clients (${isLoading ? "..." : clients.length})`}>
           <Input
             value={search}
@@ -79,7 +79,7 @@ export default function CoachClientsPage() {
                 (h) => (
                   <th
                     key={h}
-                    className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
+                    className="border-b-[1.5px] border-line bg-[var(--bg-surface-2)] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
                   >
                     {h}
                   </th>
@@ -92,7 +92,7 @@ export default function CoachClientsPage() {
               <tr>
                 <td
                   colSpan={6}
-                  className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-8 text-center text-sm text-dim"
+                  className="border-b border-line px-[22px] py-8 text-center text-sm text-dim text-ink"
                 >
                   Loading clients...
                 </td>
@@ -101,7 +101,7 @@ export default function CoachClientsPage() {
               <tr>
                 <td
                   colSpan={6}
-                  className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-8 text-center text-sm text-danger"
+                  className="border-b border-line px-[22px] py-8 text-center text-sm text-danger"
                 >
                   Unable to load clients from coach messages.
                 </td>
@@ -110,17 +110,17 @@ export default function CoachClientsPage() {
               <tr>
                 <td
                   colSpan={6}
-                  className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-8 text-center text-sm text-dim"
+                  className="border-b border-line px-[22px] py-8 text-center text-sm text-dim text-ink"
                 >
                   No clients have messaged this coach yet.
                 </td>
               </tr>
             ) : (
               clients.map((client) => (
-                <tr key={client.partnerId} className="group">
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                <tr key={client.partnerId} className="group text-ink">
+                  <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-[#D4EDD7] text-sm font-bold text-sage">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-[var(--bg-surface-2)] text-sm font-bold text-sage">
                         {client.partnerAvatar ? (
                           <img
                             src={client.partnerAvatar}
@@ -139,23 +139,23 @@ export default function CoachClientsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="max-w-[320px] truncate border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] text-sm text-mid group-hover:bg-[#EDE7DC]">
+                  <td className="max-w-[320px] truncate border-b border-line px-[22px] py-[13px] text-sm text-mid group-hover:bg-[var(--bg-surface-2)]">
                     {client.lastMessage}
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] font-mono text-xs text-mid group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] font-mono text-xs text-mid group-hover:bg-[var(--bg-surface-2)]">
                     {formatLastContact(client.lastMessageAt)}
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     <Badge variant={client.unreadCount > 0 ? "terra" : "dim"}>
                       {client.unreadCount}
                     </Badge>
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     <Badge variant={client.unreadCount > 0 ? "gold" : "sage"}>
                       {client.unreadCount > 0 ? "New message" : "Active"}
                     </Badge>
                   </td>
-                  <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     <Button size="xs" type="button" onClick={() => router.push("/messages")}>
                       Message
                     </Button>

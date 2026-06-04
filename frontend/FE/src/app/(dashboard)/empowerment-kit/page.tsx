@@ -44,7 +44,7 @@ export default function EmpowermentKitPage() {
 
   return (
     <DashboardLayout title="Empowerment Kit">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {vids.map((v) => (
             <button

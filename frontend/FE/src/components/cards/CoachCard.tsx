@@ -18,37 +18,35 @@ export function CoachCard({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "mb-3 flex cursor-pointer gap-3.5 rounded-card border-[1.5px] border-line bg-card p-5 transition-all hover:border-[rgba(60,50,40,0.2)] hover:shadow-soft",
-        className
-      )}
-    >
-      <div className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-xl bg-[#F5DDD4] text-2xl">
+    <div className={cn("coach-card", className)}>
+      <div className="coach-avt">
         {coach.avatar ?? "👤"}
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="font-serif text-[17px] font-semibold text-ink">{coach.name}</div>
-        {coach.speciality ? (
-          <div className="my-1 text-xs text-mid">{coach.speciality}</div>
-        ) : null}
-      </div>
-      <div className="flex shrink-0 gap-2 self-center">
+      <div className="coach-name">{coach.name}</div>
+      <div className="coach-spec">{coach.speciality ?? "Counselor"}</div>
+      
+      <div className="flex gap-2 w-full mt-auto">
         {onMessage ? (
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             type="button"
+            className="btn btn-outline btn-sm w-full"
+            style={{ padding: "10px 0", fontSize: "12.5px", borderColor: "var(--sage)", color: "var(--sage)", fontWeight: 700 }}
             onClick={onMessage}
             disabled={disabled}
           >
-            {disabled ? "Connecting…" : "Message"}
-          </Button>
+            {disabled ? "Connecting…" : "💬 Message"}
+          </button>
         ) : null}
         {onBook ? (
-          <Button size="sm" type="button" onClick={onBook} disabled={disabled}>
-            Book
-          </Button>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm w-full"
+            style={{ padding: "10px 0", fontSize: "12.5px", fontWeight: 700 }}
+            onClick={onBook}
+            disabled={disabled}
+          >
+            📅 Book
+          </button>
         ) : null}
       </div>
     </div>

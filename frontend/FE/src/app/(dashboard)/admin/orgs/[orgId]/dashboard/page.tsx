@@ -36,17 +36,17 @@ export default function AdminOrgDashboardPage({ params }: { params: Promise<{ or
         {isPending ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="h-28 animate-pulse rounded-card border-[1.5px] border-line bg-[#F0EBE1]" />
+              <div key={index} className="h-28 animate-pulse rounded-card border-[1.5px] border-line bg-[var(--bg-surface-2)]" />
             ))}
           </div>
         ) : isError ? (
           <Card className="text-sm text-danger">{error.message || "Failed to load overview"}</Card>
         ) : data ? (
-          <div className="animate-fadeIn">
-            <Card className="mb-6 border-l-4 border-gold">
+          <div className="anim-up">
+            <Card className="mb-6 border-l-4 border-amber">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-lg font-bold">{data.orgName}</div>
+                  <div className="text-lg font-bold text-ink">{data.orgName}</div>
                   <div className="text-xs text-dim">
                     {data.type} · {data.plan} Plan · {data.totalCoaches} coaches assigned
                   </div>
@@ -61,9 +61,9 @@ export default function AdminOrgDashboardPage({ params }: { params: Promise<{ or
                 label="Active (30d)"
                 value={data.activeMembers}
                 sub={`${Math.round(data.engagementRate)}% engagement`}
-                accent="blue"
+                accent="teal"
               />
-              <StatsCard label="Sessions This Month" value={data.sessionsThisMonth} accent="gold" />
+              <StatsCard label="Sessions This Month" value={data.sessionsThisMonth} accent="amber" />
               <StatsCard
                 label="Avg PHQ-8 Score"
                 value={data.avgPhqScore ?? "—"}
@@ -73,19 +73,19 @@ export default function AdminOrgDashboardPage({ params }: { params: Promise<{ or
 
             <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
               <Card>
-                <h3 className="mb-4 font-serif text-lg font-semibold">Member Engagement</h3>
-                <PlatformActivityChart data={data.engagementSeries ?? []} color="#B8832A" />
+                <h3 className="mb-4 serif text-lg font-semibold text-ink">Member Engagement</h3>
+                <PlatformActivityChart data={data.engagementSeries ?? []} color="var(--amber)" />
               </Card>
 
               <Card>
-                <h3 className="mb-3 font-serif text-lg font-semibold">Mood Distribution</h3>
+                <h3 className="mb-3 serif text-lg font-semibold text-ink">Mood Distribution</h3>
                 {(data.moodDistribution ?? []).map((row) => (
-                  <div key={row.key} className="mb-3">
+                  <div key={row.key} className="mb-3 text-ink">
                     <div className="mb-1 flex items-center justify-between">
                       <div className="text-sm">{row.label}</div>
                       <div className="font-mono text-xs text-mid">{row.percent}%</div>
                     </div>
-                    <div className="h-1.5 overflow-hidden rounded bg-[#EDE7DC]">
+                    <div className="h-1.5 overflow-hidden rounded bg-[var(--bg-surface-2)]">
                       <div className="h-full rounded" style={{ width: `${row.percent}%`, background: row.color }} />
                     </div>
                   </div>
@@ -96,7 +96,7 @@ export default function AdminOrgDashboardPage({ params }: { params: Promise<{ or
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {(data.completionStats ?? []).map((item) => (
                 <Card key={item.label} className="text-center">
-                  <div className="font-serif text-[40px] font-bold" style={{ color: item.color }}>
+                  <div className="serif text-[40px] font-bold" style={{ color: item.color }}>
                     {item.percent}%
                   </div>
                   <div className="mt-2 text-[10.5px] font-bold uppercase tracking-wide text-dim">

@@ -42,7 +42,7 @@ export default function CommunityGroupsPage() {
 
   return (
     <DashboardLayout title="Community Groups">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="mb-0.5 text-[10px] font-bold uppercase tracking-wide text-dim">

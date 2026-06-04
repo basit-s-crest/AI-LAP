@@ -13,7 +13,7 @@ export default function OrgCoachesPage() {
       {isPending ? (
         <div className="grid gap-4 md:grid-cols-2">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-36 animate-pulse rounded-card border-[1.5px] border-line bg-[#F0EBE1]" />
+            <div key={index} className="h-36 animate-pulse rounded-card border-[1.5px] border-line bg-[var(--bg-surface-2)]" />
           ))}
         </div>
       ) : isError ? (
@@ -24,12 +24,14 @@ export default function OrgCoachesPage() {
           <p className="text-sm text-mid">
             Contact your account manager to assign coaches to your organization.
           </p>
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
+            className="mt-3"
             type="button"
-            className="mt-3 rounded-md border border-[rgba(60,50,40,0.15)] px-3 py-1.5 text-xs font-semibold text-ink hover:bg-[#EFE8DB]"
           >
             Contact Account Manager
-          </button>
+          </Button>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

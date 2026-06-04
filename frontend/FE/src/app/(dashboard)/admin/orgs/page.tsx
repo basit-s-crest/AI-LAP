@@ -36,10 +36,10 @@ function StatCard({
   accent: "sage" | "gold" | "blue" | "terra";
 }) {
   const bar: Record<string, string> = {
-    sage: "from-[#4E8C58] to-[#7AB882]",
-    gold: "from-[#B8832A] to-[#D4A853]",
-    blue: "from-[#3A6E99] to-[#5A9EC8]",
-    terra: "from-[#B35A38] to-[#D4824A]",
+    sage: "from-[var(--sage)] to-[var(--sage-mid)]",
+    gold: "from-[var(--amber)] to-[var(--amber-mid)]",
+    blue: "from-[var(--teal)] to-[var(--teal-mid)]",
+    terra: "from-[var(--rose)] to-[var(--rose-mid)]",
   };
 
   return (
@@ -50,7 +50,7 @@ function StatCard({
       <p className="mb-2.5 text-[10.5px] font-bold uppercase tracking-[1.2px] text-dim">
         {label}
       </p>
-      <p className="font-serif text-[36px] font-bold leading-none text-ink">{value}</p>
+      <p className="serif text-[36px] font-bold leading-none text-ink">{value}</p>
       <p className="mt-1.5 text-xs text-mid">{sub}</p>
     </div>
   );
@@ -115,7 +115,7 @@ function CoachMultiSelect({
             setOpen((o) => !o);
           }
         }}
-        className="flex min-h-[42px] w-full flex-wrap items-center gap-1.5 rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-left text-[13.5px] text-ink outline-none focus:border-[#4E8C58] focus:shadow-[0_0_0_3px_#EBF5EC]"
+        className="flex min-h-[42px] w-full flex-wrap items-center gap-1.5 rounded-[9px] border-[1.5px] border-line bg-card px-3 py-2 text-left text-[13.5px] text-ink outline-none focus:border-sage focus:shadow-[0_0_0_3px_var(--bg-surface-2)]"
       >
         {selectedCoaches.length === 0 ? (
           <span className="text-dim">Select coaches…</span>
@@ -123,7 +123,7 @@ function CoachMultiSelect({
           selectedCoaches.map((c) => (
             <span
               key={c.id}
-              className="flex items-center gap-1 rounded-full bg-[#EBF5EC] px-2 py-0.5 text-xs font-medium text-[#4E8C58]"
+              className="flex items-center gap-1 rounded-full bg-sage-light px-2 py-0.5 text-xs font-medium text-sage"
             >
               {c.name}
               <button
@@ -132,7 +132,7 @@ function CoachMultiSelect({
                   e.stopPropagation();
                   toggle(c.id);
                 }}
-                className="ml-0.5 text-[#4E8C58] hover:text-[#2d5c35]"
+                className="ml-0.5 text-sage hover:text-ink"
               >
                 ×
               </button>
@@ -151,7 +151,7 @@ function CoachMultiSelect({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search coaches…"
-              className="w-full rounded-[7px] border border-[rgba(60,50,40,0.12)] bg-[#F7F3EE] px-3 py-1.5 text-sm outline-none focus:border-[#4E8C58]"
+              className="w-full rounded-[7px] border border-line bg-canvas px-3 py-1.5 text-sm text-ink outline-none focus:border-sage"
             />
           </div>
           <ul className="max-h-52 overflow-y-auto pb-1">
@@ -166,13 +166,13 @@ function CoachMultiSelect({
                     <button
                       type="button"
                       onClick={() => toggle(coach.id)}
-                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[#F0EBE1]"
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[var(--bg-surface-2)]"
                     >
                       <span
                         className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-[1.5px] transition-colors ${
                           checked
-                            ? "border-[#4E8C58] bg-[#4E8C58]"
-                            : "border-[rgba(60,50,40,0.25)] bg-white"
+                            ? "border-sage bg-sage"
+                            : "border-line bg-white"
                         }`}
                       >
                         {checked && (
@@ -330,7 +330,7 @@ export default function AdminOrgsPage() {
 
   return (
     <DashboardLayout title="Client Organizations">
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         {/* ── Stat row ── */}
         <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
@@ -375,13 +375,13 @@ export default function AdminOrgsPage() {
             </Button>
           </TableToolbar>
 
-          <div className="px-[22px] py-3 border-b border-[rgba(60,50,40,0.08)]">
+          <div className="px-[22px] py-3 border-b border-line">
             <input
               type="text"
               placeholder="Search by name, type, or plan..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-[rgba(60,50,40,0.15)] bg-white px-3 py-2 text-sm outline-none focus:border-[#4E8C58]"
+              className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-sage"
             />
           </div>
 
@@ -392,7 +392,7 @@ export default function AdminOrgsPage() {
                   (h) => (
                     <th
                       key={h}
-                      className="border-b-[1.5px] border-line bg-[#EDE7DC] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
+                      className="border-b-[1.5px] border-line bg-[var(--bg-surface-2)] px-[22px] py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-dim"
                     >
                       {h}
                     </th>
@@ -403,45 +403,45 @@ export default function AdminOrgsPage() {
             <tbody>
               {isPending ? (
                 <tr>
-                  <td colSpan={8} className="px-[22px] py-8 text-center text-sm text-mid">
+                  <td colSpan={8} className="px-[22px] py-8 text-center text-sm text-mid text-ink">
                     Loading organizations…
                   </td>
                 </tr>
               ) : orgs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-[22px] py-10 text-center text-sm text-mid">
+                  <td colSpan={8} className="px-[22px] py-10 text-center text-sm text-mid text-ink">
                     No organizations yet. Click <strong>+ Add Partner</strong> to onboard your
                     first client.
                   </td>
                 </tr>
               ) : (
                 filteredOrgs.map((org) => (
-                  <tr key={org.id} className="group">
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                  <tr key={org.id} className="group text-ink">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <p className="font-semibold text-ink">{org.name}</p>
                       <p className="text-xs text-dim">{org.primaryContactEmail}</p>
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <Badge variant="dim">{org.type}</Badge>
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <PlanBadge plan={org.plan} />
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <span className="font-mono font-bold text-ink">{org.totalMembers}</span>
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <div className="flex items-center gap-2">
-                        <div className="h-[6px] w-[80px] overflow-hidden rounded-full bg-[#EDE7DC]">
+                        <div className="h-[6px] w-[80px] overflow-hidden rounded-full bg-[var(--bg-surface-2)]">
                           <div
-                            className="h-full rounded-full bg-[#4E8C58]"
+                            className="h-full rounded-full bg-sage"
                             style={{ width: `${Math.min(org.activeRate, 100)}%` }}
                           />
                         </div>
                         <span className="font-mono text-xs text-mid">{Math.round(org.activeRate)}%</span>
                       </div>
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <div className="flex items-center gap-1.5">
                         <span className="font-mono font-bold text-ink">{org.totalCoaches}</span>
                         {org.coaches?.length > 0 && (
@@ -450,13 +450,13 @@ export default function AdminOrgsPage() {
                               <span
                                 key={c.id}
                                 title={c.name}
-                                className="flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#4E8C58] text-[9px] font-bold text-white"
+                                className="flex h-5 w-5 items-center justify-center rounded-full border border-white bg-sage text-[9px] font-bold text-white"
                               >
                                 {c.name.charAt(0).toUpperCase()}
                               </span>
                             ))}
                             {org.coaches.length > 3 && (
-                              <span className="flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#EDE7DC] text-[9px] font-bold text-dim">
+                              <span className="flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[var(--bg-surface-2)] text-[9px] font-bold text-dim">
                                 +{org.coaches.length - 3}
                               </span>
                             )}
@@ -464,12 +464,12 @@ export default function AdminOrgsPage() {
                         )}
                       </div>
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
-                      <span className="font-mono text-sm text-[#4E8C58]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
+                      <span className="font-mono text-sm text-sage">
                         ${org.monthlySpend.toLocaleString()}/mo
                       </span>
                     </td>
-                    <td className="border-b border-[rgba(60,50,40,0.08)] px-[22px] py-[13px] group-hover:bg-[#EDE7DC]">
+                    <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <Button
                         variant="ghost"
                         size="xs"
@@ -589,7 +589,7 @@ export default function AdminOrgsPage() {
           </div>
 
           {addError && (
-            <p className="rounded-[8px] bg-[#FAE0DC] px-3 py-2 text-sm text-danger">{addError}</p>
+            <p className="rounded-[8px] bg-rose-light px-3 py-2 text-sm text-danger">{addError}</p>
           )}
 
           <div className="flex gap-3 pt-2">
@@ -650,7 +650,7 @@ export default function AdminOrgsPage() {
 
             <div>
               <Label>Primary Contact Email</Label>
-              <Input type="email" value={editingOrg.primaryContactEmail} disabled className="opacity-50" />
+              <Input type="email" value={editingOrg.primaryContactEmail} disabled className="opacity-50 text-ink" />
             </div>
 
             <div>
@@ -673,7 +673,7 @@ export default function AdminOrgsPage() {
             </div>
 
             {editError && (
-              <p className="rounded-[8px] bg-[#FAE0DC] px-3 py-2 text-sm text-danger">{editError}</p>
+              <p className="rounded-[8px] bg-rose-light px-3 py-2 text-sm text-danger">{editError}</p>
             )}
 
             <div className="flex gap-3 pt-2">

@@ -50,7 +50,7 @@ export default function GroupDetailPage() {
 
   return (
     <DashboardLayout title={group.name}>
-      <div className="animate-fadeIn">
+      <div className="anim-up">
         <div className="mb-6 flex items-center gap-3">
           <Button
             variant="ghost"
@@ -99,7 +99,7 @@ export default function GroupDetailPage() {
         {group.posts.map((p) => (
           <div
             key={p.id}
-            className="mb-3 animate-fadeIn rounded-xl border border-line bg-card p-[18px]"
+            className="mb-3 anim-up rounded-xl border border-line bg-card p-[18px]"
           >
             <div className="mb-2.5 flex items-center gap-2.5">
               <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-sage-tint text-[15px]">

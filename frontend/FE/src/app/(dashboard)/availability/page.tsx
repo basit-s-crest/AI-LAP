@@ -31,7 +31,7 @@ function AvailabilityToggle({ on, onClick }: { on: boolean; onClick: () => void 
       onClick={onClick}
       className={cn(
         "relative h-[22px] w-[38px] shrink-0 rounded-[11px] transition-colors",
-        on ? "bg-sage" : "border-[1.5px] border-[rgba(60,50,40,0.2)] bg-[#EDE7DC]"
+        on ? "bg-sage" : "border-[1.5px] border-line bg-[var(--bg-surface-2)]"
       )}
     >
       <div
@@ -180,17 +180,17 @@ export default function AvailabilityPage() {
 
   return (
     <DashboardLayout title="Availability">
-      <div className="max-w-[540px] animate-fadeIn space-y-4">
+      <div className="max-w-[540px] anim-up space-y-4">
         <Card>
-          <h3 className="mb-4 font-serif text-lg font-semibold">Weekly Availability</h3>
+          <h3 className="mb-4 serif text-lg font-semibold text-ink">Weekly Availability</h3>
           {slots.map((slot) => {
             const on = slot.enabled;
             return (
               <div key={slot.day} className="mb-4 flex flex-wrap items-center gap-3">
-                <div className="w-24 text-[13px] font-semibold">{slot.day}</div>
+                <div className="w-24 text-[13px] font-semibold text-ink">{slot.day}</div>
                 <input
                   className={cn(
-                    "w-[100px] rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-[13.5px] outline-none focus:border-sage",
+                    "w-[100px] rounded-[9px] border-[1.5px] border-line bg-card px-3 py-2 text-[13.5px] text-ink outline-none focus:border-sage",
                     !on && "opacity-40"
                   )}
                   disabled={!on}
@@ -200,7 +200,7 @@ export default function AvailabilityPage() {
                 <span className="text-sm text-dim">to</span>
                 <input
                   className={cn(
-                    "w-[100px] rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-[13.5px] outline-none focus:border-sage",
+                    "w-[100px] rounded-[9px] border-[1.5px] border-line bg-card px-3 py-2 text-[13.5px] text-ink outline-none focus:border-sage",
                     !on && "opacity-40"
                   )}
                   disabled={!on}

@@ -48,7 +48,7 @@ export function GroupCard({
           : undefined
       }
       className={cn(
-        "cursor-pointer overflow-hidden rounded-card border-[1.5px] border-line bg-card transition-all hover:-translate-y-1 hover:border-[rgba(60,50,40,0.2)] hover:shadow-soft",
+        "cursor-pointer overflow-hidden rounded-card border border-line bg-card transition-all hover:-translate-y-1 hover:border-[var(--border-mid)] hover:shadow-soft",
         className
       )}
     >
@@ -59,7 +59,7 @@ export function GroupCard({
         {group.emoji}
       </div>
       <div className="px-[18px] pb-4 pt-4">
-        <div className="font-serif text-[17px] font-semibold text-ink">{group.name}</div>
+        <div className="serif text-[17px] text-ink">{group.name}</div>
         <p className="mb-3 mt-1 text-xs leading-relaxed text-mid">{group.desc}</p>
         <div className="flex items-center justify-between gap-2">
           <div className="text-sm text-dim">
@@ -70,7 +70,8 @@ export function GroupCard({
             group.joined ? (
               <button
                 type="button"
-                className="rounded-md border-[1.5px] border-[rgba(60,50,40,0.12)] bg-transparent px-2.5 py-1 text-[11.5px] font-semibold text-mid hover:border-[rgba(60,50,40,0.22)] hover:bg-[#F0EBE1] hover:text-ink"
+                className="btn btn-outline btn-sm"
+                style={{ padding: "6px 14px", fontSize: "11.5px", borderColor: "var(--sage)", color: "var(--sage)", fontWeight: 700 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleJoin(e);
@@ -79,16 +80,17 @@ export function GroupCard({
                 Leave
               </button>
             ) : (
-              <Button
-                size="sm"
+              <button
                 type="button"
+                className="btn btn-primary btn-sm"
+                style={{ padding: "6px 14px", fontSize: "11.5px", fontWeight: 700 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleJoin(e);
                 }}
               >
                 Join
-              </Button>
+              </button>
             )
           ) : null}
         </div>

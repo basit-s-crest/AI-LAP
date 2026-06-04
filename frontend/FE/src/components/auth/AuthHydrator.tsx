@@ -44,7 +44,7 @@ export function AuthHydrator() {
     // Then fetch fresh name from API and update if changed
     const role = user.role;
 
-    if (role === "user" || role === "member") {
+    if (role === "user") {
       api.get<{ firstName: string; lastName: string; avatar: string | null }>(
         "/api/auth/profile"
       ).then((res) => {
