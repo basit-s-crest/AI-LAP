@@ -8,6 +8,7 @@ const router = (0, express_1.Router)();
 router.use(auth_middleware_1.authMiddleware);
 router.use((0, auth_middleware_1.requireRole)("superadmin"));
 router.get("/activity", admin_controller_1.adminGetActivity);
+router.get("/activity-chart", admin_controller_1.adminGetActivityChart);
 router.get("/mood-distribution", admin_controller_1.adminGetMoodDistribution);
 router.get("/overview-stats", admin_controller_1.adminGetOverviewStats);
 // Users

@@ -220,8 +220,8 @@ export function UserDashboard() {
           </div>
           <div className="card card-sm border-[#D2DBE3] shadow-none p-3 bg-[var(--bg-surface-2)]">
             <div className="mood-week h-[60px] flex items-end justify-between gap-1.5 mb-0">
-              {mockMoodHistory.map((d) => (
-                <div key={d.d} className="mood-day flex flex-col items-center flex-1 gap-1 h-full justify-end">
+              {mockMoodHistory.map((d, idx) => (
+                <div key={`${d.d}-${idx}`} className="mood-day flex flex-col items-center flex-1 gap-1 h-full justify-end">
                   <div
                     className="mood-bar w-2 rounded-md"
                     style={{

@@ -36,7 +36,7 @@ export default function CoachingPage() {
         )}
 
         {!isLoading && !isError && coaches && coaches.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-4xl mx-auto">
             {coaches.map((c) => (
               <CoachCard
                 key={c.id}

@@ -52,6 +52,13 @@ const register = async (req, res) => {
         }
         // Superadmin registration requires a valid invite code
         if (role === "superadmin") {
+            // Check if a superadmin already exists
+            const existingSuperadmin = await prisma_1.default.user.findFirst({
+                where: { role: "superadmin" },
+            });
+            if (existingSuperadmin) {
+                return res.status(403).json({ message: "Superadmin account already exists. Only one superadmin is allowed." });
+            }
             const expectedCode = process.env.SUPERADMIN_INVITE_CODE;
             if (!expectedCode || adminCode !== expectedCode) {
                 // console.log(adminCode)

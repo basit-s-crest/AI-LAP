@@ -72,9 +72,20 @@ export const getCoachAvailability = async (
     const avail = await prisma.coachAvailability.findUnique({
       where: { coachId },
     });
+
+    const defaultSlots = [
+      { day: "Monday", start: "09:00 AM", end: "05:00 PM", enabled: true },
+      { day: "Tuesday", start: "09:00 AM", end: "05:00 PM", enabled: true },
+      { day: "Wednesday", start: "09:00 AM", end: "05:00 PM", enabled: true },
+      { day: "Thursday", start: "09:00 AM", end: "05:00 PM", enabled: true },
+      { day: "Friday", start: "09:00 AM", end: "05:00 PM", enabled: true },
+      { day: "Saturday", start: "09:00 AM", end: "05:00 PM", enabled: false },
+      { day: "Sunday", start: "09:00 AM", end: "05:00 PM", enabled: false },
+    ];
+
     if (!avail) {
       return res.status(200).json({
-        slots: [],
+        slots: defaultSlots,
         duration: 50,
         bookedToday: bookedToday.map((b) => ({
           date: b.scheduledAt.toISOString(),
@@ -209,15 +220,21 @@ export const bookSession = async (
       where: { coachId },
     });
 
-    if (avail) {
-      const slots = avail.slots as SlotEntry[];
-      const dayName = requestedDate.toLocaleDateString("en-US", { weekday: "long" });
-      const enabledDays = slots.filter((s) => s.enabled).map((s) => s.day);
-      if (enabledDays.length > 0 && !enabledDays.includes(dayName)) {
-        return res.status(400).json({
-          message: `Coach is not available on ${dayName}`,
-        });
-      }
+    const slots = (avail?.slots as SlotEntry[] | undefined) ?? [
+      { day: "Monday", start: "09:00 AM", end: "05:00 PM", enabled: true },
+      { day: "Tuesday", start: "09:00 AM", end: "05:00 PM", enabled: true },
+      { day: "Wednesday", start: "09:00 AM", end: "05:00 PM", enabled: true },
+      { day: "Thursday", start: "09:00 AM", end: "05:00 PM", enabled: true },
+      { day: "Friday", start: "09:00 AM", end: "05:00 PM", enabled: true },
+      { day: "Saturday", start: "09:00 AM", end: "05:00 PM", enabled: false },
+      { day: "Sunday", start: "09:00 AM", end: "05:00 PM", enabled: false },
+    ];
+    const dayName = requestedDate.toLocaleDateString("en-US", { weekday: "long" });
+    const enabledDays = slots.filter((s) => s.enabled).map((s) => s.day);
+    if (enabledDays.length > 0 && !enabledDays.includes(dayName)) {
+      return res.status(400).json({
+        message: `Coach is not available on ${dayName}`,
+      });
     }
 
     const existingSession = await prisma.session.findFirst({

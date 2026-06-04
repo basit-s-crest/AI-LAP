@@ -174,7 +174,7 @@ export default function MoodMappingPage() {
               ))}
             </div>
 
-            {moodSel && !moodLogged ? (
+            {!moodLogged ? (
               <div className="anim-up mt-3">
                 <div className="mb-4">
                   <Label>What&apos;s contributing? (optional)</Label>
@@ -190,7 +190,7 @@ export default function MoodMappingPage() {
                   fullWidth
                   type="button"
                   onClick={handleSaveMood}
-                  disabled={submitMoodMutation.isPending}
+                  disabled={!moodSel || submitMoodMutation.isPending}
                 >
                   {submitMoodMutation.isPending ? "Saving..." : "Save Today's Mood"}
                 </Button>

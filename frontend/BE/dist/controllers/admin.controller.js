@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.adminGetScoresHistory = exports.adminGetOverviewStats = exports.adminGetMoodDistribution = exports.adminGetActivity = exports.adminGetOrgOverview = exports.adminUpdateOrg = exports.adminCreateOrg = exports.adminGetOrgs = exports.adminGetOrgStats = exports.adminArchiveGroup = exports.adminUpdateGroup = exports.adminCreateGroup = exports.adminGetGroups = exports.removeCoach = exports.updateCoach = exports.createCoach = exports.getAllCoaches = exports.createSuperAdmin = exports.deleteUser = exports.updateUser = exports.createUser = exports.getUserById = exports.getAllUsers = void 0;
+exports.adminGetScoresHistory = exports.adminGetActivityChart = exports.adminGetOverviewStats = exports.adminGetMoodDistribution = exports.adminGetActivity = exports.adminGetOrgOverview = exports.adminUpdateOrg = exports.adminCreateOrg = exports.adminGetOrgs = exports.adminGetOrgStats = exports.adminArchiveGroup = exports.adminUpdateGroup = exports.adminCreateGroup = exports.adminGetGroups = exports.removeCoach = exports.updateCoach = exports.createCoach = exports.getAllCoaches = exports.deleteUser = exports.updateUser = exports.createUser = exports.getUserById = exports.getAllUsers = void 0;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const auth_service_1 = require("../services/auth.service");
 const notificationEmail_service_1 = require("../services/notificationEmail.service");
@@ -26,6 +26,7 @@ const getAllUsers = async (req, res) => {
                 role: true,
                 avatar: true,
                 isVerified: true,
+                lastActiveAt: true,
                 createdAt: true,
                 updatedAt: true,
                 _count: {
@@ -48,6 +49,7 @@ const getAllUsers = async (req, res) => {
             role: u.role,
             avatar: u.avatar,
             isVerified: u.isVerified,
+            lastActiveAt: u.lastActiveAt,
             createdAt: u.createdAt,
             updatedAt: u.updatedAt,
             groupCount: u._count.groupMemberships,
@@ -147,6 +149,7 @@ const createUser = async (req, res) => {
             role: user.role,
             avatar: user.avatar,
             isVerified: user.isVerified,
+            lastActiveAt: user.lastActiveAt,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
             groupCount: user._count.groupMemberships,
@@ -221,45 +224,6 @@ const deleteUser = async (req, res) => {
     }
 };
 exports.deleteUser = deleteUser;
-// ─── SUPERADMIN MANAGEMENT ────────────────────────────────────────────────────
-const createSuperAdmin = async (req, res) => {
-    try {
-        const { email, name, password, avatar } = req.body;
-        if (!email || !name || !password) {
-            return res.status(400).json({ message: "Email, name and password required" });
-        }
-        const existingUser = await prisma_1.default.user.findUnique({ where: { email } });
-        if (existingUser) {
-            return res.status(409).json({ message: "User already exists" });
-        }
-        const hashedPassword = await (0, auth_service_1.hashPassword)(password);
-        const superadmin = await prisma_1.default.user.create({
-            data: {
-                email,
-                name,
-                password: hashedPassword,
-                avatar: avatar ?? null,
-                role: "superadmin",
-                isVerified: true,
-            },
-            select: {
-                id: true,
-                email: true,
-                name: true,
-                role: true,
-                avatar: true,
-                isVerified: true,
-                createdAt: true,
-            },
-        });
-        return res.status(201).json(superadmin);
-    }
-    catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Internal server error" });
-    }
-};
-exports.createSuperAdmin = createSuperAdmin;
 // ─── COACH MANAGEMENT ─────────────────────────────────────────────────────────
 const getAllCoaches = async (req, res) => {
     try {
@@ -510,7 +474,11 @@ const adminGetOrgStats = async (_req, res) => {
         const [totalPartners, totalMembers, totalCoaches, spendAgg] = await Promise.all([
             prisma_1.default.organization.count(),
             prisma_1.default.user.count({ where: { organizationId: { not: null } } }),
-            prisma_1.default.organizationCoach.count(),
+            // ✅ counts unique coaches
+            prisma_1.default.organizationCoach.findMany({
+                select: { coachId: true },
+                distinct: ["coachId"],
+            }).then(r => r.length),
             prisma_1.default.organization.aggregate({ _sum: { monthlySpend: true } }),
         ]);
         return res.status(200).json({
@@ -858,6 +826,104 @@ const adminGetOverviewStats = async (_req, res) => {
     }
 };
 exports.adminGetOverviewStats = adminGetOverviewStats;
+const adminGetActivityChart = async (req, res) => {
+    try {
+        const days = parseInt(req.query.days) || 30;
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+        startDate.setHours(0, 0, 0, 0);
+        // Get users: use lastActiveAt if available, otherwise createdAt (for historical data)
+        const users = await prisma_1.default.user.findMany({
+            where: {
+                role: "member",
+                OR: [
+                    { lastActiveAt: { gte: startDate } },
+                    {
+                        lastActiveAt: null,
+                        createdAt: { gte: startDate }
+                    }
+                ]
+            },
+            select: { id: true, lastActiveAt: true, createdAt: true },
+        });
+        // Get coaches: use lastActiveAt if available, otherwise createdAt
+        const coaches = await prisma_1.default.coach.findMany({
+            where: {
+                OR: [
+                    { lastActiveAt: { gte: startDate } },
+                    {
+                        lastActiveAt: null,
+                        createdAt: { gte: startDate }
+                    }
+                ]
+            },
+            select: { id: true, lastActiveAt: true, createdAt: true },
+        });
+        // Get organizations: use lastActiveAt if available, otherwise createdAt
+        const orgs = await prisma_1.default.organization.findMany({
+            where: {
+                OR: [
+                    { lastActiveAt: { gte: startDate } },
+                    {
+                        lastActiveAt: null,
+                        createdAt: { gte: startDate }
+                    }
+                ]
+            },
+            select: { id: true, lastActiveAt: true, createdAt: true },
+        });
+        console.log(`[adminGetActivityChart] Found ${users.length} users, ${coaches.length} coaches, ${orgs.length} orgs with activity in last ${days} days`);
+        // Group by date - count unique users/coaches/orgs per day
+        const dateMap = new Map();
+        for (let i = 0; i < days; i++) {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + i);
+            const key = date.toISOString().split('T')[0];
+            dateMap.set(key, { users: new Set(), coaches: new Set(), orgs: new Set() });
+        }
+        // Track unique users per day (use lastActiveAt if available, fallback to createdAt)
+        users.forEach((u) => {
+            const activeDate = u.lastActiveAt || u.createdAt;
+            if (activeDate) {
+                const key = new Date(activeDate).toISOString().split('T')[0];
+                const entry = dateMap.get(key);
+                if (entry)
+                    entry.users.add(u.id);
+            }
+        });
+        coaches.forEach((c) => {
+            const activeDate = c.lastActiveAt || c.createdAt;
+            if (activeDate) {
+                const key = new Date(activeDate).toISOString().split('T')[0];
+                const entry = dateMap.get(key);
+                if (entry)
+                    entry.coaches.add(c.id);
+            }
+        });
+        orgs.forEach((o) => {
+            const activeDate = o.lastActiveAt || o.createdAt;
+            if (activeDate) {
+                const key = new Date(activeDate).toISOString().split('T')[0];
+                const entry = dateMap.get(key);
+                if (entry)
+                    entry.orgs.add(o.id);
+            }
+        });
+        const chartData = Array.from(dateMap.entries()).map(([date, sets]) => ({
+            date,
+            users: sets.users.size,
+            coaches: sets.coaches.size,
+            orgs: sets.orgs.size,
+        }));
+        console.log(`[adminGetActivityChart] Returning ${chartData.length} data points`);
+        return res.status(200).json(chartData);
+    }
+    catch (error) {
+        console.error("[adminGetActivityChart]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.adminGetActivityChart = adminGetActivityChart;
 const adminGetScoresHistory = async (req, res) => {
     try {
         const orgId = process.env.PYTHON_ORG_ID ?? "org_default";

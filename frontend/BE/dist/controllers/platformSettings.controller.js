@@ -64,6 +64,7 @@ const getPublicPlatformSettings = async (_req, res) => {
             brandTitle: settings.brandTitle,
             brandTagline: settings.brandTagline,
             primaryColor: settings.primaryColor,
+            logoUrl: settings.logoUrl,
             allowSelfRegistration: settings.allowSelfRegistration,
             maintenanceMode: settings.maintenanceMode,
             sessionDurationMax: settings.sessionDurationMax,

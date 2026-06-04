@@ -346,23 +346,33 @@ body {
   margin-bottom: 16px;
 }
 
-.bg-sage {
+.pc-icon.bg-sage,
+.stat-icon.bg-sage,
+.a-icon.bg-sage {
   background: var(--sage-light);
 }
 
-.bg-amber {
+.pc-icon.bg-amber,
+.stat-icon.bg-amber,
+.a-icon.bg-amber {
   background: var(--amber-light);
 }
 
-.bg-teal {
+.pc-icon.bg-teal,
+.stat-icon.bg-teal,
+.a-icon.bg-teal {
   background: var(--teal-light);
 }
 
-.bg-rose {
+.pc-icon.bg-rose,
+.stat-icon.bg-rose,
+.a-icon.bg-rose {
   background: var(--rose-light);
 }
 
-.bg-plum {
+.pc-icon.bg-plum,
+.stat-icon.bg-plum,
+.a-icon.bg-plum {
   background: var(--plum-light);
 }
 
@@ -1979,6 +1989,7 @@ textarea.input {
   border-radius: var(--r-md);
   padding: 24px;
   display: flex;
+  flex-direction: column;
   gap: 20px;
   cursor: pointer;
   box-shadow: var(--shadow-sm);

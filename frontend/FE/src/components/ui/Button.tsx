@@ -8,9 +8,9 @@ export type ButtonSize = "xs" | "sm" | "md" | "lg";
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    "bg-sage text-white hover:bg-[var(--sage-dark)] hover:shadow-[0_3px_12px_rgba(78,140,88,0.3)]",
+    "bg-gradient-to-r from-[var(--sage)] to-[var(--amber)] text-white hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(104,166,136,0.25)]",
   outline:
-    "bg-transparent text-sage border-[1.5px] border-sage hover:bg-sage-soft",
+    "bg-transparent text-[var(--sage)] border-[1.5px] border-[var(--sage)] hover:bg-sage-soft",
   ghost:
     "bg-transparent text-mid border-[1.5px] border-line hover:bg-[var(--bg-surface-2)] hover:text-ink hover:border-[var(--border)]",
   danger: "bg-danger text-white hover:bg-[#A0302A]",

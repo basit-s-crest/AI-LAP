@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const org_controller_1 = require("../controllers/org.controller");
+const weeklyReport_controller_1 = require("../controllers/weeklyReport.controller");
 const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
 router.post("/login", org_controller_1.orgLogin);
@@ -12,4 +13,8 @@ router.get("/members", auth_middleware_1.authMiddleware, (0, auth_middleware_1.r
 router.get("/coaches", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("organization"), org_controller_1.getOrgCoaches);
 router.get("/settings", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("organization"), org_controller_1.getOrgSettings);
 router.patch("/settings", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("organization"), org_controller_1.updateOrgSettings);
+// Weekly reports
+router.get("/weekly-report", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("organization"), weeklyReport_controller_1.getWeeklyReport);
+router.get("/weekly-report/weeks", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("organization"), weeklyReport_controller_1.getAvailableWeeks);
+router.post("/weekly-report/regenerate", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("organization"), weeklyReport_controller_1.regenerateReport);
 exports.default = router;

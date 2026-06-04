@@ -198,6 +198,7 @@ export default function CoachingChatPage() {
   const [portalReady, setPortalReady] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"chat" | "book">("chat");
 
   // ── Dynamic slot state ──────────────────────────────────────────────────────
   const [slots, setSlots] = useState<TimeSlot[]>([]);
@@ -811,16 +812,46 @@ useEffect(() => {
   return (
     <DashboardLayout title={coach.name}>
       <div className="anim-up">
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm mb-4"
-          style={{ padding: "8px 18px", fontSize: "13px" }}
-          onClick={() => router.push("/coaching")}
-        >
-          ← Back to Coaches
-        </button>
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
-          <div className="flex h-[460px] flex-col overflow-hidden rounded-card border border-line">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            style={{ padding: "8px 18px", fontSize: "13px" }}
+            onClick={() => router.push("/coaching")}
+          >
+            ← Back to Coaches
+          </button>
+          
+          <div className="flex gap-1 rounded-[10px] bg-[var(--bg-surface-2)] p-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab("chat")}
+              className={cn(
+                "rounded-[7px] px-[18px] py-[7px] text-[13px] font-semibold outline-none transition-all",
+                activeTab === "chat"
+                  ? "bg-card text-ink shadow-[0_1px_4px_rgba(60,50,40,0.1)]"
+                  : "text-mid hover:text-ink"
+              )}
+            >
+              Chat
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("book")}
+              className={cn(
+                "rounded-[7px] px-[18px] py-[7px] text-[13px] font-semibold outline-none transition-all",
+                activeTab === "book"
+                  ? "bg-card text-ink shadow-[0_1px_4px_rgba(60,50,40,0.1)]"
+                  : "text-mid hover:text-ink"
+              )}
+            >
+              Book a Session
+            </button>
+          </div>
+        </div>
+
+        {activeTab === "chat" ? (
+          <div className="mx-auto max-w-3xl w-full flex h-[580px] flex-col overflow-hidden rounded-card border border-line shadow-sm">
             <div className="flex items-center gap-3 border-b border-line bg-[var(--bg-surface-2)] px-[18px] py-3.5">
               <div className="flex h-[38px] w-[38px] items-center justify-center rounded-[9px] bg-card border border-line text-[19px]">
                 {coach.avatar ?? "👤"}
@@ -873,7 +904,7 @@ useEffect(() => {
                         className={cn(
                           "rounded-[14px] px-[15px] py-2.5 text-[13.5px] leading-relaxed",
                           m.senderRole === "member"
-                            ? "rounded-br bg-sage text-white"
+                            ? "rounded-br bg-[var(--sage)] text-white"
                             : "rounded-bl border border-line bg-card text-ink shadow-[0_2px_6px_rgba(60,50,40,0.07)]"
                         )}
                       >
@@ -912,26 +943,11 @@ useEffect(() => {
               </button>
             </div>
           </div>
-          <div>
+        ) : (
+          <div className="mx-auto max-w-[520px] w-full">
             {bookingCard}
-            <Card>
-              <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-dim">
-                Your Mood Before Session
-              </div>
-              <div className="flex gap-2">
-                {MOODS_DATA.map((m) => (
-                  <button
-                    key={m.value}
-                    type="button"
-                    className="flex flex-1 flex-col items-center rounded-[14px] border-2 border-[rgba(60,50,40,0.12)] bg-card py-2.5 text-[22px] hover:border-[rgba(60,50,40,0.22)]"
-                  >
-                    {m.emoji}
-                  </button>
-                ))}
-              </div>
-            </Card>
           </div>
-        </div>
+        )}
         {renderRescheduleModal()}
         {renderCancelConfirmModal()}
       </div>
