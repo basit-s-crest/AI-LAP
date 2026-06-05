@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import type { Role } from "@/types/role";
-import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
+import { useHydratedPlatformBranding, getLogoUrl } from "@/hooks/useHydratedPlatformBranding";
 import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
 import Image from "next/image";
 
@@ -55,7 +55,7 @@ const cards: {
 
 export function RoleGate() {
   const router = useRouter();
-  const { brandTitle, brandTagline } = useHydratedPlatformBranding();
+  const { brandTitle, brandTagline, logoUrl } = useHydratedPlatformBranding();
   const { data: platformSettings } = usePublicPlatformSettings();
 
   const enter = (role: Role) => {
@@ -66,7 +66,7 @@ export function RoleGate() {
     <div className="gate anim-scale">
       <div className="gate-header">
         <div className="flex items-center gap-2">
-          <img src="/logo.svg" alt="SafeCircle Logo" style={{ height: "64px", width: "64px", objectFit: "contain", marginRight: "-8px", marginLeft: "-12px" }} />
+          <img src={getLogoUrl(logoUrl)} alt="SafeCircle Logo" style={{ height: "64px", width: "64px", objectFit: "contain", marginRight: "-8px", marginLeft: "-12px" }} />
           <div className="gate-brand-row" style={{ alignItems: "center" }}>
             <div className="gate-wordmark">{brandTitle}</div>
             <div className="gate-tagline">{brandTagline}</div>

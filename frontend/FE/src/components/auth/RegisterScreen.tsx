@@ -22,7 +22,7 @@ import type { RegisterPayload } from "@/types/auth";
 import type { Role } from "@/types/role";
 import { toast } from "sonner";
 import { useEffect } from "react";
-import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
+import { useHydratedPlatformBranding, getLogoUrl } from "@/hooks/useHydratedPlatformBranding";
 import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
 import { useMaintenanceRedirect } from "@/hooks/useMaintenanceRedirect";
 
@@ -112,7 +112,7 @@ function buildDefaultValues(role: Role): FormValues {
 function RoleRegisterScreen({ role }: { role: Role }) {
   const router = useRouter();
   const { data: platformSettings } = usePublicPlatformSettings();
-  const { brandTitle, brandTagline } = useHydratedPlatformBranding();
+  const { brandTitle, brandTagline, logoUrl } = useHydratedPlatformBranding();
   const registerMutation = useRegisterMutation(role);
   const config = REGISTER_CONFIG[role];
   const roleOption = getAuthRoleOption(role);
@@ -147,7 +147,7 @@ function RoleRegisterScreen({ role }: { role: Role }) {
       <div className="auth-panel">
         <div className="auth-panel-bg" />
         <div className="flex items-center gap-3" style={{ position: "relative", zIndex: 1 }}>
-          <img src="/logo.svg" alt="SafeCircle Logo" style={{ height: "96px", width: "96px", objectFit: "contain", marginLeft: "-16px", marginRight: "-12px" }} />
+          <img src={getLogoUrl(logoUrl)} alt="SafeCircle Logo" style={{ height: "96px", width: "96px", objectFit: "contain", marginLeft: "-16px", marginRight: "-12px" }} />
           <div className="auth-logo" style={{ marginBottom: 0 }}>{brandTitle}</div>
         </div>
         <div className="auth-logo-sub">{brandTagline}</div>

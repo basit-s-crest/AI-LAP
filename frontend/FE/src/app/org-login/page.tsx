@@ -14,14 +14,14 @@ import { setSession } from "@/store/slices/authSlice";
 import { setCurrentOrgName } from "@/store/slices/organizationSlice";
 import { loginSchema } from "@/validations/auth.validation";
 import { useMaintenanceRedirect } from "@/hooks/useMaintenanceRedirect";
-import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
+import { useHydratedPlatformBranding, getLogoUrl } from "@/hooks/useHydratedPlatformBranding";
 
 type FormValues = { email: string; password: string };
 
 export default function OrgLoginPage() {
   const dispatch = useAppDispatch();
   useMaintenanceRedirect();
-  const { brandTitle, brandTagline } = useHydratedPlatformBranding();
+  const { brandTitle, brandTagline, logoUrl } = useHydratedPlatformBranding();
   const [error, setError] = useState("");
   const methods = useForm<FormValues>({
     resolver: zodResolver(loginSchema),
@@ -52,7 +52,7 @@ export default function OrgLoginPage() {
           }}
         />
         <div className="relative z-[1] flex items-center gap-4">
-          <img src="/logo.svg" alt="SafeCircle Logo" className="h-[96px] w-[96px] object-contain" style={{ marginRight: "-12px", marginLeft: "-12px" }} />
+          <img src={getLogoUrl(logoUrl)} alt="SafeCircle Logo" className="h-[96px] w-[96px] object-contain" style={{ marginRight: "-12px", marginLeft: "-12px" }} />
           <div>
             <h1 className="font-serif text-[60px] font-bold leading-none tracking-wide text-ink">
               {brandTitle}

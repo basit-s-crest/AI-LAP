@@ -13,7 +13,7 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useLogin } from "@/hooks/auth/useLogin";
 import { useEffect } from "react";
 import { useAuthRoleParam } from "@/hooks/useAuthRoleParam";
-import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
+import { useHydratedPlatformBranding, getLogoUrl } from "@/hooks/useHydratedPlatformBranding";
 import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
 import { useMaintenanceRedirect } from "@/hooks/useMaintenanceRedirect";
 import type { Role } from "@/types/role";
@@ -30,7 +30,7 @@ export function LoginScreen({ initialRole }: LoginScreenProps) {
   const { role, roleOption } = useAuthRoleParam(initialRole);
   const justRegistered = search.get("registered") === "1";
   const { data: platformSettings } = usePublicPlatformSettings();
-  const { brandTitle, brandTagline } = useHydratedPlatformBranding();
+  const { brandTitle, brandTagline, logoUrl } = useHydratedPlatformBranding();
   useMaintenanceRedirect();
 
   // Pass role so the hook hits the right backend endpoint (coach vs member)
@@ -73,7 +73,7 @@ export function LoginScreen({ initialRole }: LoginScreenProps) {
       <div className="auth-panel">
         <div className="auth-panel-bg" />
         <div className="flex items-center gap-3" style={{ position: "relative", zIndex: 1 }}>
-          <img src="/logo.svg" alt="SafeCircle Logo" style={{ height: "96px", width: "96px", objectFit: "contain", marginLeft: "-16px", marginRight: "-12px" }} />
+          <img src={getLogoUrl(logoUrl)} alt="SafeCircle Logo" style={{ height: "96px", width: "96px", objectFit: "contain", marginLeft: "-16px", marginRight: "-12px" }} />
           <div className="auth-logo" style={{ marginBottom: 0 }}>{brandTitle}</div>
         </div>
         <div className="auth-logo-sub">{brandTagline}</div>

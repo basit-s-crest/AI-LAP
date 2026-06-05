@@ -431,10 +431,20 @@ async def run_inference(
     Call Gemini / OpenRouter with raw_text, parse the JSON response,
     and return a fully-populated InferenceResultIn ready for crud.save_inference_result().
     """
-    # Prefer GEMINI_MODEL (default gemini-2.5-flash) over OPENROUTER_MODEL (default google/gemini-2.0-flash-001)
+    # Determine if we are using Google Gemini directly or OpenRouter.
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        api_key = os.getenv("OPENROUTER_API_KEY")
+    api_key = (api_key or "").strip().strip("'\"")
+    is_gemini = api_key.startswith("AIzaSy")
+
+    # Resolve the correct model based on backend endpoint:
     model = os.getenv("GEMINI_MODEL")
     if not model:
-        model = os.getenv("OPENROUTER_MODEL", "gemini-2.5-flash")
+        if is_gemini:
+            model = "gemini-2.5-flash"
+        else:
+            model = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
         
     client = _get_client()
 

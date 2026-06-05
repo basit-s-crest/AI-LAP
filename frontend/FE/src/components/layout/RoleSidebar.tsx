@@ -7,9 +7,8 @@ import { navForRole, roleAccent, roleSidebarLabel, type NavItem } from "@/consta
 import type { Role } from "@/types/role";
 import { Avatar } from "@/components/ui/Avatar";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
-import { useLogout } from "@/hooks/auth/useLogout";
 import { useRouter } from "next/navigation";
-import { useHydratedPlatformBranding } from "@/hooks/useHydratedPlatformBranding";
+import { useHydratedPlatformBranding, getLogoUrl } from "@/hooks/useHydratedPlatformBranding";
 import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
 import Image from "next/image";
 
@@ -42,11 +41,10 @@ export function RoleSidebar({
   const pathname = usePathname();
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const logout = useLogout();
   const label = roleSidebarLabel(role);
   const items = navForRole(role);
   const groups = groupItems(items);
-  const { brandTitle } = useHydratedPlatformBranding();
+  const { brandTitle, logoUrl } = useHydratedPlatformBranding();
 
   const getActiveClass = (item: NavItem) => {
     const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -59,7 +57,7 @@ export function RoleSidebar({
   const navBody = (
     <>
       <div className="nav-brand" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "8px", paddingBottom: "20px", borderBottom: "1px solid var(--border)", marginBottom: "20px" }}>
-        <img src="/logo.svg" alt="SafeCircle Logo" style={{ height: "64px", width: "64px", objectFit: "contain", marginRight: "-8px", marginLeft: "-12px", flexShrink: 0 }} />
+        <img src={getLogoUrl(logoUrl)} alt="SafeCircle Logo" style={{ height: "64px", width: "64px", objectFit: "contain", marginRight: "-8px", marginLeft: "-12px", flexShrink: 0 }} />
         <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
           <div className="nav-logo" style={{ fontSize: "22px", lineHeight: "1.1" }}>{brandTitle}</div>
           <div className="nav-role" style={{ marginTop: "4px", color: role === "coach" ? "var(--teal)" : role === "superadmin" || role === "organization" ? "var(--amber)" : "var(--sage)" }}>{label}</div>
@@ -98,34 +96,6 @@ export function RoleSidebar({
           </div>
         ))}
       </div>
-      <div className="nav-foot">
-        <div className="nav-user">
-          <div className="nav-avatar" style={{ background: role === "coach" ? "var(--teal)" : role === "superadmin" || role === "organization" ? "var(--amber)" : "var(--sage)" }}>
-            {userName[0]?.toUpperCase() || "U"}
-          </div>
-          <div>
-            <div className="nav-uname">{userName}</div>
-            <div className="nav-urole">{label}</div>
-          </div>
-          {onSwitchRole ? (
-            <button
-              type="button"
-              className="nav-switch"
-              onClick={onSwitchRole}
-            >
-              ⇄
-            </button>
-          ) : null}
-        </div>
-      </div>
-      <button
-        type="button"
-        className="mt-3 w-full btn btn-ghost btn-sm"
-        style={{ borderRadius: "var(--r-sm)" }}
-        onClick={logout}
-      >
-        Sign out
-      </button>
     </>
   );
 
