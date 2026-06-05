@@ -52,13 +52,13 @@ async function getEmailBranding(): Promise<{
       },
     });
     return {
-      brandTitle: settings?.brandTitle ?? "Azadi Health",
+      brandTitle: settings?.brandTitle ?? "SafeCircle",
       brandTagline: settings?.brandTagline ?? "Mental Wellness Platform",
       primaryColor: settings?.primaryColor ?? "#4E8C58",
     };
   } catch {
     return {
-      brandTitle: "Azadi Health",
+      brandTitle: "SafeCircle",
       brandTagline: "Mental Wellness Platform",
       primaryColor: "#4E8C58",
     };
@@ -66,7 +66,7 @@ async function getEmailBranding(): Promise<{
 }
 
 /**
- * Branded transactional email (Azadi / VASL styling).
+ * Branded transactional email (SafeCircle / VASL styling).
  */
 export async function sendAppEmail(
   toEmail: string,

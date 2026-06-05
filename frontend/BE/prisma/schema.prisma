@@ -306,11 +306,11 @@ model OnboardingAssessment {
 
 model PlatformSettings {
   id                     String   @id @default("platform")
-  brandTitle             String   @default("Azadi Health")
+  brandTitle             String   @default("SafeCircle")
   brandTagline           String   @default("Mental Wellness Platform")
   logoUrl                String?
   primaryColor           String   @default("#4E8C58")
-  supportEmail           String   @default("support@azadihealth.com")
+  supportEmail           String   @default("support@safecircle.com")
   maxMembersPerCoach     Int      @default(20)
   sessionDurationDefault Int      @default(50)
   sessionDurationMax     Int      @default(90)

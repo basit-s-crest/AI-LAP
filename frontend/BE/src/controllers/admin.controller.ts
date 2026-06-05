@@ -148,6 +148,7 @@ export const createUser = async (
         role: true,
         avatar: true,
         isVerified: true,
+        lastActiveAt: true,
         createdAt: true,
         updatedAt: true,
         _count: {

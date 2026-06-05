@@ -9,7 +9,7 @@ const defaultGroups = [
     description: "A safe space to share anxiety coping strategies.",
     color: "#4E8C58",
     tags: ["anxiety", "support"],
-    mod: "Azadi Team",
+    mod: "SafeCircle Team",
   },
   {
     name: "Mindfulness & Meditation",
@@ -17,7 +17,7 @@ const defaultGroups = [
     description: "Daily mindfulness check-ins and guided reflection.",
     color: "#5B8DEF",
     tags: ["mindfulness", "meditation"],
-    mod: "Azadi Team",
+    mod: "SafeCircle Team",
   },
   {
     name: "Student Stress Relief",
@@ -25,7 +25,7 @@ const defaultGroups = [
     description: "For academic stress, burnout, and motivation support.",
     color: "#8A63D2",
     tags: ["students", "stress"],
-    mod: "Azadi Team",
+    mod: "SafeCircle Team",
   },
   {
     name: "Sleep & Recovery",
@@ -33,7 +33,7 @@ const defaultGroups = [
     description: "Improve sleep habits and share recovery routines.",
     color: "#2D9CDB",
     tags: ["sleep", "recovery"],
-    mod: "Azadi Team",
+    mod: "SafeCircle Team",
   },
 ];
 

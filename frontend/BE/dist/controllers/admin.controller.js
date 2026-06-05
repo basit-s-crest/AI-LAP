@@ -128,6 +128,7 @@ const createUser = async (req, res) => {
                 role: true,
                 avatar: true,
                 isVerified: true,
+                lastActiveAt: true,
                 createdAt: true,
                 updatedAt: true,
                 _count: {

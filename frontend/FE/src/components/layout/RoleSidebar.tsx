@@ -58,9 +58,12 @@ export function RoleSidebar({
 
   const navBody = (
     <>
-      <div className="nav-brand">
-        <div className="nav-logo">{brandTitle}</div>
-        <div className="nav-role" style={{ color: role === "coach" ? "var(--teal)" : role === "superadmin" || role === "organization" ? "var(--amber)" : "var(--sage)" }}>{label}</div>
+      <div className="nav-brand" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "8px", paddingBottom: "20px", borderBottom: "1px solid var(--border)", marginBottom: "20px" }}>
+        <img src="/logo.svg" alt="SafeCircle Logo" style={{ height: "64px", width: "64px", objectFit: "contain", marginRight: "-8px", marginLeft: "-12px", flexShrink: 0 }} />
+        <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <div className="nav-logo" style={{ fontSize: "22px", lineHeight: "1.1" }}>{brandTitle}</div>
+          <div className="nav-role" style={{ marginTop: "4px", color: role === "coach" ? "var(--teal)" : role === "superadmin" || role === "organization" ? "var(--amber)" : "var(--sage)" }}>{label}</div>
+        </div>
       </div>
       <div className="nav-body">
         {groups.map((g, gi) => (

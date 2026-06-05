@@ -65,9 +65,12 @@ export function RoleGate() {
   return (
     <div className="gate anim-scale">
       <div className="gate-header">
-        <div className="gate-brand-row">
-          <div className="gate-wordmark">{brandTitle}</div>
-          <div className="gate-tagline">{brandTagline}</div>
+        <div className="flex items-center gap-2">
+          <img src="/logo.svg" alt="SafeCircle Logo" style={{ height: "64px", width: "64px", objectFit: "contain", marginRight: "-8px", marginLeft: "-12px" }} />
+          <div className="gate-brand-row" style={{ alignItems: "center" }}>
+            <div className="gate-wordmark">{brandTitle}</div>
+            <div className="gate-tagline">{brandTagline}</div>
+          </div>
         </div>
         <div className="gate-proto-badge">
           <span>🌿</span>

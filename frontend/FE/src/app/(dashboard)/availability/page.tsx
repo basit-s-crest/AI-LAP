@@ -51,7 +51,7 @@ const DEFAULT_SLOTS: SlotEntry[] = days.map((day) => ({
   enabled: false,
 }));
 
-/** Read the logged-in user's id from the azadi_user cookie. */
+/** Read the logged-in user's id from the safecircle_user cookie. */
 function getCoachIdFromCookie(): string | null {
   if (typeof document === "undefined") return null;
   try {

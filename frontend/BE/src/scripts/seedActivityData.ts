@@ -66,6 +66,7 @@ async function seedActivityData() {
           name: `Test Organization ${i}`,
           type: "University",
           plan: "Starter",
+          primaryContactName: `Admin User ${i}`,
           primaryContactEmail: `testorg${i}_${Date.now()}@example.com`,
           primaryContactPassword: password,
           createdAt: date,

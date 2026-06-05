@@ -38,21 +38,21 @@ const runSeed = async () => {
     });
     const hashedCoachPassword = await (0, auth_service_1.hashPassword)("coach1234");
     const coachAmara = await prisma_1.default.coach.upsert({
-        where: { email: "amara@azadihealth.com" },
-        update: { name: "Dr. Amara Osei", speciality: "Trauma · CBT · Cultural Identity", bio: "Azadi Health Staff", avatar: "👩🏾‍⚕️", isActive: true },
-        create: { email: "amara@azadihealth.com", name: "Dr. Amara Osei", password: hashedCoachPassword, speciality: "Trauma · CBT · Cultural Identity", bio: "Azadi Health Staff", avatar: "👩🏾‍⚕️", isActive: true },
+        where: { email: "amara@safecircle.com" },
+        update: { name: "Dr. Amara Osei", speciality: "Trauma · CBT · Cultural Identity", bio: "SafeCircle Staff", avatar: "👩🏾‍⚕️", isActive: true },
+        create: { email: "amara@safecircle.com", name: "Dr. Amara Osei", password: hashedCoachPassword, speciality: "Trauma · CBT · Cultural Identity", bio: "SafeCircle Staff", avatar: "👩🏾‍⚕️", isActive: true },
     });
     console.log("Seeded coach: " + coachAmara.name);
     const coachMarcus = await prisma_1.default.coach.upsert({
-        where: { email: "marcus@azadihealth.com" },
-        update: { name: "Marcus Rivera", speciality: "Depression · Grief · Mindfulness", bio: "Azadi Health Staff", avatar: "🧑🏽‍⚕️", isActive: true },
-        create: { email: "marcus@azadihealth.com", name: "Marcus Rivera", password: hashedCoachPassword, speciality: "Depression · Grief · Mindfulness", bio: "Azadi Health Staff", avatar: "🧑🏽‍⚕️", isActive: true },
+        where: { email: "marcus@safecircle.com" },
+        update: { name: "Marcus Rivera", speciality: "Depression · Grief · Mindfulness", bio: "SafeCircle Staff", avatar: "🧑🏽‍⚕️", isActive: true },
+        create: { email: "marcus@safecircle.com", name: "Marcus Rivera", password: hashedCoachPassword, speciality: "Depression · Grief · Mindfulness", bio: "SafeCircle Staff", avatar: "🧑🏽‍⚕️", isActive: true },
     });
     console.log("Seeded coach: " + coachMarcus.name);
     const coachPriya = await prisma_1.default.coach.upsert({
-        where: { email: "priya@azadihealth.com" },
+        where: { email: "priya@safecircle.com" },
         update: { name: "Priya Sharma", speciality: "Anxiety · ACT · South Asian Youth", bio: "University Partners", avatar: "👩🏽‍⚕️", isActive: true },
-        create: { email: "priya@azadihealth.com", name: "Priya Sharma", password: hashedCoachPassword, speciality: "Anxiety · ACT · South Asian Youth", bio: "University Partners", avatar: "👩🏽‍⚕️", isActive: true },
+        create: { email: "priya@safecircle.com", name: "Priya Sharma", password: hashedCoachPassword, speciality: "Anxiety · ACT · South Asian Youth", bio: "University Partners", avatar: "👩🏽‍⚕️", isActive: true },
     });
     console.log("Seeded coach: " + coachPriya.name);
     const groupOne = await prisma_1.default.communityGroup.findFirst({
@@ -114,7 +114,7 @@ const runSeed = async () => {
             ],
         });
     }
-    const adminEmail = "admin@azadihealth.com";
+    const adminEmail = "admin@safecircle.com";
     const hashedAdminPassword = await (0, auth_service_1.hashPassword)("admin1234");
     await prisma_1.default.user.upsert({
         where: { email: adminEmail },
@@ -127,7 +127,7 @@ const runSeed = async () => {
             isVerified: true,
         },
     });
-    console.log("Seeded admin: admin@azadihealth.com");
+    console.log("Seeded admin: admin@safecircle.com");
     const hashedOrgPassword = await (0, auth_service_1.hashPassword)("org1234");
     const organization = await prisma_1.default.organization.upsert({
         where: { primaryContactEmail: "org@stateuniversity.com" },

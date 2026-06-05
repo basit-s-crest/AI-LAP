@@ -72,10 +72,13 @@ export function LoginScreen({ initialRole }: LoginScreenProps) {
       {/* ── Left panel ── */}
       <div className="auth-panel">
         <div className="auth-panel-bg" />
-        <div className="auth-logo">{brandTitle}</div>
+        <div className="flex items-center gap-3" style={{ position: "relative", zIndex: 1 }}>
+          <img src="/logo.svg" alt="SafeCircle Logo" style={{ height: "96px", width: "96px", objectFit: "contain", marginLeft: "-16px", marginRight: "-12px" }} />
+          <div className="auth-logo" style={{ marginBottom: 0 }}>{brandTitle}</div>
+        </div>
         <div className="auth-logo-sub">{brandTagline}</div>
         <div className="auth-quote">
-          &quot;Healing is not linear, but you don&apos;t have to walk the path alone.&quot;
+          &quot;A safe place to share, grow, and belong.&quot;
           <cite>— SafeCircle Mission</cite>
         </div>
         <div className="auth-checks">

@@ -31,7 +31,7 @@ export function VerifyScreen() {
   const verifyMutation = useMutation({
     mutationFn: ({ code }: FormValues) => authService.verifyOtp(userId, code),
     onSuccess: (session) => {
-      // Set session — writes azadi_token + azadi_role cookies synchronously
+      // Set session — writes safecircle_token + safecircle_role cookies synchronously
       dispatch(setSession(session));
       toast.success("Email verified — welcome!");
       // Full navigation so the browser sends the new cookies to the middleware

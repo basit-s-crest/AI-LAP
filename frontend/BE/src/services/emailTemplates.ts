@@ -1,4 +1,4 @@
-/** VASL / Azadi Health email layout — matches app palette (canvas, sage, ink). */
+/** VASL / SafeCircle email layout — matches app palette (canvas, sage, ink). */
 
 export interface AppEmailContent {
   title: string;
@@ -25,7 +25,7 @@ const BRAND_BASE = {
 };
 
 const DEFAULT_BRANDING: AppEmailBranding = {
-  brandTitle: "Azadi Health",
+  brandTitle: "SafeCircle",
   brandTagline: "Mental Wellness Platform",
   primaryColor: "#4E8C58",
 };

@@ -51,13 +51,16 @@ export default function OrgLoginPage() {
               "radial-gradient(ellipse at 30% 50%, rgba(83,164,208,.18) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(104,166,136,.14) 0%, transparent 50%)",
           }}
         />
-        <div className="relative z-[1]">
-          <h1 className="font-serif text-[60px] font-bold leading-none tracking-wide text-ink">
-            {brandTitle}
-          </h1>
-          <p className="mt-2.5 text-xs uppercase tracking-[3px] text-soft/60">
-            {brandTagline}
-          </p>
+        <div className="relative z-[1] flex items-center gap-4">
+          <img src="/logo.svg" alt="SafeCircle Logo" className="h-[96px] w-[96px] object-contain" style={{ marginRight: "-12px", marginLeft: "-12px" }} />
+          <div>
+            <h1 className="font-serif text-[60px] font-bold leading-none tracking-wide text-ink">
+              {brandTitle}
+            </h1>
+            <p className="mt-2.5 text-xs uppercase tracking-[3px] text-soft/60">
+              {brandTagline}
+            </p>
+          </div>
         </div>
       </div>
 

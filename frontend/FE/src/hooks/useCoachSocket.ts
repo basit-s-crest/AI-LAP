@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { io, Socket } from "socket.io-client"
 import type { CoachMessageDTO } from "../types/coachMessage"
+import { AUTH_TOKEN_KEY } from "@/constants/storage"
 
 interface UseCoachSocketOptions {
   onNewMessage?: (msg: CoachMessageDTO) => void
@@ -41,9 +42,9 @@ export function useCoachSocket(
   useEffect(() => { onErrorRef.current = onError }, [onError])
 
   useEffect(() => {
-    // Read JWT from the azadi_token cookie — this is where authSlice stores it.
+    // Read JWT from the safecircle_token cookie — this is where authSlice stores it.
     // Never read from localStorage; the app only uses cookies for auth.
-    const token = readCookie("azadi_token")
+    const token = readCookie(AUTH_TOKEN_KEY)
 
     const socket = io(`${BACKEND_URL}/coach-chat`, {
       auth: { token },

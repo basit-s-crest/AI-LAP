@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import api from "@/lib/api";
+import { AUTH_TOKEN_KEY } from "@/constants/storage";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
 import { getReadNotificationIds } from "@/lib/notificationReadStore";
 import { addNotification, setNotifications } from "@/store/slices/notificationSlice";
@@ -284,7 +285,7 @@ export function useNotifications(enabled: boolean) {
   useEffect(() => {
     if (!enabled || !userId) return;
 
-    const token = readCookie("azadi_token");
+    const token = readCookie(AUTH_TOKEN_KEY);
     const socket = io(`${BACKEND_URL}/coach-chat`, {
       auth: { token },
       reconnection: true,

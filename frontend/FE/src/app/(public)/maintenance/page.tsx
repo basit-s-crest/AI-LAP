@@ -12,12 +12,12 @@ async function getBranding(): Promise<{ brandTitle: string; brandTagline: string
     if (!res.ok) throw new Error("Failed");
     const data = (await res.json()) as { brandTitle?: string; brandTagline?: string };
     return {
-      brandTitle: data.brandTitle?.trim() || "Azadi Health",
+      brandTitle: data.brandTitle?.trim() || "SafeCircle",
       brandTagline: data.brandTagline?.trim() || "Mental Wellness Platform",
     };
   } catch {
     return {
-      brandTitle: "Azadi Health",
+      brandTitle: "SafeCircle",
       brandTagline: "Mental Wellness Platform",
     };
   }

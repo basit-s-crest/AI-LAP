@@ -19,12 +19,12 @@ CREATE TABLE "OnboardingAssessment" (
 -- CreateTable
 CREATE TABLE "PlatformSettings" (
     "id" TEXT NOT NULL DEFAULT 'platform',
-    "brandTitle" TEXT NOT NULL DEFAULT 'Azadi Health',
+    "brandTitle" TEXT NOT NULL DEFAULT 'SafeCircle',
     "brandTagline" TEXT NOT NULL DEFAULT 'Mental Wellness Platform',
     "logoUrl" TEXT,
     "loaderUrl" TEXT,
     "primaryColor" TEXT NOT NULL DEFAULT '#4E8C58',
-    "supportEmail" TEXT NOT NULL DEFAULT 'support@azadihealth.com',
+    "supportEmail" TEXT NOT NULL DEFAULT 'support@safecircle.com',
     "maxMembersPerCoach" INTEGER NOT NULL DEFAULT 20,
     "sessionDurationDefault" INTEGER NOT NULL DEFAULT 50,
     "allowSelfRegistration" BOOLEAN NOT NULL DEFAULT true,

@@ -31,7 +31,7 @@ function clearAuthCookies() {
   }
 }
 
-// ── Request: attach JWT from the azadi_token cookie ──────────────────────────
+// ── Request: attach JWT from the safecircle_token cookie ──────────────────────────
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = getCookie(AUTH_TOKEN_KEY);

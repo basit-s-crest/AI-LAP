@@ -1,5 +1,5 @@
 "use strict";
-/** VASL / Azadi Health email layout — matches app palette (canvas, sage, ink). */
+/** VASL / SafeCircle email layout — matches app palette (canvas, sage, ink). */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildAppEmailHtml = buildAppEmailHtml;
 exports.formatEmailDateTime = formatEmailDateTime;
@@ -12,7 +12,7 @@ const BRAND_BASE = {
     line: "rgba(60,50,40,0.10)",
 };
 const DEFAULT_BRANDING = {
-    brandTitle: "Azadi Health",
+    brandTitle: "SafeCircle",
     brandTagline: "Mental Wellness Platform",
     primaryColor: "#4E8C58",
 };

@@ -60,7 +60,7 @@ export default function AdminSettingsPage() {
       { brandTitle, brandTagline, logoUrl },
       {
         onSuccess: () => {
-          localStorage.setItem("platform_brand_title", brandTitle || "Azadi Health");
+          localStorage.setItem("platform_brand_title", brandTitle || "SafeCircle");
           localStorage.setItem("platform_brand_tagline", brandTagline || "Mental Wellness Platform");
           toast.success("Branding settings updated");
         },
@@ -142,7 +142,7 @@ export default function AdminSettingsPage() {
                   </div>
                 </div>
                 <div className="mb-4 rounded-[10px] border border-line bg-canvas px-3 py-2">
-                  <div className="serif text-lg font-semibold text-ink">{brandTitle || "Azadi Health"}</div>
+                  <div className="serif text-lg font-semibold text-ink">{brandTitle || "SafeCircle"}</div>
                   <div className="text-xs text-dim">{brandTagline || "Mental Wellness Platform"}</div>
                 </div>
                 <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">

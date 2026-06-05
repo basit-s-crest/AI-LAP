@@ -37,7 +37,7 @@
  * ── Prerequisites ─────────────────────────────────────────────────────────────
  *   1. docker start redis
  *   2. uvicorn main:app --reload          (project root)
- *   3. cd azadi-next && npm run worker
+ *   3. cd safecircle-next && npm run worker
  */
  
 import { Queue }    from "bullmq";
@@ -279,7 +279,7 @@ function writeSpanRecord(record) {
 async function main() {
   const D = "═".repeat(70);
   logLine(`\n${D}`);
-  logLine(`  AZADI PIPELINE TEST  —  ${TOTAL_JOBS} jobs  concurrency=20`);
+  logLine(`  SAFECIRCLE PIPELINE TEST  —  ${TOTAL_JOBS} jobs  concurrency=20`);
   logLine(`  Output: ${LOG_FILE}`);
   logLine(D);
   logLine(`
