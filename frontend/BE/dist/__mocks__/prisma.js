@@ -22,6 +22,8 @@ const prisma = {
     message: createModelMock(),
     communityGroup: createModelMock(),
     emailVerification: createModelMock(),
+    session: createModelMock(),
+    coachAvailability: createModelMock(),
     $connect: jest.fn(),
     $disconnect: jest.fn(),
     $transaction: jest.fn(),

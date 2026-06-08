@@ -183,6 +183,8 @@ export const getCoachSessions = async (
         duration: s.duration,
         type: s.type,
         status: s.status,
+        livekitStartedAt: s.livekitStartedAt,
+        livekitEndedAt: s.livekitEndedAt,
         createdAt: s.createdAt,
       }))
     );

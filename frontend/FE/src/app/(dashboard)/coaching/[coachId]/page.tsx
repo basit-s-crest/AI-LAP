@@ -190,6 +190,7 @@ export default function CoachingChatPage() {
   const [selSlot, setSelSlot] = useState<string | null>(null);
   const [booked, setBooked] = useState(false);
   const [booking, setBooking] = useState(false);
+  const [currentSession, setCurrentSession] = useState<{ id: string; scheduledAt: string; status: string; livekitStartedAt?: string } | null>(null);
 
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState("");
@@ -247,13 +248,12 @@ export default function CoachingChatPage() {
       if (mine) {
         setBooked(true);
         setSelSlot(mine.t);
-        return;
       }
       const [y, mo, d] = targetYmd.split("-").map(Number);
       const targetDate = new Date(y, mo - 1, d, 12, 0, 0, 0);
       try {
         const res = await api.get<
-          { coachId: string; scheduledAt: string; status: string }[]
+          { id: string; coachId: string; scheduledAt: string; status: string; livekitStartedAt?: string }[]
         >("/api/sessions/member");
         const sess = res.data.find(
           (s) =>
@@ -265,19 +265,23 @@ export default function CoachingChatPage() {
           if (!isScheduledAtLocalCalendarToday(sess.scheduledAt, targetDate)) {
             setBooked(false);
             setSelSlot(null);
+            setCurrentSession(null);
           } else {
             const d = new Date(sess.scheduledAt);
             const mins = d.getHours() * 60 + d.getMinutes();
             setBooked(true);
             setSelSlot(formatTime(mins));
+            setCurrentSession(sess);
           }
         } else {
           setBooked(false);
           setSelSlot(null);
+          setCurrentSession(null);
         }
       } catch {
         setBooked(false);
         setSelSlot(null);
+        setCurrentSession(null);
       }
     },
     [coachIdStr]
@@ -578,6 +582,7 @@ useEffect(() => {
                   setShowReschedule(false);
                   setBooked(false);
                   setSelSlot(null);
+                  setCurrentSession(null);
                   await loadSlots();
                   toast.success("Session rescheduled");
                 } catch (err: unknown) {
@@ -657,6 +662,7 @@ useEffect(() => {
                   await api.patch(`/api/sessions/${mySession.id}/cancel`);
                   setBooked(false);
                   setSelSlot(null);
+                  setCurrentSession(null);
                   await loadSlots();
                 } catch (err: unknown) {
                   const axiosErr = err as { response?: { data?: { message?: string } } };
@@ -777,6 +783,16 @@ useEffect(() => {
               </div>
             </div>
           </div>
+          {currentSession && (
+            <Button
+              className="mt-3 animate-pulse"
+              fullWidth
+              variant="primary"
+              onClick={() => router.push(`/coaching/sessions/${currentSession.id}/call`)}
+            >
+              Join Meeting
+            </Button>
+          )}
           <div className="mt-3 flex gap-2">
             <Button
               variant="ghost"
@@ -886,6 +902,28 @@ useEffect(() => {
             </button>
           </div>
         </div>
+
+        {booked && currentSession && (
+          <div className="mb-6 flex items-center justify-between gap-4 rounded-xl bg-sage-soft border border-[var(--sage)] p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🤝</span>
+              <div>
+                <h4 className="font-semibold text-ink">Your call is ready!</h4>
+                <p className="text-xs text-mid">
+                  You have a scheduled session with {coach.name} today.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="primary"
+              className="animate-pulse"
+              onClick={() => router.push(`/coaching/sessions/${currentSession.id}/call`)}
+            >
+              Join Meeting
+            </Button>
+          </div>
+        )}
 
         {activeTab === "chat" ? (
           <div className="mx-auto max-w-3xl w-full flex h-[580px] flex-col overflow-hidden rounded-card border border-line shadow-sm">

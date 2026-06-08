@@ -9,6 +9,7 @@ import { HmrOverlay } from "@/components/layout/HmrOverlay";
 import { PlatformBrandSync } from "@/components/platform/PlatformBrandSync";
 import { Toaster } from "sonner";
 import "./globals.css";
+import "@livekit/components-styles";
 
 const inter = Inter({
   subsets: ["latin"],

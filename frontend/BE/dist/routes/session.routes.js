@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_middleware_1 = require("../middleware/auth.middleware");
 const session_controller_1 = require("../controllers/session.controller");
+const livekit_controller_1 = require("../controllers/livekit.controller");
 const router = (0, express_1.Router)();
 // Public (auth required) — any logged-in user can fetch a coach's availability
 router.get("/availability/:coachId", auth_middleware_1.authMiddleware, session_controller_1.getCoachAvailability);
@@ -16,4 +17,8 @@ router.post("/book", auth_middleware_1.authMiddleware, session_controller_1.book
 router.get("/member", auth_middleware_1.authMiddleware, session_controller_1.getMemberSessions);
 router.patch("/:id/cancel", auth_middleware_1.authMiddleware, session_controller_1.cancelSession);
 router.patch("/:id/reschedule", auth_middleware_1.authMiddleware, session_controller_1.rescheduleSession);
+// LiveKit Video Endpoints
+router.post("/:id/livekit/start", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach"), livekit_controller_1.startVideoSession);
+router.post("/:id/livekit/token", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach", "member"), livekit_controller_1.getVideoToken);
+router.get("/:id/livekit/status", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach", "member"), livekit_controller_1.getVideoStatus);
 exports.default = router;

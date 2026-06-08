@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TableWrap } from "@/components/ui/Table";
 import { TableToolbar } from "@/components/tables/TableToolbar";
@@ -17,9 +18,12 @@ interface SessionRow {
   duration: number;
   type: string;
   status: string;
+  livekitStartedAt?: string;
+  livekitEndedAt?: string;
 }
 
 export default function CoachSessionsPage() {
+  const router = useRouter();
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [reschedulingId, setReschedulingId] = useState<string | null>(null);
@@ -31,6 +35,7 @@ export default function CoachSessionsPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [rowLoading, setRowLoading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setPortalReady(true);
@@ -109,6 +114,17 @@ export default function CoachSessionsPage() {
       alert(axiosErr?.response?.data?.message ?? "Failed to reschedule");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const startOrJoinVideo = async (sessionId: string) => {
+    setRowLoading((prev) => ({ ...prev, [sessionId]: true }));
+    try {
+      await api.post(`/api/sessions/${sessionId}/livekit/start`);
+      router.push(`/coaching/sessions/${sessionId}/call`);
+    } catch (err: any) {
+      alert(err.message || "Failed to start call");
+      setRowLoading((prev) => ({ ...prev, [sessionId]: false }));
     }
   };
 
@@ -191,6 +207,27 @@ export default function CoachSessionsPage() {
                         <span className="text-xs text-dim">Cancelled</span>
                       ) : (
                         <div className="flex items-center gap-2">
+                          {s.livekitStartedAt ? (
+                            <Button
+                              variant="primary"
+                              size="xs"
+                              type="button"
+                              disabled={rowLoading[s.id]}
+                              onClick={() => startOrJoinVideo(s.id)}
+                            >
+                              {rowLoading[s.id] ? "Joining…" : "Join Call"}
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              type="button"
+                              disabled={rowLoading[s.id]}
+                              onClick={() => startOrJoinVideo(s.id)}
+                            >
+                              {rowLoading[s.id] ? "Starting…" : "Start Call"}
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="xs"
