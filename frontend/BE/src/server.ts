@@ -9,6 +9,7 @@ import { socketAuthMiddleware } from "./middleware/socketAuth.middleware";
 import { registerCoachChatHandlers } from "./sockets/coachChat";
 import { initRealtime } from "./lib/realtime";
 import { startOrgNotificationScheduler } from "./services/orgNotification.scheduler";
+import { startSessionAutoCompleter } from "./services/sessionAutoCompleter";
 
 const PORT = Number(process.env.PORT) || 4000;
 
@@ -41,6 +42,7 @@ coachChat.on("connection", (socket) => {
 
 httpServer.listen(PORT, () => {
   startOrgNotificationScheduler();
+  startSessionAutoCompleter();
   console.log(`✅ VASL Server running on http://localhost:${PORT}`);
   console.log(`   DATABASE_URL set:       ${!!process.env.DATABASE_URL}`);
   console.log(`   JWT_SECRET set:         ${!!process.env.JWT_SECRET}`);

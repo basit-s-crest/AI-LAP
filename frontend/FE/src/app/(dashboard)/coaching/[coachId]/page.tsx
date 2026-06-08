@@ -199,6 +199,7 @@ export default function CoachingChatPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"chat" | "book">("chat");
+  const [selectedDate, setSelectedDate] = useState<string>(formatYmdLocal(new Date()));
 
   // ── Dynamic slot state ──────────────────────────────────────────────────────
   const [slots, setSlots] = useState<TimeSlot[]>([]);
@@ -241,14 +242,15 @@ export default function CoachingChatPage() {
   }, [showReschedule, rescheduleDate, availabilityTemplate, availabilityDuration]);
 
   const syncMyBookingState = useCallback(
-    async (generated: TimeSlot[]) => {
+    async (generated: TimeSlot[], targetYmd: string) => {
       const mine = generated.find((x) => x.isMySession);
       if (mine) {
         setBooked(true);
         setSelSlot(mine.t);
         return;
       }
-      const now = new Date();
+      const [y, mo, d] = targetYmd.split("-").map(Number);
+      const targetDate = new Date(y, mo - 1, d, 12, 0, 0, 0);
       try {
         const res = await api.get<
           { coachId: string; scheduledAt: string; status: string }[]
@@ -257,10 +259,10 @@ export default function CoachingChatPage() {
           (s) =>
             s.coachId === coachIdStr &&
             s.status !== "cancelled" &&
-            isScheduledAtLocalCalendarToday(s.scheduledAt, now)
+            isScheduledAtLocalCalendarToday(s.scheduledAt, targetDate)
         );
         if (sess) {
-          if (!isScheduledAtLocalCalendarToday(sess.scheduledAt, now)) {
+          if (!isScheduledAtLocalCalendarToday(sess.scheduledAt, targetDate)) {
             setBooked(false);
             setSelSlot(null);
           } else {
@@ -287,7 +289,7 @@ export default function CoachingChatPage() {
         slots: AvailSlot[];
         duration: number;
         bookedToday?: { date: string; memberId: string }[];
-      }>(`/api/sessions/availability/${coachIdStr}`);
+      }>(`/api/sessions/availability/${coachIdStr}?date=${selectedDate}`);
 
       const { slots: availSlots, duration, bookedToday = [] } = availRes.data;
 
@@ -309,19 +311,23 @@ export default function CoachingChatPage() {
       }
       const myMemberId = getMemberIdFromCookie();
 
-      const today = todayDayName();
-      const todaySlot = availSlots.find((s) => s.day === today && s.enabled);
+      const [y, mo, d] = selectedDate.split("-").map(Number);
+      const targetDate = new Date(y, mo - 1, d, 12, 0, 0, 0);
+      const dayName = targetDate.toLocaleDateString("en-US", { weekday: "long" });
+      const slot = availSlots.find((s) => s.day === dayName && s.enabled);
 
-      if (!todaySlot) {
+      if (!slot) {
         setNoAvailToday(true);
         setSlots([]);
-        await syncMyBookingState([]);
+        await syncMyBookingState([], selectedDate);
         return;
       }
 
       setNoAvailToday(false);
 
-      const times = generateSlotTimes(todaySlot.start, todaySlot.end, duration || 50);
+      const times = generateSlotTimes(slot.start, slot.end, duration || 50);
+      const now = new Date();
+      const filteredTimes = filterTimesAfterNowIfToday(selectedDate, times, now);
 
       const bookedMap = new Map<string, string>();
       bookedToday.forEach((b: { date: string; memberId: string }) => {
@@ -329,8 +335,8 @@ export default function CoachingChatPage() {
         if (key) bookedMap.set(key, b.memberId);
       });
 
-      const generated: TimeSlot[] = times.map((t) => {
-        const iso = todayAt(t);
+      const generated: TimeSlot[] = filteredTimes.map((t) => {
+        const iso = dateTimeOnCalendarDay(selectedDate, t).toISOString();
         const key = utcSlotInstantKey(iso);
         const bookedById = key ? bookedMap.get(key) : undefined;
         const isBooked = !!bookedById;
@@ -339,11 +345,11 @@ export default function CoachingChatPage() {
       });
 
       setSlots(generated);
-      await syncMyBookingState(generated);
+      await syncMyBookingState(generated, selectedDate);
     } catch {
       // silently keep existing slots on poll failure
     }
-  }, [coachIdStr, syncMyBookingState]);
+  }, [coachIdStr, selectedDate, syncMyBookingState]);
 
   useEffect(() => {
     loadSlots();
@@ -358,7 +364,7 @@ export default function CoachingChatPage() {
     try {
       await api.post("/api/sessions/book", {
         coachId: coachIdStr,
-        date: todayAt(selSlot),
+        date: dateTimeOnCalendarDay(selectedDate, selSlot).toISOString(),
       });
       await loadSlots();
       setBooked(true);
@@ -688,11 +694,42 @@ useEffect(() => {
         </div>
       </div>
       <div className="my-4 h-px bg-line" />
+      <div className="mb-4">
+        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-dim">
+          Select Date
+        </label>
+        <select
+          value={selectedDate}
+          onChange={(e) => {
+            setSelectedDate(e.target.value);
+            setSelSlot(null);
+            setBooked(false);
+          }}
+          className="w-full rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-[13.5px] text-ink outline-none focus:border-sage"
+        >
+          {Array.from({ length: 7 }, (_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() + i);
+            return {
+              ymd: formatYmdLocal(d),
+              label: d.toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              }),
+            };
+          }).map((d) => (
+            <option key={d.ymd} value={d.ymd}>
+              {d.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-dim">
-        Available Times — Today
+        Available Times — {formatDateLabel(selectedDate.replace(/-/g, "/"))}
       </div>
       {noAvailToday ? (
-        <p className="mb-4 text-sm text-mid">Coach not available today.</p>
+        <p className="mb-4 text-sm text-mid">Coach not available on this date.</p>
       ) : slots.length === 0 ? (
         <p className="mb-4 text-sm text-dim">Loading availability…</p>
       ) : showOnlyMyBookedSlot && myBookedTimeLabel ? (
