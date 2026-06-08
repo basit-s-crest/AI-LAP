@@ -120,16 +120,8 @@ export default function CoachClientsPage() {
                 <tr key={client.partnerId} className="group text-ink">
                   <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-[var(--bg-surface-2)] text-sm font-bold text-sage">
-                        {client.partnerAvatar ? (
-                          <img
-                            src={client.partnerAvatar}
-                            alt={client.partnerName}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          getInitial(client.partnerName)
-                        )}
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-teal-light text-sm font-bold text-teal">
+                        {getInitial(client.partnerName)}
                       </div>
                       <div>
                         <div className="font-semibold">{client.partnerName}</div>
