@@ -10,10 +10,10 @@
 #    5. Creates .env files from .env.example if they don't exist
 #    6. Runs Prisma migrations (frontend/BE  ->  vasl_ts database)
 #
-#  ⚠  DATABASE REQUIREMENT (read before running):
+#  !  DATABASE REQUIREMENT (read before running):
 #     This project needs TWO PostgreSQL databases created manually:
-#       • vasl_ts  — used by the Node/Express API  (frontend/BE)
-#       • vasl     — used by the Python FastAPI     (backend)
+#       - vasl_ts  - used by the Node/Express API  (frontend/BE)
+#       - vasl     - used by the Python FastAPI     (backend)
 #     See the DATABASE SETUP section below for exact SQL commands.
 #
 #  Usage:
@@ -38,10 +38,10 @@ Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "   VASL - Project Setup" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 
-# ── DATABASE ALERT ────────────────────────────────────────────────────────────
+# -- DATABASE ALERT ------------------------------------------------------------
 Write-Host ""
 Write-Host "=============================================" -ForegroundColor Yellow
-Write-Host "  ⚠  DATABASE SETUP REQUIRED (first time)" -ForegroundColor Yellow
+Write-Host "  !  DATABASE SETUP REQUIRED (first time)" -ForegroundColor Yellow
 Write-Host "=============================================" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  This project needs TWO PostgreSQL databases." -ForegroundColor White
@@ -56,17 +56,17 @@ Write-Host "    Host: localhost   Port: 5432   User: postgres" -ForegroundColor 
 Write-Host ""
 Write-Host "  Prisma migrations for vasl_ts will run automatically" -ForegroundColor White
 Write-Host "  in Step 5 below.  The vasl database is managed by" -ForegroundColor White
-Write-Host "  Flyway — see backend/vasl-db/migrations/ for SQL files." -ForegroundColor White
+Write-Host "  Flyway - see backend/vasl-db/migrations/ for SQL files." -ForegroundColor White
 Write-Host ""
 Write-Host "=============================================" -ForegroundColor Yellow
 Write-Host ""
 
-$confirm = Read-Host "  Have you created both databases? (y/n)"
-if ($confirm -ne "y" -and $confirm -ne "Y") {
-    Write-Warn "Please create the databases first, then re-run .\setup.ps1"
-    Write-Host ""
-    exit 0
-}
+# $confirm = "y"
+# if ($confirm -ne "y" -and $confirm -ne "Y") {
+#     Write-Warn "Please create the databases first, then re-run .\setup.ps1"
+#     Write-Host ""
+#     exit 0
+# }
 Write-Host ""
 
 # Step 1: Check prerequisites
@@ -100,7 +100,7 @@ try {
     $uvVer = uv --version 2>&1
     Write-OK "uv $uvVer"
 } catch {
-    Write-Fail "uv not found. Install with: powershell -ExecutionPolicy ByPass -c `"irm https://astral.sh/uv/install.ps1 | iex`""
+    Write-Fail "uv not found. Install with: powershell -ExecutionPolicy ByPass -c 'irm https://astral.sh/uv/install.ps1 | iex'"
     exit 1
 }
 
@@ -109,7 +109,7 @@ Write-Step 2 6 "Installing JS dependencies (FE + BE)..." "Green"
 
 Push-Location $root
 try {
-    npm install
+    npm install --force
     Write-OK "npm install complete - packages hoisted to root node_modules/"
 } catch {
     Write-Fail "npm install failed. Check errors above."
@@ -204,9 +204,9 @@ Write-Host "   Setup complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "   Next steps:" -ForegroundColor White
 Write-Host "   1. Fill in .env files with your credentials" -ForegroundColor White
-Write-Host "      frontend\FE\.env.local  — Next.js" -ForegroundColor DarkGray
-Write-Host "      frontend\BE\.env        — Node/Express + Prisma (vasl_ts)" -ForegroundColor DarkGray
-Write-Host "      backend\.env            — Python FastAPI (vasl)" -ForegroundColor DarkGray
+Write-Host "      frontend\FE\.env.local  - Next.js" -ForegroundColor DarkGray
+Write-Host "      frontend\BE\.env        - Node/Express + Prisma (vasl_ts)" -ForegroundColor DarkGray
+Write-Host "      backend\.env            - Python FastAPI (vasl)" -ForegroundColor DarkGray
 Write-Host "   2. For the Python 'vasl' DB: apply Flyway migrations in" -ForegroundColor White
 Write-Host "      backend\vasl-db\migrations\ manually (or via docker-compose)" -ForegroundColor DarkGray
 Write-Host "   3. Run:  .\dev.ps1  to start all services" -ForegroundColor White

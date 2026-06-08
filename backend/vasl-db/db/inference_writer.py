@@ -1,31 +1,29 @@
 """
-db.py
------
-PostgreSQL connection and all write operations.
+db/inference_writer.py
+----------------------
+All PostgreSQL write operations for inference events.
+
 Every message is written inside a single transaction — all inserts
 succeed together or all roll back. No partial state.
 
-The Kafka message arriving here was originally published by the
-ingestion gateway (alap.text.raw), processed by the AI inference
-service, and re-published to alap.text.annotated with the inference
-result attached. The full payload shape is:
+Expected payload shape (produced by the AI inference service):
 
 {
   "source_type":        "peer-post" | "journal" | "chat" | "assessment",
-  "event_id":           "ing_...",          ← ingestion_id from gateway
-  "original_source_id": "post_...",         ← caller's original ID
+  "event_id":           "ing_...",
+  "original_source_id": "post_...",
   "ingestion_id":       "ing_...",
   "org_id":             "org_...",
   "member_token":       "mbr_...",
   "timestamp":          "2026-...",
 
-  -- source-specific fields (only present for the relevant source_type)
-  "group_id":     "grp_..."          (peer-post)
-  "mood_score":   3                  (journal)
-  "session_id":   "sess_..."         (chat)
-  "role":         "member"|"coach"   (chat)
-  "instrument":   "PHQ8"|"GAD7"|"ACES" (assessment)
-  "item_number":  1                  (assessment)
+  -- source-specific (only present for the relevant source_type)
+  "group_id":     "grp_..."           (peer-post)
+  "mood_score":   3                   (journal)
+  "session_id":   "sess_..."          (chat)
+  "role":         "member"|"coach"    (chat)
+  "instrument":   "PHQ8"|"GAD7"|"ACES"(assessment)
+  "item_number":  1                   (assessment)
 
   "inference_result": {
     "risk_tier":          "low"|"moderate"|"high"|"crisis",
@@ -49,14 +47,8 @@ result attached. The full payload shape is:
 import logging
 from typing import Any
 
-import psycopg2
-import psycopg2.extras
+import psycopg2.extensions
 from psycopg2.extras import execute_values
-
-from config import (
-    DB_HOST, DB_PORT, DB_NAME,
-    DB_USER, DB_PASSWORD, DB_SSLMODE,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -70,31 +62,22 @@ DIMENSION_MAP: dict[str, str] = {
 }
 
 
-def get_connection() -> psycopg2.extensions.connection:
-    """Open and return a new PostgreSQL connection."""
-    return psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        sslmode=DB_SSLMODE,
-    )
-
-
-def save_inference_event(payload: dict[str, Any], conn: psycopg2.extensions.connection) -> None:
+def save_inference_event(
+    payload: dict[str, Any],
+    conn: psycopg2.extensions.connection,
+) -> None:
     """
-    Persist one inference result from the Kafka message into PostgreSQL.
+    Persist one inference result into PostgreSQL.
 
     Steps (all inside one transaction):
       1. Upsert member
       2. Insert inference_event  — idempotent on event_id
       3. Insert event_signals
       4. Insert shap_attributions
-      5. Upsert member_risk_snapshot via the DB trigger function
+      5. Upsert member_risk_snapshot via the DB stored function
 
-    If the event_id already exists (Kafka replay / duplicate delivery),
-    the INSERT ... ON CONFLICT DO NOTHING skips it cleanly.
+    If the event_id already exists (replay / duplicate delivery),
+    INSERT ... ON CONFLICT DO NOTHING skips it cleanly.
     """
     inference = payload["inference_result"]
     meta      = payload.get("processing_metadata", {})
@@ -241,9 +224,8 @@ def save_inference_event(payload: dict[str, Any], conn: psycopg2.extensions.conn
             )
 
         # ── 5. Refresh member risk snapshot ───────────────────────────────
-        # The DB trigger on inference_events fires this automatically,
-        # but we call it explicitly here as a safety net in case the
-        # trigger is ever disabled during maintenance.
+        # Explicit call as a safety net in case the DB trigger is ever
+        # disabled during maintenance.
         cur.execute("SELECT upsert_member_risk_snapshot(%s)", (member_id,))
 
     conn.commit()

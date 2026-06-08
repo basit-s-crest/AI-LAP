@@ -106,10 +106,10 @@ export function RoleSidebar({
   }
 
   return (
-    <div className="relative w-[260px] shrink-0 md:h-full">
+    <div className="sidebar-wrapper relative w-[260px] shrink-0 md:h-full">
       <div
         aria-hidden
-        className="pointer-events-none hidden h-full min-h-screen w-[260px] shrink-0 md:block"
+        className="sidebar-placeholder pointer-events-none hidden h-full min-h-screen w-[260px] shrink-0 md:block"
       />
       <nav className="nav md:fixed md:left-0 md:top-0 md:z-30">
         {navBody}

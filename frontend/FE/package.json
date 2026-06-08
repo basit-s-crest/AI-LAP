@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -21,14 +21,20 @@
       "^@/(.*)$": "<rootDir>/src/$1",
       "^socket\\.io-client$": "<rootDir>/src/__mocks__/socket.io-client.ts"
     },
-    "setupFilesAfterEnv": ["@testing-library/jest-dom", "<rootDir>/src/__tests__/setup.ts"],
+    "setupFilesAfterEnv": [
+      "@testing-library/jest-dom",
+      "<rootDir>/src/__tests__/setup.ts"
+    ],
     "transform": {
-      "^.+\\.(ts|tsx)$": ["ts-jest", {
-        "tsconfig": {
-          "jsx": "react-jsx",
-          "moduleResolution": "node"
+      "^.+\\.(ts|tsx)$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "jsx": "react-jsx",
+            "moduleResolution": "node"
+          }
         }
-      }]
+      ]
     }
   },
   "dependencies": {

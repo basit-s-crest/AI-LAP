@@ -1,18 +1,19 @@
 """
-models.py
----------
-Pydantic request and response schemas for all 4 ingestion endpoints.
+schemas/ingestion.py
+--------------------
+Pydantic request and response schemas for all 4 ingestion source types.
 
 Each source type has its own request model with exactly the fields
-defined in the spec (Section 3.1). Shared fields are in a base class.
+defined in the spec (Section 3.1). Shared response models live at the
+bottom of this file.
 """
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 
-# ── Shared response models ─────────────────────────────────────────────────────
+# ── Response models ────────────────────────────────────────────────────────────
 
 class IngestionAccepted(BaseModel):
     """202 response — event queued successfully."""
@@ -73,13 +74,13 @@ class JournalRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     """POST /v1/ingest/chat"""
-    message_id:     str                      = Field(..., examples=["msg_01HX..."])
-    session_id:     str                      = Field(..., examples=["sess_01HX..."])
-    org_id:         str                      = Field(..., examples=["org_univ_maryland"])
-    member_token:   str                      = Field(..., examples=["mbr_7c3a9f2e1b8d4c6a0e5f"])
+    message_id:     str                       = Field(..., examples=["msg_01HX..."])
+    session_id:     str                       = Field(..., examples=["sess_01HX..."])
+    org_id:         str                       = Field(..., examples=["org_univ_maryland"])
+    member_token:   str                       = Field(..., examples=["mbr_7c3a9f2e1b8d4c6a0e5f"])
     role:           Literal["member", "coach"]
-    text:           str                      = Field(..., max_length=500)
-    timestamp:      datetime                 = Field(..., examples=["2026-03-15T14:22:00Z"])
+    text:           str                       = Field(..., max_length=500)
+    timestamp:      datetime                  = Field(..., examples=["2026-03-15T14:22:00Z"])
     consent_active: bool
 
     @field_validator("text")
@@ -94,13 +95,13 @@ class ChatRequest(BaseModel):
 
 class AssessmentRequest(BaseModel):
     """POST /v1/ingest/assessment"""
-    assessment_id:  str                          = Field(..., examples=["asmt_01HX..."])
-    org_id:         str                          = Field(..., examples=["org_univ_maryland"])
-    member_token:   str                          = Field(..., examples=["mbr_7c3a9f2e1b8d4c6a0e5f"])
+    assessment_id:  str                           = Field(..., examples=["asmt_01HX..."])
+    org_id:         str                           = Field(..., examples=["org_univ_maryland"])
+    member_token:   str                           = Field(..., examples=["mbr_7c3a9f2e1b8d4c6a0e5f"])
     instrument:     Literal["PHQ8", "GAD7", "ACES"]
-    response_text:  str                          = Field(..., max_length=5000)
-    item_number:    int                          = Field(..., ge=1, examples=[3])
-    timestamp:      datetime                     = Field(..., examples=["2026-03-15T14:22:00Z"])
+    response_text:  str                           = Field(..., max_length=5000)
+    item_number:    int                           = Field(..., ge=1, examples=[3])
+    timestamp:      datetime                      = Field(..., examples=["2026-03-15T14:22:00Z"])
     consent_active: bool
 
     @field_validator("response_text")

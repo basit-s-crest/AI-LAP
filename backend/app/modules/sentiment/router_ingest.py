@@ -30,12 +30,12 @@ import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.schemas import PeerPostIn, JournalIn, ChatIn, AssessmentIn, IngestOut
+from app.modules.sentiment.schemas import PeerPostIn, JournalIn, ChatIn, AssessmentIn, IngestOut
 from app.core.database import get_db, AsyncSessionLocal
-from app.core import crud
-from app.core.llm import run_inference
-from app.core.cache import bust_member_cache
-from app.core.pipeline_logger import log_stage
+from app.modules.sentiment import crud
+from app.modules.sentiment.llm import run_inference
+from app.modules.sentiment.cache import bust_member_cache
+from app.shared.pipeline_logger import log_stage
 
 logger = logging.getLogger(__name__)
 
@@ -375,3 +375,8 @@ async def ingest_assessment(
         instrument       = payload.instrument,
         item_number      = payload.item_number,
     )
+
+
+
+
+

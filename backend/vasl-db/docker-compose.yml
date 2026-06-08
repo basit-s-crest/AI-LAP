@@ -1,8 +1,8 @@
 version: "3.9"
 
 # ============================================================
-# VASL ALAP — Full local development stack
-# Services: Postgres, Redis, Zookeeper, Kafka, Ingestion, Consumer
+# VASL ALAP — Local development stack
+# Services: Postgres, Redis
 # Run: docker compose up -d
 # ============================================================
 
@@ -20,7 +20,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # All *.sql files in migrations/ run in filename order (V1→V9)
+      # All *.sql files in migrations/ run in filename order (V1→V13)
       # on first start when the data volume is empty.
       - ./migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
@@ -29,7 +29,7 @@ services:
       timeout: 5s
       retries: 10
 
-  # ── Redis ────────────────────────────────────────────────────────────────────
+  # ── Redis (crisis alert pub/sub) ─────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: vasl_redis
@@ -44,126 +44,6 @@ services:
       timeout: 3s
       retries: 5
 
-  # ── Zookeeper (required by Kafka) ────────────────────────────────────────────
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.0
-    container_name: vasl_zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME:   2000
-    volumes:
-      - zookeeper_data:/var/lib/zookeeper/data
-      - zookeeper_log:/var/lib/zookeeper/log
-    healthcheck:
-      test: ["CMD-SHELL", "zookeeper-shell localhost:2181 ls / > /dev/null 2>&1"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 20s
-
-  # ── Kafka ────────────────────────────────────────────────────────────────────
-  kafka:
-    image: confluentinc/cp-kafka:7.6.0
-    container_name: vasl_kafka
-    depends_on:
-      zookeeper:
-        condition: service_healthy
-    ports:
-      - "9092:9092"
-    environment:
-      KAFKA_BROKER_ID:                        1
-      KAFKA_ZOOKEEPER_CONNECT:                zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS:             PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:   PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME:       PLAINTEXT_INTERNAL
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE:        "false"
-    volumes:
-      - kafka_data:/var/lib/kafka/data
-    healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
-
-  # ── Kafka topic setup (runs once then exits) ─────────────────────────────────
-  kafka-setup:
-    image: confluentinc/cp-kafka:7.6.0
-    container_name: vasl_kafka_setup
-    depends_on:
-      kafka:
-        condition: service_healthy
-    entrypoint: ["/bin/sh", "-c"]
-    command: |
-      "
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists \
-        --topic alap.text.raw \
-        --partitions 3 \
-        --replication-factor 1 \
-        --config retention.ms=86400000 \
-        --config cleanup.policy=delete \
-        --config compression.type=zstd
-
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists \
-        --topic alap.text.annotated \
-        --partitions 3 \
-        --replication-factor 1 \
-        --config retention.ms=7776000000 \
-        --config cleanup.policy=delete \
-        --config compression.type=zstd
-
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists \
-        --topic alap.text.dlq \
-        --partitions 1 \
-        --replication-factor 1 \
-        --config retention.ms=604800000
-
-      echo 'Topics created.'
-      "
-    restart: "no"
-
-  # ── Ingestion Gateway (FastAPI) ──────────────────────────────────────────────
-  ingestion:
-    build:
-      context: ./ingestion
-      dockerfile: Dockerfile
-    container_name: vasl_ingestion
-    depends_on:
-      kafka:
-        condition: service_healthy
-    ports:
-      - "8000:8000"
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      KAFKA_TOPIC_RAW:         alap.text.raw
-      KAFKA_SSL_CA_LOCATION:   ""
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-
-  # ── Kafka consumer service ───────────────────────────────────────────────────
-  consumer:
-    build:
-      context: ./consumer
-      dockerfile: Dockerfile
-    container_name: vasl_consumer
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    env_file: .env
-    restart: unless-stopped
-
 volumes:
-  postgres_data:      # Postgres tables and data
-  redis_data:         # Redis AOF persistence
-  kafka_data:         # Kafka topic/partition data
-  zookeeper_data:     # Zookeeper snapshots
-  zookeeper_log:      # Zookeeper transaction log
+  postgres_data:   # Postgres tables and data
+  redis_data:      # Redis AOF persistence

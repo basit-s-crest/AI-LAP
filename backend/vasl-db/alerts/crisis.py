@@ -1,15 +1,15 @@
 """
-alerts.py
----------
+alerts/crisis.py
+----------------
 Crisis alert fast path.
 
 Spec AC-S05: crisis-tier events (score >= 0.90) must appear in the
 therapist dashboard within 90 seconds of ingestion.
 
-This module publishes to a Redis pub/sub channel immediately when a
-crisis event is detected — before the full DB write completes.
-The dashboard WebSocket subscribes to this channel and pushes the
-alert to the browser in real time.
+Publishes to a Redis pub/sub channel immediately when a crisis event
+is detected. The dashboard WebSocket subscribes to this channel and
+pushes the alert to the browser in real time — bypassing DB query
+latency entirely.
 """
 
 import json
@@ -19,7 +19,7 @@ from typing import Any
 
 import redis
 
-from config import (
+from vasl_db.config import (
     REDIS_HOST, REDIS_PORT, REDIS_SSL,
     CRISIS_SCORE_THRESHOLD,
 )
@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_redis_client() -> redis.Redis:
+    """Return a connected Redis client."""
     return redis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,
@@ -48,22 +49,23 @@ def is_crisis(payload: dict[str, Any]) -> bool:
 def publish_crisis_alert(payload: dict[str, Any], redis_client: redis.Redis) -> None:
     """
     Publish a crisis alert to the org-scoped Redis channel.
+
     Dashboard WebSocket consumers subscribe to: crisis_alerts:<org_id>
     """
     inference = payload["inference_result"]
     channel   = f"crisis_alerts:{payload['org_id']}"
 
     alert = {
-        "event_id":          payload["event_id"],
-        "member_token":      payload["member_token"],
-        "risk_score":        inference["risk_score"],
-        "risk_tier":         inference["risk_tier"],
+        "event_id":           payload["event_id"],
+        "member_token":       payload["member_token"],
+        "risk_score":         inference["risk_score"],
+        "risk_tier":          inference["risk_tier"],
         "recommended_action": inference.get("recommended_action"),
-        "active_signals":    inference.get("active_signals", []),
-        "cultural_context":  inference.get("cultural_context", []),
-        "alerted_at":        datetime.now(timezone.utc).isoformat(),
+        "active_signals":     inference.get("active_signals", []),
+        "cultural_context":   inference.get("cultural_context", []),
+        "alerted_at":         datetime.now(timezone.utc).isoformat(),
         # Review deadline is 10 minutes for crisis tier (per spec)
-        "review_deadline":   payload["processing_metadata"].get("review_deadline"),
+        "review_deadline":    payload["processing_metadata"].get("review_deadline"),
     }
 
     redis_client.publish(channel, json.dumps(alert))

@@ -10,11 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
 from sqlalchemy.orm import selectinload
 
-from app.core.models import (
+from app.modules.sentiment.models import (
     Member, InferenceEvent, EventSignal,
     ShapAttribution, ReviewAction, MemberRiskSnapshot,
 )
-from app.core.schemas import InferenceResultIn, ReviewIn
+from app.modules.sentiment.schemas import InferenceResultIn, ReviewIn
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
@@ -259,3 +259,5 @@ async def get_admin_recent_events(db: AsyncSession, org_id: str, limit: int = 50
             "member_token": token
         })
     return events
+
+

@@ -9,8 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.schemas import InferenceResultIn, InferenceResultOut, ReviewIn, ReviewOut
-from app.core import crud
+from app.modules.sentiment.schemas import InferenceResultIn, InferenceResultOut, ReviewIn, ReviewOut
+from app.modules.sentiment import crud
 
 router = APIRouter(prefix="/v1", tags=["Store"])
 
@@ -47,3 +47,6 @@ async def submit_review(
         raise HTTPException(status_code=404, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+

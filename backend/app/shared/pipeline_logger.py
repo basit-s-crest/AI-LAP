@@ -12,7 +12,7 @@ Stages logged for every /v1/ingest/* call:
   5  response_sent      — 202 returned to the Node backend
 
 Usage (from ingest.py):
-    from app.core.pipeline_logger import log_stage
+    from app.shared.pipeline_logger import log_stage
 
     await log_stage(
         event_id     = payload.event_id,
@@ -121,3 +121,7 @@ _INSERT_SQL = _text("""
         :risk_tier, :risk_score, :risk_trend
     )
 """)
+
+
+
+

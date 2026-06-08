@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -47,6 +47,12 @@ const DEMO_OPTS = [
 ] as const;
 
 export function OnboardingFlow({ returnTo = "/dashboard" }: { returnTo?: string }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+
   const router = useRouter();
   const queryClient = useQueryClient();
   const user = useAppSelector((s) => s.auth.user);
@@ -119,6 +125,17 @@ export function OnboardingFlow({ returnTo = "/dashboard" }: { returnTo?: string 
     setIsSubmitting(false);
     setOnboardStep(2);
   }, [demos, phqAnswers, gadAnswers]);
+
+  if (!mounted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-canvas px-6 py-10">
+        <div className="w-full max-w-[600px] text-center text-sm text-dim">
+          Loading onboarding...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-canvas px-6 py-10">
       <div className="w-full max-w-[600px]">

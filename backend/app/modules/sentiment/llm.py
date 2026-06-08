@@ -29,7 +29,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env")
 
 from openai import AsyncOpenAI
-from app.core.schemas import InferenceResultIn, SignalIn, ShapIn
+from app.modules.sentiment.schemas import InferenceResultIn, SignalIn, ShapIn
 
 logger = logging.getLogger(__name__)
 
@@ -532,3 +532,5 @@ async def run_inference(
             for sh in result.get("shap_attributions", [])
         ],
     )
+
+
