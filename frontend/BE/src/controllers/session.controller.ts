@@ -43,11 +43,12 @@ async function assertCanViewCoachAvailability(
 // Auth required. Returns the coach's saved availability slots and duration.
 
 export const getCoachAvailability = async (
-  req: Request<{ coachId: string }>,
+  req: Request<{ coachId: string }, any, any, { date?: string }>,
   res: Response
 ): Promise<Response> => {
   try {
     const { coachId } = req.params;
+    const { date } = req.query;
     const user = req.user!;
 
     const allowed = await assertCanViewCoachAvailability(user, coachId);
@@ -55,15 +56,20 @@ export const getCoachAvailability = async (
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
+    let startRange = new Date();
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const [year, month, day] = date.split("-").map(Number);
+      startRange = new Date(year, month - 1, day, 0, 0, 0, 0);
+    } else {
+      startRange.setHours(0, 0, 0, 0);
+    }
+    const endRange = new Date(startRange);
+    endRange.setDate(startRange.getDate() + 1);
 
     const bookedToday = await prisma.session.findMany({
       where: {
         coachId,
-        scheduledAt: { gte: today, lt: tomorrow },
+        scheduledAt: { gte: startRange, lt: endRange },
         status: { not: "cancelled" },
       },
       select: { scheduledAt: true, memberId: true },
@@ -177,6 +183,8 @@ export const getCoachSessions = async (
         duration: s.duration,
         type: s.type,
         status: s.status,
+        livekitStartedAt: s.livekitStartedAt,
+        livekitEndedAt: s.livekitEndedAt,
         createdAt: s.createdAt,
       }))
     );
@@ -230,40 +238,85 @@ export const bookSession = async (
       { day: "Sunday", start: "09:00 AM", end: "05:00 PM", enabled: false },
     ];
     const dayName = requestedDate.toLocaleDateString("en-US", { weekday: "long" });
-    const enabledDays = slots.filter((s) => s.enabled).map((s) => s.day);
-    if (enabledDays.length > 0 && !enabledDays.includes(dayName)) {
+    const slot = slots.find((s) => s.day === dayName);
+    if (!slot || !slot.enabled) {
       return res.status(400).json({
         message: `Coach is not available on ${dayName}`,
       });
     }
 
-    const existingSession = await prisma.session.findFirst({
+    const dur = avail?.duration ?? 50;
+
+    // Validate that the requested time falls strictly within the coach's start/end hours for that day
+    const parseTimeToMinutes = (t: string): number => {
+      const clean = t.trim().toUpperCase();
+      const [timePart, meridiem] = clean.split(" ");
+      const [hStr, mStr] = timePart.split(":");
+      let h = parseInt(hStr, 10);
+      const m = parseInt(mStr, 10);
+      if (meridiem === "PM" && h !== 12) h += 12;
+      if (meridiem === "AM" && h === 12) h = 0;
+      return h * 60 + m;
+    };
+
+    const requestedMins = requestedDate.getHours() * 60 + requestedDate.getMinutes();
+    const startMins = parseTimeToMinutes(slot.start);
+    const endMins = parseTimeToMinutes(slot.end);
+
+    if (requestedMins < startMins || requestedMins + dur > endMins) {
+      return res.status(400).json({
+        message: `Requested time is outside the coach's available hours (${slot.start} to ${slot.end})`,
+      });
+    }
+
+    // Check no overlap with existing non-cancelled sessions for that coach and member
+    const dayStart = new Date(requestedDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayStart.getDate() + 1);
+
+    const coachSessions = await prisma.session.findMany({
       where: {
         coachId,
-        scheduledAt: requestedDate,
+        scheduledAt: { gte: dayStart, lt: dayEnd },
         status: { not: "cancelled" },
       },
     });
-    if (existingSession) {
+
+    const reqStart = requestedDate.getTime();
+    const reqEnd = reqStart + dur * 60 * 1000;
+
+    const hasCoachOverlap = coachSessions.some((s) => {
+      const sStart = s.scheduledAt.getTime();
+      const sEnd = sStart + s.duration * 60 * 1000;
+      return reqStart < sEnd && sStart < reqEnd;
+    });
+
+    if (hasCoachOverlap) {
       return res.status(409).json({
-        message: "This slot is already booked",
+        message: "This slot overlaps with an existing booking",
       });
     }
 
-    const memberConflict = await prisma.session.findFirst({
+    const memberSessions = await prisma.session.findMany({
       where: {
         memberId,
-        scheduledAt: requestedDate,
+        scheduledAt: { gte: dayStart, lt: dayEnd },
         status: { not: "cancelled" },
       },
     });
-    if (memberConflict) {
+
+    const hasMemberOverlap = memberSessions.some((s) => {
+      const sStart = s.scheduledAt.getTime();
+      const sEnd = sStart + s.duration * 60 * 1000;
+      return reqStart < sEnd && sStart < reqEnd;
+    });
+
+    if (hasMemberOverlap) {
       return res.status(409).json({
-        message: "You already have a session at this time",
+        message: "You already have a session that overlaps with this time",
       });
     }
-
-    const dur = avail?.duration ?? 50;
 
     const session = await prisma.session.create({
       data: {

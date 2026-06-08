@@ -333,12 +333,8 @@ useEffect(() => {
                   )}
                 >
                   <div className="relative shrink-0">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[var(--bg-surface-2)] border border-line text-lg font-bold text-sage">
-                      {conv.partnerAvatar ? (
-                        <img src={conv.partnerAvatar} alt={conv.partnerName} className="h-full w-full rounded-[10px] object-cover" />
-                      ) : (
-                        conv.partnerName.charAt(0).toUpperCase()
-                      )}
+                    <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-teal-light border border-line text-sm font-bold text-teal">
+                      {conv.partnerName.charAt(0).toUpperCase()}
                     </div>
                     {unread > 0 && (
                       <div className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border-2 border-card bg-terra px-0.5 text-[9px] font-bold text-white">
@@ -395,12 +391,8 @@ useEffect(() => {
           {/* Chat header */}
           {selectedConv ? (
             <div className="flex shrink-0 items-center gap-3 bg-[var(--bg-surface-2)] border-b border-line px-5 py-3.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--bg-surface-2)] border border-line text-lg font-bold text-sage">
-                {selectedConv.partnerAvatar ? (
-                  <img src={selectedConv.partnerAvatar} alt={selectedConv.partnerName} className="h-full w-full rounded-[10px] object-cover" />
-                ) : (
-                  selectedConv.partnerName.charAt(0).toUpperCase()
-                )}
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-teal-light border border-line text-sm font-bold text-teal">
+                {selectedConv.partnerName.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1">
                 <div className="text-sm font-semibold text-ink">{selectedConv.partnerName}</div>

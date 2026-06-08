@@ -1,0 +1,345 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  LiveKitRoom,
+  useRoomContext,
+  useConnectionState,
+  useLocalParticipant,
+  useRemoteParticipants,
+  useTracks,
+  VideoTrack,
+  RoomAudioRenderer,
+} from "@livekit/components-react";
+import { Track } from "livekit-client";
+import { Mic, MicOff, Video, VideoOff, PhoneOff, AlertTriangle } from "lucide-react";
+
+interface SessionVideoCallProps {
+  token: string;
+  serverUrl: string;
+  roomName: string;
+  role: string;
+  coachId: string;
+}
+
+const backgroundStyle = {
+  background: `
+    radial-gradient(circle at 10% 20%, rgba(83, 164, 208, 0.15) 0%, transparent 45%),
+    radial-gradient(circle at 90% 10%, rgba(156, 138, 233, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 50% 80%, rgba(83, 164, 208, 0.08) 0%, transparent 50%),
+    linear-gradient(135deg, #E3EFFB 0%, #F1F6FC 50%, #E8F2FC 100%)
+  `,
+  backgroundAttachment: "fixed" as const,
+};
+
+const getInitials = (name?: string) => {
+  if (!name) return "?";
+  const cleanName = name.includes(":") ? name.split(":")[1] || name.split(":")[0] : name;
+  const parts = cleanName.trim().split(/\s+/);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+function VideoCallInterface({ role, onLeave }: { role: string; onLeave: () => void }) {
+  const room = useRoomContext();
+  const connectionState = useConnectionState();
+  const remoteParticipants = useRemoteParticipants();
+  const { isMicrophoneEnabled, isCameraEnabled, localParticipant } = useLocalParticipant();
+  const cameraTracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
+
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [showControls, setShowControls] = useState(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Inactivity auto-hide logic
+  const resetInactivityTimer = () => {
+    setShowControls(true);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  };
+
+  useEffect(() => {
+    window.addEventListener("mousemove", resetInactivityTimer);
+    timeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+    return () => {
+      window.removeEventListener("mousemove", resetInactivityTimer);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Timer logic
+  useEffect(() => {
+    if (connectionState === "connected" && remoteParticipants.length > 0) {
+      const interval = setInterval(() => {
+        setTimerSeconds((prev) => prev + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [connectionState, remoteParticipants.length]);
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
+
+  const getQualityColor = (quality: string) => {
+    if (quality === "excellent" || quality === "good") return "bg-[#68A688]"; // sage/green
+    if (quality === "poor") return "bg-[#FF8D69]"; // amber
+    return "bg-[#FF7894]"; // rose/red
+  };
+
+  // Mic/Camera toggles
+  const toggleMic = async () => {
+    try {
+      await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
+    } catch (err) {
+      console.error("[VideoCallInterface] Failed to toggle mic:", err);
+    }
+  };
+
+  const toggleCamera = async () => {
+    try {
+      await localParticipant.setCameraEnabled(!isCameraEnabled);
+    } catch (err) {
+      console.error("[VideoCallInterface] Failed to toggle camera:", err);
+    }
+  };
+
+  const handleEndCall = () => {
+    console.log("[VideoCallInterface] Ending call...");
+    room.disconnect();
+  };
+
+  // Render RoomAudioRenderer to ensure we hear remote participants
+  const audioRenderer = <RoomAudioRenderer />;
+
+  // 1. Connecting State
+  if (connectionState === "connecting" || connectionState === "reconnecting") {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center z-[9999]" style={backgroundStyle}>
+        {audioRenderer}
+        <div className="flex flex-col items-center justify-center p-12 bg-white border border-[#D2DBE3] rounded-[28px] shadow-[0_12px_30px_rgba(92,107,115,0.05)] max-w-md w-full mx-4 text-center">
+          <div className="w-12 h-12 border-4 border-[#68A688]/20 border-t-[#68A688] rounded-full animate-spin mb-6" />
+          <h3 className="font-outfit font-bold text-xl text-[#1E252B] mb-2 serif">Connecting to session…</h3>
+          <p className="text-sm font-sans text-[#5C6B73]">Establishing connection to the secure server...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Waiting State
+  if (connectionState === "connected" && remoteParticipants.length === 0) {
+    const waitingMsg = role === "coach" ? "Waiting for client..." : "Waiting for coach...";
+    return (
+      <div className="fixed inset-0 flex items-center justify-center z-[9999]" style={backgroundStyle}>
+        {audioRenderer}
+        <div className="relative flex flex-col items-center justify-center p-12 bg-white border border-[#D2DBE3] rounded-[28px] shadow-[0_24px_50px_rgba(92,107,115,0.08)] max-w-md w-full mx-4 text-center overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[6px] bg-gradient-to-r from-[#FF7894] via-[#FF8D69] via-[#FFE180] via-[#8EE2BE] via-[#53A4D0] to-[#9C8AE9]" />
+          <div className="w-12 h-12 border-4 border-[#68A688]/20 border-t-[#68A688] rounded-full animate-spin mb-6" />
+          <h3 className="font-outfit font-bold text-xl text-[#1E252B] mb-2 serif">{waitingMsg}</h3>
+          <p className="text-sm font-sans text-[#5C6B73]">Your session will begin as soon as they connect.</p>
+          <button
+            onClick={handleEndCall}
+            className="mt-8 bg-white border border-[#D2DBE3] text-[#1E252B] rounded-[12px] py-2 px-4 font-outfit font-semibold text-sm transition-all duration-150 hover:bg-[#E6EFF5]"
+          >
+            Cancel and Exit
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Connected State
+  const remoteParticipant = remoteParticipants[0];
+  const remoteVideoTrack = cameraTracks.find(
+    (t) => t.participant.identity === remoteParticipant?.identity
+  );
+  const localVideoTrack = cameraTracks.find(
+    (t) => t.participant.identity === localParticipant.identity
+  );
+
+  return (
+    <div className="fixed inset-0 flex flex-col items-center justify-center z-[9999] overflow-hidden" style={backgroundStyle}>
+      {audioRenderer}
+
+      {/* Floating Top Bar */}
+      <div
+        className={`fixed top-4 left-4 right-4 z-50 transition-all duration-300 ${
+          showControls ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
+        }`}
+      >
+        <div className="max-w-[1200px] mx-auto bg-white border border-[#D2DBE3] shadow-[0_4px_12px_rgba(92,107,115,0.03)] rounded-[20px] px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className="font-outfit font-extrabold text-xl text-[#68A688] tracking-tight serif">SafeCircle</span>
+            <span className="h-4 w-[1px] bg-[#D2DBE3]" />
+            <span className="font-sans text-xs text-[#5C6B73] font-medium tracking-wide uppercase">Video Session</span>
+          </div>
+
+          <div className="font-outfit font-bold text-lg text-[#1E252B] tracking-tight serif">
+            {formatTimer(timerSeconds)}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span
+              className={`w-2.5 h-2.5 rounded-full ${getQualityColor(
+                localParticipant.connectionQuality
+              )} animate-pulse`}
+            />
+            <span className="font-sans text-sm font-semibold text-[#1E252B]">
+              {localParticipant.name || localParticipant.identity.split(":")[0]}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Centered Video Card Container */}
+      <div className="w-full h-full flex items-center justify-center p-6 md:p-12 z-10 pt-24 pb-28">
+        <div className="relative w-full max-w-[1000px] aspect-video bg-white border-4 border-white rounded-[28px] shadow-[0_24px_50px_rgba(92,107,115,0.08)] overflow-hidden flex items-center justify-center">
+          
+          {/* Remote Video Track */}
+          {remoteVideoTrack ? (
+            <VideoTrack trackRef={remoteVideoTrack} className="w-full h-full object-cover" />
+          ) : (
+            <div className="flex flex-col items-center justify-center w-full h-full bg-[#F0F4F8]">
+              <div className="w-24 h-24 rounded-full bg-[#68A688] text-white flex items-center justify-center text-3xl font-bold font-outfit uppercase shadow-[0_4px_12px_rgba(92,107,115,0.1)] serif">
+                {getInitials(remoteParticipant?.name || remoteParticipant?.identity)}
+              </div>
+              <p className="mt-4 font-outfit font-bold text-lg text-[#1E252B] serif">
+                {remoteParticipant?.name || remoteParticipant?.identity.split(":")[0]}
+              </p>
+              <p className="text-xs text-[#5C6B73] font-sans font-medium mt-1">Camera is turned off</p>
+            </div>
+          )}
+
+          {/* Local Participant (Self) Video PiP Card */}
+          <div className="absolute bottom-4 right-4 w-[180px] h-[120px] rounded-[12px] border-2 border-white bg-white shadow-lg overflow-hidden z-20 transition-all duration-300">
+            {isCameraEnabled && localVideoTrack ? (
+              <VideoTrack trackRef={localVideoTrack} className="w-full h-full object-cover" />
+            ) : (
+              <div className="flex flex-col items-center justify-center w-full h-full bg-[#E6EFF5]">
+                <div className="w-10 h-10 rounded-full bg-[#53A4D0] text-white flex items-center justify-center text-sm font-bold font-outfit uppercase serif">
+                  {getInitials(localParticipant.name || localParticipant.identity)}
+                </div>
+                <span className="text-[10px] text-[#5C6B73] mt-1 font-semibold font-sans">You</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Floating Bottom Controls */}
+      <div
+        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+          showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+        }`}
+      >
+        <div className="bg-white border border-[#D2DBE3] shadow-[0_24px_50px_rgba(92,107,115,0.08)] rounded-[28px] px-6 py-3 flex items-center gap-4">
+          {/* Microphone Button */}
+          <button
+            onClick={toggleMic}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-150 ease-in-out hover:-translate-y-1 hover:shadow-md ${
+              isMicrophoneEnabled ? "bg-[#E6EFF5] text-[#1E252B]" : "bg-[#FFF0F2] text-[#FF7894]"
+            }`}
+            title={isMicrophoneEnabled ? "Mute Mic" : "Unmute Mic"}
+          >
+            {isMicrophoneEnabled ? <Mic size={20} /> : <MicOff size={20} />}
+          </button>
+
+          {/* Camera Button */}
+          <button
+            onClick={toggleCamera}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-150 ease-in-out hover:-translate-y-1 hover:shadow-md ${
+              isCameraEnabled ? "bg-[#E6EFF5] text-[#1E252B]" : "bg-[#FFF0F2] text-[#FF7894]"
+            }`}
+            title={isCameraEnabled ? "Stop Camera" : "Start Camera"}
+          >
+            {isCameraEnabled ? <Video size={20} /> : <VideoOff size={20} />}
+          </button>
+
+          {/* End Call Button */}
+          <button
+            onClick={handleEndCall}
+            className="w-14 h-14 rounded-full flex items-center justify-center bg-[#FF8D69] text-white transition-all duration-150 ease-in-out hover:-translate-y-1 hover:shadow-lg hover:bg-[#ef7c57]"
+            title="End Call"
+          >
+            <PhoneOff size={24} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function SessionVideoCall({
+  token,
+  serverUrl,
+  roomName,
+  role,
+  coachId,
+}: SessionVideoCallProps) {
+  const router = useRouter();
+  const [errorState, setErrorState] = useState<string | null>(null);
+
+  const handleLeave = () => {
+    console.log("[SessionVideoCall] handleLeave triggered. role:", role);
+    if (role === "coach") {
+      router.push("/sessions");
+    } else {
+      router.push(`/coaching/${coachId}`);
+    }
+  };
+
+  const handleError = (err: Error) => {
+    console.error("[SessionVideoCall] LiveKit connection error:", err);
+    setErrorState(err.message || "Failed to establish a connection to the video room.");
+  };
+
+  if (errorState) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center z-[9999]" style={backgroundStyle}>
+        <div className="flex flex-col items-center justify-center p-8 max-w-md w-full mx-4 text-center bg-white border border-[#D2DBE3] rounded-[28px] shadow-[0_24px_50px_rgba(92,107,115,0.08)]">
+          <div className="text-4xl mb-4 text-[#FF8D69] flex justify-center">
+            <AlertTriangle size={48} className="text-[#FF8D69]" />
+          </div>
+          <h3 className="font-outfit font-bold text-xl text-[#1E252B] mb-2 serif">Connection Error</h3>
+          <p className="text-sm font-sans text-[#5C6B73] leading-relaxed mb-6 font-sans">
+            {errorState}
+          </p>
+          <button
+            onClick={handleLeave}
+            className="bg-[#68A688] text-white rounded-[12px] py-2.5 px-5 font-outfit font-semibold text-sm transition-colors duration-150 hover:bg-[#589274]"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <LiveKitRoom
+      token={token}
+      serverUrl={serverUrl}
+      connect={true}
+      video={true}
+      audio={true}
+      onConnected={() => console.log("[SessionVideoCall] Connected to LiveKit successfully")}
+      onError={handleError}
+      onDisconnected={handleLeave}
+      className="w-full h-full"
+    >
+      <VideoCallInterface role={role} onLeave={handleLeave} />
+    </LiveKitRoom>
+  );
+}
