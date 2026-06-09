@@ -11,8 +11,16 @@ import {
   useTracks,
   VideoTrack,
   RoomAudioRenderer,
+  TrackReference,
+  TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
+
+function isTrackReference(
+  track: TrackReferenceOrPlaceholder | undefined
+): track is TrackReference {
+  return !!track && track.publication !== undefined;
+}
 import { Mic, MicOff, Video, VideoOff, PhoneOff, AlertTriangle } from "lucide-react";
 
 interface SessionVideoCallProps {
@@ -208,7 +216,7 @@ function VideoCallInterface({ role, onLeave }: { role: string; onLeave: () => vo
         <div className="relative w-full max-w-[1000px] aspect-video bg-white border-4 border-white rounded-[28px] shadow-[0_24px_50px_rgba(92,107,115,0.08)] overflow-hidden flex items-center justify-center">
           
           {/* Remote Video Track */}
-          {remoteVideoTrack ? (
+          {remoteVideoTrack && isTrackReference(remoteVideoTrack) ? (
             <VideoTrack trackRef={remoteVideoTrack} className="w-full h-full object-cover" />
           ) : (
             <div className="flex flex-col items-center justify-center w-full h-full bg-[#F0F4F8]">
@@ -224,7 +232,7 @@ function VideoCallInterface({ role, onLeave }: { role: string; onLeave: () => vo
 
           {/* Local Participant (Self) Video PiP Card */}
           <div className="absolute bottom-4 right-4 w-[180px] h-[120px] rounded-[12px] border-2 border-white bg-white shadow-lg overflow-hidden z-20 transition-all duration-300">
-            {isCameraEnabled && localVideoTrack ? (
+            {isCameraEnabled && localVideoTrack && isTrackReference(localVideoTrack) ? (
               <VideoTrack trackRef={localVideoTrack} className="w-full h-full object-cover" />
             ) : (
               <div className="flex flex-col items-center justify-center w-full h-full bg-[#E6EFF5]">
