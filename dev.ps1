@@ -31,7 +31,7 @@ Write-Host ""
 if (-not (Test-Path "$root\node_modules")) {
     Write-Warn "node_modules missing - running npm install first..."
     Push-Location $root
-    npm install
+    npm install --force
     Pop-Location
     Write-OK "npm install done"
     Write-Host ""

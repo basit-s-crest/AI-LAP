@@ -2514,6 +2514,11 @@ textarea.input {
   }
 
   /* Tablet Collapsed Sidebar */
+  .sidebar-wrapper,
+  .sidebar-placeholder {
+    width: 76px !important;
+  }
+
   .nav {
     width: 76px;
     padding: 24px 8px;
@@ -2577,6 +2582,10 @@ textarea.input {
   .topbar {
     padding: 0 20px;
     height: 64px;
+  }
+
+  .topbar-title {
+    font-size: 18px !important;
   }
 
   .g21,

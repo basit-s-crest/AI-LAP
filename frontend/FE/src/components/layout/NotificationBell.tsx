@@ -58,6 +58,7 @@ export function NotificationBell() {
     if (typeof window !== "undefined" && sessionStorage.getItem(sessionKey)) return;
     moodAutoOpenedRef.current = true;
     sessionStorage.setItem(sessionKey, "1");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(true);
   }, [isMember, userId, items]);
 
@@ -109,7 +110,7 @@ export function NotificationBell() {
   };
 
   return (
-    <div ref={panelRef} className="relative">
+    <div ref={panelRef} className="relative shrink-0">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

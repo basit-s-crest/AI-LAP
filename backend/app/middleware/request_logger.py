@@ -35,7 +35,7 @@ from starlette.responses import Response
 from starlette.types import ASGIApp
 
 from app.core.database import AsyncSessionLocal
-from app.core.request_log_model import RequestLog
+from app.modules.sentiment.request_log_model import RequestLog
 
 logger = logging.getLogger(__name__)
 
@@ -220,3 +220,6 @@ async def _write_log(**fields) -> None:
     async with AsyncSessionLocal() as db:
         db.add(RequestLog(**fields))
         await db.commit()
+
+
+

@@ -11,8 +11,16 @@ import {
   useTracks,
   VideoTrack,
   RoomAudioRenderer,
+  TrackReference,
+  TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
+
+function isTrackReference(
+  track: TrackReferenceOrPlaceholder | undefined
+): track is TrackReference {
+  return !!track && track.publication !== undefined;
+}
 import { Mic, MicOff, Video, VideoOff, PhoneOff, AlertTriangle } from "lucide-react";
 
 interface SessionVideoCallProps {
@@ -283,9 +291,9 @@ function VideoCallInterface({
       {/* Main Centered Video Card Container */}
       <div className={mode === "modal" ? "w-full h-full z-10" : "w-full h-full flex items-center justify-center p-6 md:p-12 z-10 pt-24 pb-28"}>
         <div className={mode === "modal" ? "relative w-full h-full overflow-hidden flex items-center justify-center bg-[#0F172A]" : "relative w-full max-w-[1000px] aspect-video bg-white border-4 border-white rounded-[28px] shadow-[0_24px_50px_rgba(92,107,115,0.08)] overflow-hidden flex items-center justify-center"}>
-          
+
           {/* Remote Video Track */}
-          {remoteVideoTrack ? (
+          {remoteVideoTrack && isTrackReference(remoteVideoTrack) ? (
             <VideoTrack trackRef={remoteVideoTrack} className="w-full h-full object-cover" />
           ) : (
             <div className="flex flex-col items-center justify-center w-full h-full bg-[#0F172A] py-16">
@@ -330,9 +338,8 @@ function VideoCallInterface({
 
       {/* Floating Bottom Controls */}
       <div
-        className={`${mode === "modal" ? "absolute" : "fixed"} bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
-          showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-        }`}
+        className={`${mode === "modal" ? "absolute" : "fixed"} bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+          }`}
       >
         <div
           className="bg-white/85 border border-[#D2DBE3] shadow-[0_24px_50px_rgba(92,107,115,0.08)] rounded-[40px] flex items-center backdrop-blur-[16px]"
@@ -341,9 +348,8 @@ function VideoCallInterface({
           {/* Microphone Button */}
           <button
             onClick={toggleMic}
-            className={`w-[46px] h-[46px] rounded-full flex items-center justify-center transition-all duration-[150ms] ease-in-out hover:scale-105 hover:shadow-md ${
-              isMicrophoneEnabled ? "bg-[#E6EFF5] text-[#1E252B]" : "bg-[#FFF0F2] text-[#FF7894]"
-            }`}
+            className={`w-[46px] h-[46px] rounded-full flex items-center justify-center transition-all duration-[150ms] ease-in-out hover:scale-105 hover:shadow-md ${isMicrophoneEnabled ? "bg-[#E6EFF5] text-[#1E252B]" : "bg-[#FFF0F2] text-[#FF7894]"
+              }`}
             title={isMicrophoneEnabled ? "Mute Mic" : "Unmute Mic"}
           >
             {isMicrophoneEnabled ? <Mic size={20} /> : <MicOff size={20} />}
@@ -352,9 +358,8 @@ function VideoCallInterface({
           {/* Camera Button */}
           <button
             onClick={toggleCamera}
-            className={`w-[46px] h-[46px] rounded-full flex items-center justify-center transition-all duration-[150ms] ease-in-out hover:scale-105 hover:shadow-md ${
-              isCameraEnabled ? "bg-[#E6EFF5] text-[#1E252B]" : "bg-[#FFF0F2] text-[#FF7894]"
-            }`}
+            className={`w-[46px] h-[46px] rounded-full flex items-center justify-center transition-all duration-[150ms] ease-in-out hover:scale-105 hover:shadow-md ${isCameraEnabled ? "bg-[#E6EFF5] text-[#1E252B]" : "bg-[#FFF0F2] text-[#FF7894]"
+              }`}
             title={isCameraEnabled ? "Stop Camera" : "Start Camera"}
           >
             {isCameraEnabled ? <Video size={20} /> : <VideoOff size={20} />}
