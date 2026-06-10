@@ -115,6 +115,8 @@ function formatDateLabel(dateStr: string): string {
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+const EMPTY_CONVERSATIONS: ConversationSummary[] = [];
+
 // ── Component ──────────────────────────────────────────────────────────────
 export default function CoachMessagesPage() {
   const router = useRouter();
@@ -160,7 +162,7 @@ export default function CoachMessagesPage() {
   });
 
   // ── Fetch conversation list ────────────────────────────────────────────
-  const { data: conversations = [], isLoading: convsLoading } = useQuery<ConversationSummary[]>({
+  const { data: conversations = EMPTY_CONVERSATIONS, isLoading: convsLoading } = useQuery<ConversationSummary[]>({
     queryKey: ["coach-conversations"],
     queryFn: async () => {
       const { data } = await api.get<ConversationSummary[]>("/api/coach-messages");
@@ -168,28 +170,38 @@ export default function CoachMessagesPage() {
     },
   });
 
-  // Sync unread counts from API data; honor ?partner= from notifications
+  // Sync unread counts from API data - completely loop-free using functional updates
   useEffect(() => {
-    const counts: Record<string, number> = {};
-    let hasChanged = false;
-    for (const c of conversations) {
-      counts[c.partnerId] = c.unreadCount;
-      if (unreadCounts[c.partnerId] !== c.unreadCount) {
-        hasChanged = true;
+    if (conversations.length === 0) return;
+
+    setUnreadCounts((prev) => {
+      const counts: Record<string, number> = {};
+      let hasChanged = false;
+      for (const c of conversations) {
+        counts[c.partnerId] = c.unreadCount;
+        if (prev[c.partnerId] !== c.unreadCount) {
+          hasChanged = true;
+        }
       }
-    }
-    if (hasChanged || Object.keys(unreadCounts).length !== conversations.length) {
-      setUnreadCounts(counts);
-    }
+      if (hasChanged || Object.keys(prev).length !== conversations.length) {
+        return counts;
+      }
+      return prev;
+    });
+  }, [conversations]);
+
+  // Handle selected conversation initialization and query parameter sync
+  useEffect(() => {
+    if (conversations.length === 0) return;
 
     if (partnerFromUrl && conversations.some((c) => c.partnerId === partnerFromUrl)) {
       if (selectedId !== partnerFromUrl) {
         setSelectedId(partnerFromUrl);
       }
-    } else if (!selectedId && conversations.length > 0) {
+    } else if (!selectedId) {
       setSelectedId(conversations[0].partnerId);
     }
-  }, [conversations, partnerFromUrl, selectedId, unreadCounts]);
+  }, [conversations, partnerFromUrl, selectedId]);
 
   useEffect(() => {
     setActiveCoachMessagesPartner(selectedId);
@@ -207,7 +219,7 @@ export default function CoachMessagesPage() {
   } = useCoachMessages(selectedId ?? "");
 
   // ── Real-time socket ───────────────────────────────────────────────────
-  const { sendMessage: socketSend, isConnected } = useCoachSocket({
+  const { sendMessage: socketSend, sendTranscription, isConnected } = useCoachSocket({
     onNewMessage: (msg: CoachMessageDTO) => {
       // Prepend to the active thread's cache
       if (selectedId && (msg.userId === selectedId || msg.coachId === selectedId)) {
@@ -764,6 +776,11 @@ useEffect(() => {
           memberId={meetingMemberId}
           clientName={meetingClientName}
           sessionTime={meetingSessionTime}
+          onMemberTranscription={(text) => {
+            if (meetingMemberId) {
+              sendTranscription(meetingMemberId, text, "member");
+            }
+          }}
           onClose={() => {
             setMeetingOpen(false);
             setMeetingSessionId(null);

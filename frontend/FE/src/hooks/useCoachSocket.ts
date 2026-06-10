@@ -13,6 +13,7 @@ interface UseCoachSocketOptions {
 
 interface UseCoachSocketReturn {
   sendMessage: (partnerId: string, content: string) => void
+  sendTranscription: (partnerId: string, content: string, senderRole: "member" | "coach") => void
   isConnected: boolean
 }
 
@@ -105,5 +106,12 @@ export function useCoachSocket(
     []
   )
 
-  return { sendMessage, isConnected }
+  const sendTranscription = useCallback(
+    (partnerId: string, content: string, senderRole: "member" | "coach") => {
+      socketRef.current?.emit("send_transcription", { partnerId, content, senderRole })
+    },
+    []
+  )
+
+  return { sendMessage, sendTranscription, isConnected }
 }

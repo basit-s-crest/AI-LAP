@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { TranscriptLine } from "@/types/sessionNote";
 
-export function useLiveTranscription(speaker: 'member' | 'coach', customStream?: MediaStream | null) {
+export function useLiveTranscription(
+  speaker: 'member' | 'coach', 
+  customStream?: MediaStream | null,
+  onFinalTranscript?: (text: string) => void
+) {
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [isListening, setIsListening] = useState(false);
   const isSupported = true; // Always true as supported by standard modern browsers
@@ -11,6 +15,11 @@ export function useLiveTranscription(speaker: 'member' | 'coach', customStream?:
   const streamRef = useRef<MediaStream | null>(null);
   const isListeningRef = useRef(false);
   const isStartingRef = useRef(false);
+
+  const onFinalTranscriptRef = useRef(onFinalTranscript);
+  useEffect(() => {
+    onFinalTranscriptRef.current = onFinalTranscript;
+  }, [onFinalTranscript]);
 
   // Keep speaker in a ref in case it changes dynamically
   const speakerRef = useRef(speaker);
@@ -72,12 +81,7 @@ export function useLiveTranscription(speaker: 'member' | 'coach', customStream?:
     stopListening(); // Clear any existing resources first
 
     try {
-      const apiKey = process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY;
-      if (!apiKey) {
-        console.error("[STT] NEXT_PUBLIC_DEEPGRAM_API_KEY is not set");
-        return;
-      }
-      console.log('[STT] API key found, starting for speaker:', speakerRef.current);
+      console.log('[STT] Initializing STT proxy connection for speaker:', speakerRef.current);
 
       const stream = customStream || await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -87,16 +91,12 @@ export function useLiveTranscription(speaker: 'member' | 'coach', customStream?:
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
 
-      // Hardcode correct WebSocket URL directly - Omit encoding and container parameters for containerized WebM audio
-      const wsUrl = 'wss://api.deepgram.com/v1/listen' +
-        '?model=nova-3' +
-        '&language=en' +
-        '&smart_format=true' +
-        '&interim_results=true' +
-        '&endpointing=100';
-
-      // Initialize native WebSocket connection to Deepgram's streaming API
-      const socket = new WebSocket(wsUrl, ["token", apiKey]);
+      // Point WebSocket connection to our Python STT WebSocket proxy
+      const pythonBackendUrl = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || "http://localhost:8001";
+      const wsUrl = pythonBackendUrl.replace(/^http/, 'ws') + '/v1/stt';
+      
+      console.log('[STT] Connecting to STT proxy at:', wsUrl);
+      const socket = new WebSocket(wsUrl);
       socketRef.current = socket;
 
       socket.onopen = () => {
@@ -128,6 +128,9 @@ export function useLiveTranscription(speaker: 'member' | 'coach', customStream?:
               ...prev.filter((l) => l.isFinal),
               { speaker: currentSpeaker, text, timestamp: new Date().toISOString(), isFinal: true },
             ]);
+            if (currentSpeaker === "member" && onFinalTranscriptRef.current) {
+              onFinalTranscriptRef.current(text);
+            }
           } else {
             setTranscript((prev) => [
               ...prev.filter((l) => l.isFinal),

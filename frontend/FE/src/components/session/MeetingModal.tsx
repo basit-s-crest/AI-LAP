@@ -19,6 +19,7 @@ interface MeetingModalProps {
   clientName: string;
   sessionTime: string;
   onClose: () => void;
+  onMemberTranscription?: (text: string) => void;
 }
 
 export default function MeetingModal({
@@ -27,6 +28,7 @@ export default function MeetingModal({
   clientName,
   sessionTime,
   onClose,
+  onMemberTranscription,
 }: MeetingModalProps) {
   const [tokenDetails, setTokenDetails] = useState<LiveKitTokenResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -218,6 +220,7 @@ export default function MeetingModal({
                   onSessionEnd={handleSessionEndAndAnalyze}
                   isCallActive={!!participantInfo}
                   remoteStream={remoteStream}
+                  onMemberTranscription={onMemberTranscription}
                 />
               ) : (
                 <AiSessionNoteView

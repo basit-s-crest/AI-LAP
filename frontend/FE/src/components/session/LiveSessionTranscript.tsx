@@ -12,6 +12,7 @@ interface LiveSessionTranscriptProps {
   onTranscriptChange?: (transcript: TranscriptLine[]) => void;
   isCallActive?: boolean;
   remoteStream?: MediaStream | null;
+  onMemberTranscription?: (text: string) => void;
 }
 
 const formatTime = (isoString: string) => {
@@ -32,6 +33,7 @@ export default function LiveSessionTranscript({
   onTranscriptChange,
   isCallActive,
   remoteStream,
+  onMemberTranscription,
 }: LiveSessionTranscriptProps) {
   const {
     transcript: memberTranscript,
@@ -40,7 +42,7 @@ export default function LiveSessionTranscript({
     startListening: startMemberListening,
     stopListening: stopMemberListening,
     clearTranscript: clearMemberTranscript,
-  } = useLiveTranscription("member", remoteStream);
+  } = useLiveTranscription("member", remoteStream, onMemberTranscription);
 
   const {
     transcript: coachTranscript,
