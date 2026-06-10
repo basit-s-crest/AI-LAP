@@ -217,6 +217,23 @@ Respond with ONLY the JSON object. Do not wrap in markdown \`\`\`json blocks.`,
       },
     });
 
+    // Fallback: update session's livekitEndedAt if not set
+    if (sessionId) {
+      try {
+        const session = await prisma.session.findUnique({
+          where: { id: sessionId },
+        });
+        if (session && !session.livekitEndedAt) {
+          await prisma.session.update({
+            where: { id: sessionId },
+            data: { livekitEndedAt: new Date() },
+          });
+        }
+      } catch (err) {
+        console.error("[createAiSessionNote] Failed to set fallback livekitEndedAt:", err);
+      }
+    }
+
     return res.status(201).json({ note: savedNote });
   } catch (error) {
     console.error("[createAiSessionNote] Internal server error:", error);

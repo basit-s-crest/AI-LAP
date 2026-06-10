@@ -4,7 +4,9 @@ import type { TranscriptLine } from "@/types/sessionNote";
 export function useLiveTranscription(
   speaker: 'member' | 'coach', 
   customStream?: MediaStream | null,
-  onFinalTranscript?: (text: string) => void
+  onFinalTranscript?: (text: string) => void,
+  sessionId?: string,
+  transcriptionToken?: string
 ) {
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [isListening, setIsListening] = useState(false);
@@ -93,7 +95,10 @@ export function useLiveTranscription(
 
       // Point WebSocket connection to our Python STT WebSocket proxy
       const pythonBackendUrl = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || "http://localhost:8001";
-      const wsUrl = pythonBackendUrl.replace(/^http/, 'ws') + '/v1/stt';
+      let wsUrl = pythonBackendUrl.replace(/^http/, 'ws') + '/v1/stt';
+      if (transcriptionToken && sessionId) {
+        wsUrl += `?token=${encodeURIComponent(transcriptionToken)}&sessionId=${encodeURIComponent(sessionId)}`;
+      }
       
       console.log('[STT] Connecting to STT proxy at:', wsUrl);
       const socket = new WebSocket(wsUrl);

@@ -13,6 +13,7 @@ interface LiveSessionTranscriptProps {
   isCallActive?: boolean;
   remoteStream?: MediaStream | null;
   onMemberTranscription?: (text: string) => void;
+  transcriptionToken?: string;
 }
 
 const formatTime = (isoString: string) => {
@@ -34,6 +35,7 @@ export default function LiveSessionTranscript({
   isCallActive,
   remoteStream,
   onMemberTranscription,
+  transcriptionToken,
 }: LiveSessionTranscriptProps) {
   const {
     transcript: memberTranscript,
@@ -42,18 +44,17 @@ export default function LiveSessionTranscript({
     startListening: startMemberListening,
     stopListening: stopMemberListening,
     clearTranscript: clearMemberTranscript,
-  } = useLiveTranscription("member", remoteStream, onMemberTranscription);
+  } = useLiveTranscription("member", remoteStream, onMemberTranscription, sessionId, transcriptionToken);
 
-  const {
-    transcript: coachTranscript,
-    isListening: isCoachListening,
-    isSupported: isCoachSupported,
-    startListening: startCoachListening,
-    stopListening: stopCoachListening,
-    clearTranscript: clearCoachTranscript,
-  } = useLiveTranscription("coach");
+  // Coach audio transcription is disabled right now (scope restriction)
+  const coachTranscript: TranscriptLine[] = [];
+  const isCoachListening = false;
+  const isCoachSupported = true;
+  const startCoachListening = async () => {};
+  const stopCoachListening = () => {};
+  const clearCoachTranscript = () => {};
 
-  const isSupported = isMemberSupported && isCoachSupported;
+  const isSupported = isMemberSupported;
 
   const [isRecordingActive, setIsRecordingActive] = useState(false);
 

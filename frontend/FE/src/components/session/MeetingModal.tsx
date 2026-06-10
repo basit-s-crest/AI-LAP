@@ -87,6 +87,13 @@ export default function MeetingModal({
       setIsAnalyzing(true);
       setPanelView("ai");
 
+      // Explicitly mark session call as ended
+      try {
+        await LiveKitApiService.endSession(sessionId);
+      } catch (endErr) {
+        console.warn("[MeetingModal] Failed to mark session call as ended:", endErr);
+      }
+
       const note = await aiSessionNoteService.create({
         memberId,
         sessionId,
@@ -221,6 +228,7 @@ export default function MeetingModal({
                   isCallActive={!!participantInfo}
                   remoteStream={remoteStream}
                   onMemberTranscription={onMemberTranscription}
+                  transcriptionToken={tokenDetails?.transcriptionToken}
                 />
               ) : (
                 <AiSessionNoteView

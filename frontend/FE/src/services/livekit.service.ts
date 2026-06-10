@@ -25,4 +25,11 @@ export const LiveKitApiService = {
     const { data } = await api.get<LiveKitStatusResponse>(`/api/sessions/${sessionId}/livekit/status`);
     return data;
   },
+
+  /**
+   * Ends a video session (Coach only).
+   */
+  endSession: async (sessionId: string): Promise<void> => {
+    await api.post(`/api/sessions/${sessionId}/livekit/end`);
+  },
 };

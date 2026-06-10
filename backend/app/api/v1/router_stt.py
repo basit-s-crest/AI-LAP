@@ -3,6 +3,7 @@ import logging
 import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import websockets
+import jwt
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +19,50 @@ DEEPGRAM_URL = (
     "&endpointing=100"
 )
 
+JWT_SECRET = os.getenv("JWT_SECRET")
+
+def validate_transcription_token(token: str, query_session_id: str) -> bool:
+    if not token or not query_session_id:
+        logger.error("[STT Proxy] Token or sessionId query parameter missing")
+        return False
+    if not JWT_SECRET:
+        logger.error("[STT Proxy] JWT_SECRET is not configured on the server")
+        return False
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        
+        # Validate exact fields
+        if payload.get("purpose") != "transcription":
+            logger.error(f"[STT Proxy] Invalid purpose: {payload.get('purpose')}")
+            return False
+        if payload.get("speaker") != "member":
+            logger.error(f"[STT Proxy] Invalid speaker: {payload.get('speaker')}")
+            return False
+        if payload.get("sessionId") != query_session_id:
+            logger.error(f"[STT Proxy] sessionId mismatch: {payload.get('sessionId')} vs {query_session_id}")
+            return False
+            
+        return True
+    except jwt.ExpiredSignatureError:
+        logger.error("[STT Proxy] Token has expired")
+        return False
+    except jwt.InvalidTokenError as e:
+        logger.error(f"[STT Proxy] Invalid token: {e}")
+        return False
+
 @router.websocket("")
 async def websocket_endpoint(websocket: WebSocket):
+    token = websocket.query_params.get("token")
+    session_id = websocket.query_params.get("sessionId")
+    
+    if not validate_transcription_token(token, session_id):
+        await websocket.accept()
+        logger.warning(f"[STT Proxy] Rejecting unauthorized connection for sessionId={session_id}")
+        await websocket.close(code=1008, reason="Invalid or missing transcription token")
+        return
+
     await websocket.accept()
-    logger.info("[STT Proxy] Client WebSocket connected")
+    logger.info("[STT Proxy] Client WebSocket connected and authorized")
 
     api_key = os.getenv("DEEPGRAM_API_KEY")
     if not api_key:
