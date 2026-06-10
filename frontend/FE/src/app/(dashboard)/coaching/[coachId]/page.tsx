@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
@@ -17,6 +18,10 @@ import type { MoodOption } from "@/types/mood";
 import { cn } from "@/lib/cn";
 import api from "@/lib/api";
 import { AUTH_USER_JSON_KEY } from "@/constants/storage";
+import { useAppSelector } from "@/hooks/redux";
+import { LiveKitApiService } from "@/services/livekit.service";
+import type { LiveKitTokenResponse } from "@/types/livekit";
+import SessionVideoCall from "@/components/livekit/SessionVideoCall";
 
 const MOODS_DATA = moods.options as MoodOption[];
 
@@ -171,6 +176,156 @@ function formatDateLabel(dateStr: string): string {
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+// ── Meeting Modal Overlay Component ──────────────────────────────────────────
+function MeetingModal({
+  sessionId,
+  clientName,
+  sessionTime,
+  onClose,
+}: {
+  sessionId: string;
+  clientName: string;
+  sessionTime: string;
+  onClose: () => void;
+}) {
+  const role = useAppSelector((s) => s.auth.user?.role);
+  const [tokenDetails, setTokenDetails] = useState<LiveKitTokenResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const fetchStarted = useRef(false);
+
+  const [callTimer, setCallTimer] = useState<string | null>(null);
+  const [participantInfo, setParticipantInfo] = useState<{ name: string; quality: string } | null>(null);
+
+  const getQualityColor = (quality: string) => {
+    if (quality === "excellent" || quality === "good") return "bg-[#68A688]";
+    if (quality === "poor") return "bg-[#FF8D69]";
+    return "bg-[#FF7894]";
+  };
+
+  useEffect(() => {
+    if (!sessionId || !role) return;
+    if (fetchStarted.current) return;
+    fetchStarted.current = true;
+
+    const fetchToken = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        let details: LiveKitTokenResponse;
+        if (role === "coach") {
+          details = await LiveKitApiService.startSession(sessionId);
+        } else if (role === "user") {
+          details = await LiveKitApiService.getToken(sessionId);
+        } else {
+          setError("Forbidden: Your role does not have permission to join session calls.");
+          setLoading(false);
+          return;
+        }
+        setTokenDetails(details);
+      } catch (err: any) {
+        console.error("[MeetingModal] API fetch failed:", err);
+        setError(err.message || "Failed to establish a connection to the video room.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchToken();
+  }, [sessionId, role]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 p-4">
+      <div
+        className="relative w-full max-w-[950px] bg-white rounded-[24px] p-6 flex flex-col animate-up overflow-hidden"
+        style={{ boxShadow: "0 32px 64px rgba(0,0,0,0.35)" }}
+      >
+        {/* Modal Header */}
+        <div className="flex shrink-0 items-center justify-between pb-4">
+          <div>
+            <h3 className="text-[20px] font-bold text-[#1E252B] font-outfit">
+              Session with {clientName}
+            </h3>
+            <p className="text-[13px] font-sans text-dim mt-0.5">
+              Scheduled time: {sessionTime}{callTimer ? ` · ${callTimer}` : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {participantInfo && (
+              <div
+                className="flex items-center gap-2 border border-[#D2DBE3]"
+                style={{ borderRadius: "20px", padding: "4px 10px", backgroundColor: "rgba(0, 0, 0, 0.05)" }}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${getQualityColor(
+                    participantInfo.quality
+                  )} animate-pulse`}
+                />
+                <span className="font-outfit text-sm font-semibold text-[#1E252B]">
+                  {participantInfo.name}
+                </span>
+              </div>
+            )}
+            <button
+              onClick={onClose}
+              className="flex items-center justify-center w-8 h-8 rounded-full border border-[#D2DBE3] text-[#5C6B73] hover:bg-[#F1F6FC] transition-colors font-semibold"
+              title="Leave and Close"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Body / Call Container */}
+        <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-[#0F172A] border border-[#D2DBE3]">
+          {loading ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-white/95">
+              <div className="w-12 h-12 border-4 border-[#68A688]/20 border-t-[#68A688] rounded-full animate-spin mb-6" />
+              <h3 className="font-outfit font-bold text-xl text-[#1E252B] mb-2">Connecting to session…</h3>
+              <p className="text-sm font-sans text-[#5C6B73]">Preparing secure video session credentials...</p>
+            </div>
+          ) : error ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-white/95">
+              <div className="text-4xl mb-4 text-[#FF8D69]">⚠️</div>
+              <h3 className="font-outfit font-bold text-xl text-[#1E252B] mb-2">Unable to Join Call</h3>
+              <p className="text-sm font-sans text-[#5C6B73] leading-relaxed mb-6 max-w-md">
+                {error}
+              </p>
+              <Button onClick={onClose} size="sm">
+                Close
+              </Button>
+            </div>
+          ) : tokenDetails ? (
+            <SessionVideoCall
+              token={tokenDetails.token}
+              serverUrl={tokenDetails.serverUrl}
+              roomName={tokenDetails.roomName}
+              role={role || ""}
+              coachId={tokenDetails.coachId}
+              sessionId={sessionId}
+              mode="modal"
+              onLeave={onClose}
+              onTimerUpdate={setCallTimer}
+              onParticipantUpdate={(name, quality) => setParticipantInfo({ name, quality })}
+            />
+          ) : null}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export default function CoachingChatPage() {
   // ── Refs ── MUST be inside the component
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -201,6 +356,11 @@ export default function CoachingChatPage() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"chat" | "book">("chat");
   const [selectedDate, setSelectedDate] = useState<string>(formatYmdLocal(new Date()));
+
+  const [meetingSessionId, setMeetingSessionId] = useState<string | null>(null);
+  const [meetingOpen, setMeetingOpen] = useState(false);
+  const [meetingClientName, setMeetingClientName] = useState("");
+  const [meetingSessionTime, setMeetingSessionTime] = useState("");
 
   // ── Dynamic slot state ──────────────────────────────────────────────────────
   const [slots, setSlots] = useState<TimeSlot[]>([]);
@@ -450,6 +610,24 @@ useEffect(() => {
     if (!t) return;
     sendMessage(coachIdStr, t);
     setInput("");
+  };
+
+  const handleJoinCall = (sessionId: string) => {
+    setMeetingSessionId(sessionId);
+    setMeetingClientName(coach?.name || "Coach");
+    if (currentSession?.scheduledAt) {
+      const d = new Date(currentSession.scheduledAt);
+      const timeLabel = d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      setMeetingSessionTime(timeLabel);
+    } else {
+      setMeetingSessionTime("");
+    }
+    setMeetingOpen(true);
   };
 
   const renderRescheduleModal = () => {
@@ -788,7 +966,7 @@ useEffect(() => {
               className="mt-3 animate-pulse"
               fullWidth
               variant="primary"
-              onClick={() => router.push(`/coaching/sessions/${currentSession.id}/call`)}
+              onClick={() => handleJoinCall(currentSession.id)}
             >
               Join Meeting
             </Button>
@@ -858,6 +1036,17 @@ useEffect(() => {
           {renderRescheduleModal()}
           {renderCancelConfirmModal()}
         </div>
+        {meetingOpen && meetingSessionId && (
+          <MeetingModal
+            sessionId={meetingSessionId}
+            clientName={meetingClientName}
+            sessionTime={meetingSessionTime}
+            onClose={() => {
+              setMeetingOpen(false);
+              setMeetingSessionId(null);
+            }}
+          />
+        )}
       </DashboardLayout>
     );
   }
@@ -918,7 +1107,7 @@ useEffect(() => {
               size="sm"
               variant="primary"
               className="animate-pulse"
-              onClick={() => router.push(`/coaching/sessions/${currentSession.id}/call`)}
+              onClick={() => handleJoinCall(currentSession.id)}
             >
               Join Meeting
             </Button>
@@ -1026,6 +1215,17 @@ useEffect(() => {
         {renderRescheduleModal()}
         {renderCancelConfirmModal()}
       </div>
+      {meetingOpen && meetingSessionId && (
+        <MeetingModal
+          sessionId={meetingSessionId}
+          clientName={meetingClientName}
+          sessionTime={meetingSessionTime}
+          onClose={() => {
+            setMeetingOpen(false);
+            setMeetingSessionId(null);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }

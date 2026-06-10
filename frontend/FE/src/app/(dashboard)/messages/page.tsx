@@ -1,6 +1,8 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/redux";
@@ -10,6 +12,11 @@ import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { cn } from "@/lib/cn";
 import api from "@/lib/api";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { LiveKitApiService } from "@/services/livekit.service";
+import type { LiveKitTokenResponse } from "@/types/livekit";
+import SessionVideoCall from "@/components/livekit/SessionVideoCall";
 import { useCoachMessages } from "@/hooks/useCoachMessages";
 import { useCoachSocket } from "@/hooks/useCoachSocket";
 import type { ConversationSummary, CoachMessageDTO } from "@/types/coachMessage";
@@ -21,6 +28,44 @@ import {
 } from "@/lib/msgRiskCache";
 import { subscribeRiskDashboard } from "@/lib/riskEventStore";
 import { useRiskScoreStream } from "@/hooks/useRiskScoreStream";
+
+interface CoachSessionRow {
+  id: string;
+  coachId: string;
+  memberId: string;
+  memberName: string;
+  date: string;
+  duration: number;
+  type: string;
+  status: string;
+  livekitStartedAt?: string | null;
+  livekitEndedAt?: string | null;
+  createdAt: string;
+}
+
+function formatSessionDate(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function statusVariant(status: string) {
+  switch (status) {
+    case "upcoming":
+      return "blue";
+    case "cancelled":
+      return "red";
+    case "rescheduled":
+      return "gold";
+    default:
+      return "sage";
+  }
+}
+
 
 const TIER_EMOJI: Record<string, string> = {
   crisis: "🔴",
@@ -69,6 +114,145 @@ function formatDateLabel(dateStr: string): string {
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+// ── Meeting Modal Overlay Component ──────────────────────────────────────────
+function MeetingModal({
+  sessionId,
+  clientName,
+  sessionTime,
+  onClose,
+}: {
+  sessionId: string;
+  clientName: string;
+  sessionTime: string;
+  onClose: () => void;
+}) {
+  const [tokenDetails, setTokenDetails] = useState<LiveKitTokenResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const fetchStarted = useRef(false);
+
+  const [callTimer, setCallTimer] = useState<string | null>(null);
+  const [participantInfo, setParticipantInfo] = useState<{ name: string; quality: string } | null>(null);
+
+  const getQualityColor = (quality: string) => {
+    if (quality === "excellent" || quality === "good") return "bg-[#68A688]";
+    if (quality === "poor") return "bg-[#FF8D69]";
+    return "bg-[#FF7894]";
+  };
+
+  useEffect(() => {
+    if (fetchStarted.current) return;
+    fetchStarted.current = true;
+
+    const fetchToken = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const details = await LiveKitApiService.startSession(sessionId);
+        setTokenDetails(details);
+      } catch (err: any) {
+        console.error("[MeetingModal] API fetch failed:", err);
+        setError(err.message || "Failed to establish a connection to the video room.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchToken();
+  }, [sessionId]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 p-4">
+      <div
+        className="relative w-full max-w-[950px] bg-white rounded-[24px] p-6 flex flex-col animate-up overflow-hidden"
+        style={{ boxShadow: "0 32px 64px rgba(0,0,0,0.35)" }}
+      >
+        {/* Modal Header */}
+        <div className="flex shrink-0 items-center justify-between pb-4">
+          <div>
+            <h3 className="text-[20px] font-bold text-[#1E252B] font-outfit">
+              Session with {clientName}
+            </h3>
+            <p className="text-[13px] font-sans text-dim mt-0.5">
+              Scheduled time: {sessionTime}{callTimer ? ` · ${callTimer}` : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {participantInfo && (
+              <div
+                className="flex items-center gap-2 border border-[#D2DBE3]"
+                style={{ borderRadius: "20px", padding: "4px 10px", backgroundColor: "rgba(0, 0, 0, 0.05)" }}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${getQualityColor(
+                    participantInfo.quality
+                  )} animate-pulse`}
+                />
+                <span className="font-outfit text-sm font-semibold text-[#1E252B]">
+                  {participantInfo.name}
+                </span>
+              </div>
+            )}
+            <button
+              onClick={onClose}
+              className="flex items-center justify-center w-8 h-8 rounded-full border border-[#D2DBE3] text-[#5C6B73] hover:bg-[#F1F6FC] transition-colors font-semibold"
+              title="Leave and Close"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Body / Call Container */}
+        <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-[#0F172A] border border-[#D2DBE3]">
+          {loading ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-white/95">
+              <div className="w-12 h-12 border-4 border-[#68A688]/20 border-t-[#68A688] rounded-full animate-spin mb-6" />
+              <h3 className="font-outfit font-bold text-xl text-[#1E252B] mb-2">Connecting to session…</h3>
+              <p className="text-sm font-sans text-[#5C6B73]">Preparing secure video session credentials...</p>
+            </div>
+          ) : error ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-white/95">
+              <div className="text-4xl mb-4 text-[#FF8D69]">⚠️</div>
+              <h3 className="font-outfit font-bold text-xl text-[#1E252B] mb-2">Unable to Join Call</h3>
+              <p className="text-sm font-sans text-[#5C6B73] leading-relaxed mb-6 max-w-md">
+                {error}
+              </p>
+              <Button onClick={onClose} size="sm">
+                Close
+              </Button>
+            </div>
+          ) : tokenDetails ? (
+            <SessionVideoCall
+              token={tokenDetails.token}
+              serverUrl={tokenDetails.serverUrl}
+              roomName={tokenDetails.roomName}
+              role="coach"
+              coachId={tokenDetails.coachId}
+              sessionId={sessionId}
+              mode="modal"
+              onLeave={onClose}
+              onTimerUpdate={setCallTimer}
+              onParticipantUpdate={(name, quality) => setParticipantInfo({ name, quality })}
+            />
+          ) : null}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ── Component ──────────────────────────────────────────────────────────────
 const EMPTY_CONVERSATIONS: ConversationSummary[] = [];
 
@@ -88,6 +272,12 @@ export default function CoachMessagesPage() {
   const [inputText, setInputText]       = useState("");
   const [sending, setSending]           = useState(false);
   const [showBanner, setShowBanner]     = useState(false);
+
+  const [meetingSessionId, setMeetingSessionId] = useState<string | null>(null);
+  const [meetingOpen, setMeetingOpen] = useState(false);
+  const [meetingClientName, setMeetingClientName] = useState("");
+  const [meetingSessionTime, setMeetingSessionTime] = useState("");
+
   const { dashboard, latestUpdate } = useRiskScoreStream(selectedId);
   const scoreUpdates = dashboard.scores;
   // Track unread counts locally so read_receipt can update them in real time
@@ -95,6 +285,18 @@ export default function CoachMessagesPage() {
   const [riskByMessageId, setRiskByMessageId] = useState<Record<string, MessageRiskMeta>>({});
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
+
+  const [activeTab, setActiveTab] = useState<"messages" | "sessions">("messages");
+  const [sessionRowLoading, setSessionRowLoading] = useState<Record<string, boolean>>({});
+
+  // ── Fetch coach sessions ───────────────────────────────────────────────
+  const { data: coachSessions = [], isLoading: sessionsLoading } = useQuery<CoachSessionRow[]>({
+    queryKey: ["coach-sessions"],
+    queryFn: async () => {
+      const { data } = await api.get<CoachSessionRow[]>("/api/sessions/coach");
+      return data;
+    },
+  });
 
   // ── Fetch conversation list ────────────────────────────────────────────
   const { data: conversations = EMPTY_CONVERSATIONS, isLoading: convsLoading } = useQuery<ConversationSummary[]>({
@@ -206,6 +408,7 @@ export default function CoachMessagesPage() {
     if (!partnerId) return;
     setSelectedId(partnerId);
     setInputText("");
+    setActiveTab("messages");
     router.replace(`/messages?partner=${encodeURIComponent(partnerId)}`, { scroll: false });
     api.post(`/api/coach-messages/${partnerId}/read`).then(() => {
       setUnreadCounts((prev) => ({ ...prev, [partnerId]: 0 }));
@@ -309,6 +512,13 @@ useEffect(() => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
+
+  const handleStartOrJoinVideo = useCallback((session: CoachSessionRow) => {
+    setMeetingSessionId(session.id);
+    setMeetingClientName(session.memberName);
+    setMeetingSessionTime(formatSessionDate(session.date));
+    setMeetingOpen(true);
+  }, []);
 
   const selectedConv = conversations.find((c) => c.partnerId === selectedId);
 
@@ -415,6 +625,32 @@ useEffect(() => {
                   {isConnected ? "Connected" : "Connecting..."}
                 </div>
               </div>
+              <div className="flex gap-1 rounded-[10px] bg-[var(--bg-surface-2)] p-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("messages")}
+                  className={cn(
+                    "rounded-[7px] px-[18px] py-[7px] text-[13px] font-semibold outline-none transition-all",
+                    activeTab === "messages"
+                      ? "bg-card text-ink shadow-[0_1px_4px_rgba(60,50,40,0.1)]"
+                      : "text-mid hover:text-ink"
+                  )}
+                >
+                  Messages
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("sessions")}
+                  className={cn(
+                    "rounded-[7px] px-[18px] py-[7px] text-[13px] font-semibold outline-none transition-all",
+                    activeTab === "sessions"
+                      ? "bg-card text-ink shadow-[0_1px_4px_rgba(60,50,40,0.1)]"
+                      : "text-mid hover:text-ink"
+                  )}
+                >
+                  Sessions
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex shrink-0 items-center gap-3 bg-[var(--bg-surface-2)] border-b border-line px-5 py-3.5">
@@ -422,122 +658,186 @@ useEffect(() => {
             </div>
           )}
 
-          {/* Messages */}
-          <div
-            ref={chatScrollRef}
-            onScroll={handleChatScroll}
-            className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-4"
-          >
-            {!selectedId ? (
-              <div className="flex flex-1 items-center justify-center">
-                <p className="text-sm text-dim">Select a conversation to start messaging.</p>
-              </div>
-            ) : (
-              <>
-                {isFetchingNextPage && (
-                  <div className="flex justify-center py-2">
-                    <p className="text-xs text-dim">Loading older messages...</p>
-                  </div>
-                )}
-                {messagesLoading ? (
+          {activeTab === "messages" ? (
+            <>
+              {/* Messages */}
+              <div
+                ref={chatScrollRef}
+                onScroll={handleChatScroll}
+                className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-4"
+              >
+                {!selectedId ? (
                   <div className="flex flex-1 items-center justify-center">
-                    <p className="text-sm text-dim">Loading messages…</p>
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="flex flex-1 items-center justify-center">
-                    <p className="text-sm text-dim">No messages yet. Start the conversation!</p>
+                    <p className="text-sm text-dim">Select a conversation to start messaging.</p>
                   </div>
                 ) : (
-                  messages.flatMap((msg, i) => {
-                    const msgRisk =
-                      msg.senderRole === "member"
-                        ? riskByMessageId[msg.id] ?? riskFromMessageDto(msg)
-                        : null;
-                    const topSignals = msgRisk?.signal_codes?.slice(0, 2) ?? [];
-                    const showSeparator =
-                      i === 0 || getDayKey(msg.createdAt) !== getDayKey(messages[i - 1].createdAt);
-                    return [
-                      showSeparator && (
-                        <div key={`sep-${msg.id}`} className="my-3 flex items-center gap-3">
-                          <div className="h-px flex-1 bg-line" />
-                          <span className="px-2 text-[11px] font-medium text-dim">
-                            {formatDateLabel(msg.createdAt)}
-                          </span>
-                          <div className="h-px flex-1 bg-line" />
-                        </div>
-                      ),
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          "max-w-[72%]",
-                          msg.senderRole === "coach" ? "self-end" : "self-start"
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "rounded-[14px] px-4 py-2.5 text-[13.5px] leading-relaxed",
-                            msg.senderRole === "coach"
-                              ? "rounded-br-sm bg-sage text-white"
-                              : "rounded-bl-sm border border-line bg-card text-ink shadow-sm"
-                          )}
-                        >
-                          {msg.content}
-                        </div>
-                        {msgRisk && (() => {
-                          const pill =
-                            TIER_BADGE_PILL[msgRisk.risk_tier] ?? TIER_BADGE_PILL.low;
-                          return (
-                            <div
-                              className="risk-badge mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
-                              style={{ backgroundColor: pill.bg, color: pill.text }}
-                            >
-                              <span>{TIER_EMOJI[msgRisk.risk_tier] ?? "🟢"}</span>
-                              <span>
-                                {msgRisk.risk_tier.toUpperCase()} (
-                                {(msgRisk.risk_score * 100).toFixed(0)}%)
-                                {topSignals.length > 0 && (
-                                  <> • {topSignals.join(" ")}</>
-                                )}
+                  <>
+                    {isFetchingNextPage && (
+                      <div className="flex justify-center py-2">
+                        <p className="text-xs text-dim">Loading older messages...</p>
+                      </div>
+                    )}
+                    {messagesLoading ? (
+                      <div className="flex flex-1 items-center justify-center">
+                        <p className="text-sm text-dim">Loading messages…</p>
+                      </div>
+                    ) : messages.length === 0 ? (
+                      <div className="flex flex-1 items-center justify-center">
+                        <p className="text-sm text-dim">No messages yet. Start the conversation!</p>
+                      </div>
+                    ) : (
+                      messages.flatMap((msg, i) => {
+                        const msgRisk =
+                          msg.senderRole === "member"
+                            ? riskByMessageId[msg.id] ?? riskFromMessageDto(msg)
+                            : null;
+                        const topSignals = msgRisk?.signal_codes?.slice(0, 2) ?? [];
+                        const showSeparator =
+                          i === 0 || getDayKey(msg.createdAt) !== getDayKey(messages[i - 1].createdAt);
+                        return [
+                          showSeparator && (
+                            <div key={`sep-${msg.id}`} className="my-3 flex items-center gap-3">
+                              <div className="h-px flex-1 bg-line" />
+                              <span className="px-2 text-[11px] font-medium text-dim">
+                                {formatDateLabel(msg.createdAt)}
                               </span>
+                              <div className="h-px flex-1 bg-line" />
                             </div>
-                          );
-                        })()}
-                        <div className={cn("mt-1 text-[10px] text-dim", msg.senderRole === "coach" && "text-right")}>
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </div>
-                      </div>,
-                    ].filter(Boolean);
-                  })
+                          ),
+                          <div
+                            key={msg.id}
+                            className={cn(
+                              "max-w-[72%]",
+                              msg.senderRole === "coach" ? "self-end" : "self-start"
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "rounded-[14px] px-4 py-2.5 text-[13.5px] leading-relaxed",
+                                msg.senderRole === "coach"
+                                  ? "rounded-br-sm bg-sage text-white"
+                                  : "rounded-bl-sm border border-line bg-card text-ink shadow-sm"
+                              )}
+                            >
+                              {msg.content}
+                            </div>
+                            {msgRisk && (() => {
+                              const pill =
+                                TIER_BADGE_PILL[msgRisk.risk_tier] ?? TIER_BADGE_PILL.low;
+                              return (
+                                <div
+                                  className="risk-badge mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                  style={{ backgroundColor: pill.bg, color: pill.text }}
+                                >
+                                  <span>{TIER_EMOJI[msgRisk.risk_tier] ?? "🟢"}</span>
+                                  <span>
+                                    {msgRisk.risk_tier.toUpperCase()} (
+                                    {(msgRisk.risk_score * 100).toFixed(0)}%)
+                                    {topSignals.length > 0 && (
+                                      <> • {topSignals.join(" ")}</>
+                                    )}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                            <div className={cn("mt-1 text-[10px] text-dim", msg.senderRole === "coach" && "text-right")}>
+                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </div>
+                          </div>,
+                        ].filter(Boolean);
+                      })
+                    )}
+                  </>
                 )}
-              </>
-            )}
-            <div ref={chatEndRef} />
-          </div>
+                <div ref={chatEndRef} />
+              </div>
 
-          {/* Input */}
-          <div className="flex shrink-0 items-center gap-2 border-t border-line bg-card px-3.5 py-3">
-            <input
-              ref={inputRef}
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={selectedConv ? `Message ${selectedConv.partnerName}...` : "Select a conversation..."}
-              className="flex-1 rounded-[22px] border-[1.5px] border-line bg-canvas px-4 py-2 text-[13.5px] text-ink outline-none focus:border-sage"
-              disabled={sending || !selectedId || !isConnected}
-            />
-            <button
-              onClick={handleSend}
-              disabled={sending || !inputText.trim() || !selectedId || !isConnected}
-              className={cn(
-                "rounded-[9px] px-5 py-2 text-[13.5px] font-semibold transition-colors",
-                sending || !inputText.trim() || !selectedId || !isConnected
-                  ? "cursor-not-allowed bg-canvas text-dim"
-                  : "bg-sage text-white hover:bg-sage/90"
+              {/* Input */}
+              <div className="flex shrink-0 items-center gap-2 border-t border-line bg-card px-3.5 py-3">
+                <input
+                  ref={inputRef}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={selectedConv ? `Message ${selectedConv.partnerName}...` : "Select a conversation..."}
+                  className="flex-1 rounded-[22px] border-[1.5px] border-line bg-canvas px-4 py-2 text-[13.5px] text-ink outline-none focus:border-sage"
+                  disabled={sending || !selectedId || !isConnected}
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={sending || !inputText.trim() || !selectedId || !isConnected}
+                  className={cn(
+                    "rounded-[9px] px-5 py-2 text-[13.5px] font-semibold transition-colors",
+                    sending || !inputText.trim() || !selectedId || !isConnected
+                      ? "cursor-not-allowed bg-canvas text-dim"
+                      : "bg-sage text-white hover:bg-sage/90"
+                  )}
+                >
+                  {sending ? "..." : "Send"}
+                </button>
+              </div>
+            </>
+          ) : (
+            /* Sessions Panel */
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-4">
+              {!selectedId ? (
+                <div className="flex flex-1 items-center justify-center">
+                  <p className="text-sm text-dim">Select a conversation to view sessions.</p>
+                </div>
+              ) : sessionsLoading ? (
+                <div className="flex flex-1 items-center justify-center">
+                  <p className="text-sm text-dim">Loading sessions…</p>
+                </div>
+              ) : coachSessions.filter((s) => s.memberId === selectedId).length === 0 ? (
+                <div className="flex flex-1 items-center justify-center">
+                  <p className="text-sm text-dim">No sessions scheduled with this client.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {coachSessions
+                    .filter((s) => s.memberId === selectedId)
+                    .map((session) => (
+                      <div
+                        key={session.id}
+                        className="flex items-center justify-between rounded-xl border border-line bg-card p-4 shadow-sm"
+                      >
+                        <div className="flex flex-col gap-1">
+                          <span className="font-mono text-sm font-semibold text-ink">
+                            {formatSessionDate(session.date)}
+                          </span>
+                          <div className="flex items-center gap-2 text-xs text-dim">
+                            <span>{session.type}</span>
+                            <span>•</span>
+                            <span>{session.duration} min</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <Badge variant={statusVariant(session.status)}>
+                            {session.status}
+                          </Badge>
+
+                          {session.status !== "cancelled" && session.status !== "completed" && (
+                            <Button
+                              variant={session.livekitStartedAt ? "primary" : "outline"}
+                              size="xs"
+                              disabled={!!sessionRowLoading[session.id]}
+                              onClick={() => handleStartOrJoinVideo(session)}
+                            >
+                              {sessionRowLoading[session.id]
+                                ? "Loading..."
+                                : session.livekitStartedAt
+                                ? "Join Call"
+                                : "Start Call"}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
               )}
-            >
-              {sending ? "..." : "Send"}
-            </button>
-          </div>
+            </div>
+          )}
         </div>
 
         {/* ── Right panel: signals ── */}
@@ -602,6 +902,17 @@ useEffect(() => {
           );
         })()}
       </div>
+      {meetingOpen && meetingSessionId && (
+        <MeetingModal
+          sessionId={meetingSessionId}
+          clientName={meetingClientName}
+          sessionTime={meetingSessionTime}
+          onClose={() => {
+            setMeetingOpen(false);
+            setMeetingSessionId(null);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }
