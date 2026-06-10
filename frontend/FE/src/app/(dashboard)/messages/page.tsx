@@ -70,6 +70,8 @@ function formatDateLabel(dateStr: string): string {
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
+const EMPTY_CONVERSATIONS: ConversationSummary[] = [];
+
 export default function CoachMessagesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -95,7 +97,7 @@ export default function CoachMessagesPage() {
   const inputRef   = useRef<HTMLInputElement>(null);
 
   // ── Fetch conversation list ────────────────────────────────────────────
-  const { data: conversations = [], isLoading: convsLoading } = useQuery<ConversationSummary[]>({
+  const { data: conversations = EMPTY_CONVERSATIONS, isLoading: convsLoading } = useQuery<ConversationSummary[]>({
     queryKey: ["coach-conversations"],
     queryFn: async () => {
       const { data } = await api.get<ConversationSummary[]>("/api/coach-messages");
@@ -103,14 +105,26 @@ export default function CoachMessagesPage() {
     },
   });
 
-  // Sync unread counts from API data; honor ?partner= from notifications
+  // Sync unread counts from API data
   useEffect(() => {
-    const counts: Record<string, number> = {};
-    for (const c of conversations) {
-      counts[c.partnerId] = c.unreadCount;
-    }
-    setUnreadCounts(counts);
+    setUnreadCounts((prev) => {
+      const counts: Record<string, number> = {};
+      let changed = false;
+      for (const c of conversations) {
+        counts[c.partnerId] = c.unreadCount;
+        if (prev[c.partnerId] !== c.unreadCount) {
+          changed = true;
+        }
+      }
+      if (!changed && Object.keys(prev).length !== conversations.length) {
+        changed = true;
+      }
+      return changed ? counts : prev;
+    });
+  }, [conversations]);
 
+  // honor ?partner= from notifications or select first conversation on initial load
+  useEffect(() => {
     if (partnerFromUrl && conversations.some((c) => c.partnerId === partnerFromUrl)) {
       setSelectedId(partnerFromUrl);
       return;

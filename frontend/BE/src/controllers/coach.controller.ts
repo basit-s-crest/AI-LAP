@@ -348,10 +348,36 @@ export const getMyMembers = async (
       },
     });
 
-    const members = assignments.map((a) => ({
-      ...a.user,
-      assignedAt: a.assignedAt,
-    }));
+    const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+
+    const members = await Promise.all(
+      assignments.map(async (a) => {
+        let risk_tier = "low";
+        let risk_score = 0;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        try {
+          const res = await fetch(`${pythonBaseUrl}/v1/risk/member/${a.userId}`, {
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          if (res.ok) {
+            const data = await res.json() as { risk_tier: string; composite_score: number };
+            risk_tier = data.risk_tier;
+            risk_score = data.composite_score;
+          }
+        } catch (err) {
+          // ignore error, default to low
+        }
+
+        return {
+          ...a.user,
+          assignedAt: a.assignedAt,
+          risk_tier,
+          risk_score,
+        };
+      })
+    );
 
     return res.status(200).json({ members });
   } catch (error) {

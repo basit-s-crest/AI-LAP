@@ -6,6 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireRole = exports.authMiddleware = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
+// Throttling cache for lastActiveAt updates to prevent DB pool exhaustion (in-memory, per-process)
+const lastActiveUpdates = new Map();
+const LAST_ACTIVE_THROTTLE_MS = 60 * 1000; // 1 minute
 // ─── Middleware ───────────────────────────────────────────────────────────────
 /**
  * Validates the Bearer JWT from the Authorization header.
@@ -32,30 +35,39 @@ const authMiddleware = (req, res, next) => {
             role: decoded.role,
             orgId: decoded.orgId,
         };
-        // Update lastActiveAt for all user types (async, don't wait)
-        if (decoded.role === "member") {
-            void prisma_1.default.user.update({
-                where: { id: decoded.id },
-                data: { lastActiveAt: new Date() },
-            }).catch(() => {
-                // Silently fail - don't block the request
-            });
-        }
-        else if (decoded.role === "coach") {
-            void prisma_1.default.coach.update({
-                where: { id: decoded.id },
-                data: { lastActiveAt: new Date() },
-            }).catch(() => {
-                // Silently fail - don't block the request
-            });
-        }
-        else if (decoded.role === "organization") {
-            void prisma_1.default.organization.update({
-                where: { id: decoded.id },
-                data: { lastActiveAt: new Date() },
-            }).catch(() => {
-                // Silently fail - don't block the request
-            });
+        // Update lastActiveAt for all user types (async, throttled, don't wait)
+        const now = Date.now();
+        const lastUpdate = lastActiveUpdates.get(decoded.id);
+        if (!lastUpdate || now - lastUpdate > LAST_ACTIVE_THROTTLE_MS) {
+            // Manage memory footprint by clearing cache if it grows too large
+            if (lastActiveUpdates.size > 5000) {
+                lastActiveUpdates.clear();
+            }
+            lastActiveUpdates.set(decoded.id, now);
+            if (decoded.role === "member") {
+                void prisma_1.default.user.update({
+                    where: { id: decoded.id },
+                    data: { lastActiveAt: new Date() },
+                }).catch(() => {
+                    // Silently fail - don't block the request
+                });
+            }
+            else if (decoded.role === "coach") {
+                void prisma_1.default.coach.update({
+                    where: { id: decoded.id },
+                    data: { lastActiveAt: new Date() },
+                }).catch(() => {
+                    // Silently fail - don't block the request
+                });
+            }
+            else if (decoded.role === "organization") {
+                void prisma_1.default.organization.update({
+                    where: { id: decoded.id },
+                    data: { lastActiveAt: new Date() },
+                }).catch(() => {
+                    // Silently fail - don't block the request
+                });
+            }
         }
         return next();
     }
