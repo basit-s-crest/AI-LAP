@@ -339,3 +339,18 @@ model WeeklyReport {
   @@index([organizationId, weekStartDate(sort: Desc)])
 }
 
+model AiSessionNote {
+  id                  String   @id @default(uuid())
+  sessionId           String?
+  memberId            String
+  transcript          Json
+  summary             String
+  keyThemes           Json
+  memberSentiment     String
+  coachObservations   String
+  riskFlag            Boolean  @default(false)
+  riskNotes           String   @default("")
+  recommendedFollowUp String
+  createdAt           DateTime @default(now())
+}
+
