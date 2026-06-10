@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { LiveKitApiService } from "@/services/livekit.service";
@@ -38,6 +38,21 @@ export default function MeetingModal({
   const [callTimer, setCallTimer] = useState<string | null>(null);
   const [participantInfo, setParticipantInfo] = useState<{ name: string; quality: string } | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+
+  const handleParticipantUpdate = useCallback((name: string, quality: string) => {
+    setParticipantInfo((prev) => {
+      if (prev?.name === name && prev?.quality === quality) return prev;
+      return { name, quality };
+    });
+  }, []);
+
+  const handleRemoteStream = useCallback((stream: MediaStream | null) => {
+    setRemoteStream((prev) => {
+      if (prev === stream) return prev;
+      if (prev && stream && prev.id === stream.id) return prev;
+      return stream;
+    });
+  }, []);
 
   // AI & Transcript integration states
   const [accumulatedTranscript, setAccumulatedTranscript] = useState<TranscriptLine[]>([]);
@@ -183,8 +198,8 @@ export default function MeetingModal({
                 mode="modal"
                 onLeave={onClose}
                 onTimerUpdate={setCallTimer}
-                onParticipantUpdate={(name, quality) => setParticipantInfo({ name, quality })}
-                onRemoteStream={setRemoteStream}
+                onParticipantUpdate={handleParticipantUpdate}
+                onRemoteStream={handleRemoteStream}
               />
             ) : null}
           </div>

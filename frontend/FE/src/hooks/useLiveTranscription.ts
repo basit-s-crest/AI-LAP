@@ -10,6 +10,7 @@ export function useLiveTranscription(
 ) {
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [isListening, setIsListening] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const isSupported = true; // Always true as supported by standard modern browsers
 
   const socketRef = useRef<WebSocket | null>(null);
@@ -79,7 +80,12 @@ export function useLiveTranscription(
       console.log('[STT] startListening already in progress for:', speakerRef.current);
       return;
     }
+    if (isListeningRef.current || (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording")) {
+      console.log('[STT] Already listening or recording for speaker:', speakerRef.current);
+      return;
+    }
     isStartingRef.current = true;
+    setError(null);
     stopListening(); // Clear any existing resources first
 
     try {
@@ -87,11 +93,56 @@ export function useLiveTranscription(
 
       const stream = customStream || await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      console.log('[STT] Audio stream acquired for:', speakerRef.current);
+
+      // 1. Log exact track/stream properties
+      if (stream) {
+        const tracks = stream.getAudioTracks();
+        console.log("[DEBUG] useLiveTranscription stream/track properties:", {
+          streamActive: stream.active,
+          streamId: stream.id,
+          audioTracksCount: tracks.length,
+          tracks: tracks.map(t => ({
+            kind: t.kind,
+            readyState: t.readyState,
+            enabled: t.enabled,
+            id: t.id
+          }))
+        });
+      }
+
+      // 2. Test browser support for MediaRecorder formats
+      console.log("[DEBUG] useLiveTranscription browser media support check:", {
+        "audio/webm": typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported ? MediaRecorder.isTypeSupported("audio/webm") : "N/A",
+        "audio/webm;codecs=opus": typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported ? MediaRecorder.isTypeSupported("audio/webm;codecs=opus") : "N/A",
+        "audio/mp4": typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported ? MediaRecorder.isTypeSupported("audio/mp4") : "N/A"
+      });
+
+      // 3. Test wrapper/cloned stream creation
+      try {
+        const testClonedStream = new MediaStream(stream.getAudioTracks());
+        console.log("[DEBUG] useLiveTranscription: Cloned stream successfully created", {
+          clonedStreamActive: testClonedStream.active,
+          clonedStreamId: testClonedStream.id,
+          clonedTracksCount: testClonedStream.getAudioTracks().length
+        });
+      } catch (cloneErr: any) {
+        console.error("[DEBUG] useLiveTranscription: Failed to clone stream", cloneErr);
+      }
 
       // Create MediaRecorder (no mimeType option — let browser pick)
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
+      let mediaRecorder: MediaRecorder;
+      try {
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+      } catch (err: any) {
+        console.error('[STT] MediaRecorder creation failed:', err);
+        if (err.name === 'NotSupportedError') {
+          setError("Audio format or browser configuration is not supported for recording.");
+        } else {
+          setError(`MediaRecorder initialization failed: ${err.message}`);
+        }
+        throw err;
+      }
 
       // Point WebSocket connection to our Python STT WebSocket proxy
       const pythonBackendUrl = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || "http://localhost:8001";
@@ -109,11 +160,18 @@ export function useLiveTranscription(
         try {
           // Start MediaRecorder only AFTER the WebSocket is successfully open
           // to ensure the first WebM container header is successfully sent to Deepgram.
-          mediaRecorder.start(250);
+          if (mediaRecorder.state !== "recording") {
+            mediaRecorder.start(250);
+          }
           setIsListening(true);
           isListeningRef.current = true;
-        } catch (err) {
+        } catch (err: any) {
           console.error('[STT] Failed to start MediaRecorder on WebSocket open:', err);
+          if (err.name === 'NotSupportedError') {
+            setError("Audio recording configuration is not supported by this browser.");
+          } else {
+            setError(`Failed to start recording: ${err.message}`);
+          }
         }
       };
 
@@ -166,20 +224,12 @@ export function useLiveTranscription(
       };
 
       mediaRecorder.ondataavailable = async (event) => {
-        const socketState = socketRef.current ? socketRef.current.readyState : 'null';
-        console.log('[STT] Audio chunk:', {
-          size: event.data.size,
-          type: event.data.type,
-          socketState,
-        });
-
-        if (event.data.size > 0 && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+        if (event.data.size > 0 && socket && socket.readyState === 1) {
           try {
             const arrayBuffer = await event.data.arrayBuffer();
-            console.log('[STT] Sending audio chunk, size:', arrayBuffer.byteLength);
-            socketRef.current.send(arrayBuffer);
+            socket.send(arrayBuffer);
           } catch (err) {
-            console.warn("[useLiveTranscription] Failed to process/send audio data chunk:", err);
+            console.warn("[useLiveTranscription] Failed to send audio data chunk:", err);
           }
         }
       };
@@ -210,5 +260,6 @@ export function useLiveTranscription(
     startListening,
     stopListening,
     clearTranscript,
+    error,
   };
 }

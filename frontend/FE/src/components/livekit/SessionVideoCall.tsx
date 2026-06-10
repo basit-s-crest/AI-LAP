@@ -91,16 +91,38 @@ function VideoCallInterface({
   const audioTracks = useTracks([{ source: Track.Source.Microphone, withPlaceholder: false }]);
 
   const remoteAudioTrack = audioTracks.find(t => t.participant.identity !== localParticipant.identity);
+  const lastStreamIdRef = useRef<string | null>(null);
 
   // Extract remote participant's audio track and notify parent
   useEffect(() => {
-    const stream = remoteAudioTrack?.publication?.track?.mediaStream;
-    if (stream) {
-      onRemoteStream?.(stream);
-    } else {
-      onRemoteStream?.(null);
+    const trackObj = remoteAudioTrack?.publication?.track;
+    const stream = trackObj?.mediaStream;
+    const nativeTrack = (trackObj as any)?.mediaStreamTrack;
+
+    console.log("[DEBUG] SessionVideoCall: remote audio track check:", {
+      hasRemoteAudioTrack: !!remoteAudioTrack,
+      hasPublication: !!remoteAudioTrack?.publication,
+      hasTrackObject: !!trackObj,
+      trackSid: remoteAudioTrack?.publication?.trackSid,
+      trackKind: trackObj?.kind,
+      trackReadyState: nativeTrack?.readyState,
+      trackEnabled: nativeTrack?.enabled || trackObj?.isEnabled,
+      hasMediaStream: !!stream,
+      streamActive: stream?.active,
+      streamTracksCount: stream?.getAudioTracks().length,
+      hasNativeTrack: !!nativeTrack
+    });
+
+    const streamId = stream ? stream.id : null;
+    if (lastStreamIdRef.current !== streamId) {
+      lastStreamIdRef.current = streamId;
+      if (stream) {
+        onRemoteStream?.(stream);
+      } else {
+        onRemoteStream?.(null);
+      }
     }
-  }, [remoteAudioTrack?.publication?.track?.mediaStream, onRemoteStream]);
+  }, [remoteAudioTrack, remoteAudioTrack?.publication?.track?.mediaStream, onRemoteStream]);
 
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [showControls, setShowControls] = useState(true);

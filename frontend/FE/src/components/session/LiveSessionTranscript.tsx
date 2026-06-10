@@ -27,6 +27,26 @@ const formatTime = (isoString: string) => {
   }
 };
 
+const COACH_TRANSCRIPT_STUB: TranscriptLine[] = [];
+const startCoachListeningStub = async () => {};
+const stopCoachListeningStub = () => {};
+const clearCoachTranscriptStub = () => {};
+
+const areTranscriptsEqual = (a: TranscriptLine[], b: TranscriptLine[]) => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (
+      a[i].speaker !== b[i].speaker ||
+      a[i].text !== b[i].text ||
+      a[i].timestamp !== b[i].timestamp ||
+      a[i].isFinal !== b[i].isFinal
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
 export default function LiveSessionTranscript({
   sessionId,
   memberId,
@@ -47,12 +67,12 @@ export default function LiveSessionTranscript({
   } = useLiveTranscription("member", remoteStream, onMemberTranscription, sessionId, transcriptionToken);
 
   // Coach audio transcription is disabled right now (scope restriction)
-  const coachTranscript: TranscriptLine[] = [];
+  const coachTranscript = COACH_TRANSCRIPT_STUB;
   const isCoachListening = false;
   const isCoachSupported = true;
-  const startCoachListening = async () => {};
-  const stopCoachListening = () => {};
-  const clearCoachTranscript = () => {};
+  const startCoachListening = startCoachListeningStub;
+  const stopCoachListening = stopCoachListeningStub;
+  const clearCoachTranscript = clearCoachTranscriptStub;
 
   const isSupported = isMemberSupported;
 
@@ -103,9 +123,12 @@ export default function LiveSessionTranscript({
     }
   }, [unifiedTranscript]);
 
+  const lastSyncedTranscriptRef = useRef<TranscriptLine[]>([]);
+
   // Sync the latest unified transcript with the parent component
   useEffect(() => {
-    if (onTranscriptChange) {
+    if (onTranscriptChange && !areTranscriptsEqual(lastSyncedTranscriptRef.current, unifiedTranscript)) {
+      lastSyncedTranscriptRef.current = unifiedTranscript;
       onTranscriptChange(unifiedTranscript);
     }
   }, [unifiedTranscript, onTranscriptChange]);

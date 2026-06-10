@@ -75,7 +75,7 @@ async def websocket_endpoint(websocket: WebSocket):
     }
 
     try:
-        async with websockets.connect(DEEPGRAM_URL, extra_headers=headers) as dg_socket:
+        async with websockets.connect(DEEPGRAM_URL, additional_headers=headers) as dg_socket:
             logger.info("[STT Proxy] Connected to Deepgram streaming service")
 
             # Concurrently forward data back and forth
