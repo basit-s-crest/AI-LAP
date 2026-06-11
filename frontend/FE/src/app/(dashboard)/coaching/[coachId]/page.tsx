@@ -419,6 +419,7 @@ export default function CoachingChatPage() {
           (s) =>
             s.coachId === coachIdStr &&
             s.status !== "cancelled" &&
+            s.status !== "completed" &&
             isScheduledAtLocalCalendarToday(s.scheduledAt, targetDate)
         );
         if (sess) {
@@ -549,6 +550,22 @@ export default function CoachingChatPage() {
       } else {
         toast.error(msg || "Failed to book session");
       }
+    } finally {
+      setBooking(false);
+    }
+  };
+
+  const handleCreateInstantTestSession = async () => {
+    setBooking(true);
+    try {
+      await api.post("/api/sessions/instant-test", {
+        coachId: coachIdStr,
+      });
+      toast.success("Instant test session created!");
+      await loadSlots();
+      setBooked(true);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to create test session");
     } finally {
       setBooking(false);
     }
@@ -747,6 +764,7 @@ useEffect(() => {
                     (s) =>
                       s.coachId === coachIdStr &&
                       s.status !== "cancelled" &&
+                      s.status !== "completed" &&
                       isScheduledAtLocalCalendarToday(s.scheduledAt, nowRef)
                   );
                   if (!mySession) {
@@ -832,6 +850,7 @@ useEffect(() => {
                     (s) =>
                       s.coachId === coachIdStr &&
                       s.status !== "cancelled" &&
+                      s.status !== "completed" &&
                       new Date(s.scheduledAt).toTimeString().startsWith(
                         new Date(todayAt(selSlot ?? "")).toTimeString().slice(0, 5)
                       )
@@ -1005,6 +1024,18 @@ useEffect(() => {
           {booking ? "Booking…" : selSlot ? `Book — ${selSlot}` : "Select a time slot"}
         </Button>
       )}
+      <div className="mt-3">
+        <Button
+          fullWidth
+          type="button"
+          variant="outline"
+          className="text-xs border-dashed border-sage text-sage hover:bg-sage-soft/30"
+          disabled={booking}
+          onClick={handleCreateInstantTestSession}
+        >
+          Create Instant Test Session
+        </Button>
+      </div>
     </Card>
     );
   })() : null;

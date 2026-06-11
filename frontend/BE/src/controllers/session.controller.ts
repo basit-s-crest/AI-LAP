@@ -481,3 +481,69 @@ export const rescheduleSession = async (
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const createInstantTestSession = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    let coachId = "";
+    let memberId = "";
+
+    if (userRole === "member") {
+      memberId = userId;
+      coachId = req.body.coachId;
+      if (!coachId) {
+        return res.status(400).json({ message: "coachId is required for members" });
+      }
+    } else if (userRole === "coach") {
+      coachId = userId;
+      memberId = req.body.memberId;
+      if (!memberId) {
+        return res.status(400).json({ message: "memberId is required for coaches" });
+      }
+    } else {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    // Cancel any existing non-cancelled and non-completed sessions between this coach and member today to prevent overlaps
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayStart.getDate() + 1);
+
+    await prisma.session.updateMany({
+      where: {
+        coachId,
+        memberId,
+        scheduledAt: { gte: dayStart, lt: dayEnd },
+        status: { in: ["upcoming", "rescheduled"] }
+      },
+      data: {
+        status: "cancelled",
+        cancelledBy: "system"
+      }
+    });
+
+    // Create the instant test session scheduled for "now"
+    const session = await prisma.session.create({
+      data: {
+        coachId,
+        memberId,
+        scheduledAt: new Date(),
+        duration: 60,
+        type: "Test Session",
+        status: "upcoming"
+      }
+    });
+
+    return res.status(201).json(session);
+  } catch (error) {
+    console.error("[createInstantTestSession]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+

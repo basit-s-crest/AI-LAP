@@ -8,6 +8,7 @@ import {
   getMemberSessions,
   cancelSession,
   rescheduleSession,
+  createInstantTestSession,
 } from "../controllers/session.controller";
 import {
   startVideoSession,
@@ -28,6 +29,9 @@ router.get("/coach", authMiddleware, requireRole("coach"), getCoachSessions);
 
 // Any authenticated user — book a session
 router.post("/book", authMiddleware, bookSession);
+
+// Any authenticated user — create instant test session
+router.post("/instant-test", authMiddleware, createInstantTestSession);
 
 // Any authenticated user — view their own sessions as a member
 router.get("/member", authMiddleware, getMemberSessions);

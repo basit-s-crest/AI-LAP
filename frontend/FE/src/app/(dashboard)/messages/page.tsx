@@ -520,6 +520,19 @@ useEffect(() => {
     setMeetingOpen(true);
   }, []);
 
+  const handleCreateInstantTestSession = async () => {
+    if (!selectedId) return;
+    try {
+      await api.post("/api/sessions/instant-test", {
+        memberId: selectedId,
+      });
+      toast.success("Instant test session created!");
+      queryClient.invalidateQueries({ queryKey: ["coach-sessions"] });
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to create test session");
+    }
+  };
+
   const selectedConv = conversations.find((c) => c.partnerId === selectedId);
 
   if (role === "user") {
@@ -788,15 +801,27 @@ useEffect(() => {
                 <div className="flex flex-1 items-center justify-center">
                   <p className="text-sm text-dim">Loading sessions…</p>
                 </div>
-              ) : coachSessions.filter((s) => s.memberId === selectedId).length === 0 ? (
-                <div className="flex flex-1 items-center justify-center">
-                  <p className="text-sm text-dim">No sessions scheduled with this client.</p>
-                </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {coachSessions
-                    .filter((s) => s.memberId === selectedId)
-                    .map((session) => (
+                  <div className="flex items-center justify-between border-b border-line pb-3 mb-2">
+                    <span className="text-xs font-semibold text-dim">Sessions with this client</span>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="border-dashed border-sage text-sage hover:bg-sage-soft/30"
+                      onClick={handleCreateInstantTestSession}
+                    >
+                      Create Instant Test Session
+                    </Button>
+                  </div>
+                  {coachSessions.filter((s) => s.memberId === selectedId).length === 0 ? (
+                    <div className="flex flex-1 items-center justify-center py-12">
+                      <p className="text-sm text-dim">No sessions scheduled with this client.</p>
+                    </div>
+                  ) :
+                    coachSessions
+                      .filter((s) => s.memberId === selectedId)
+                      .map((session) => (
                       <div
                         key={session.id}
                         className="flex items-center justify-between rounded-xl border border-line bg-card p-4 shadow-sm"
