@@ -14,6 +14,7 @@ import {
   startVideoSession,
   getVideoToken,
   getVideoStatus,
+  endVideoSession,
 } from "../controllers/livekit.controller";
 
 const router = Router();
@@ -43,5 +44,6 @@ router.patch("/:id/reschedule", authMiddleware, rescheduleSession);
 router.post("/:id/livekit/start", authMiddleware, requireRole("coach"), startVideoSession);
 router.post("/:id/livekit/token", authMiddleware, requireRole("coach", "member"), getVideoToken);
 router.get("/:id/livekit/status", authMiddleware, requireRole("coach", "member"), getVideoStatus);
+router.post("/:id/livekit/end", authMiddleware, requireRole("coach"), endVideoSession);
 
 export default router;

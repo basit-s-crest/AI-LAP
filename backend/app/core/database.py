@@ -37,6 +37,7 @@ engine = create_async_engine(
     DATABASE_URL,
     echo=False,       # set True to log all SQL queries during development
     pool_pre_ping=True,
+    connect_args={"prepare_threshold": None},
 )
 
 AsyncSessionLocal = sessionmaker(

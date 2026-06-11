@@ -28,6 +28,7 @@ import {
 } from "@/lib/msgRiskCache";
 import { subscribeRiskDashboard } from "@/lib/riskEventStore";
 import { useRiskScoreStream } from "@/hooks/useRiskScoreStream";
+import MeetingModal from "@/components/session/MeetingModal";
 
 interface CoachSessionRow {
   id: string;
@@ -114,147 +115,9 @@ function formatDateLabel(dateStr: string): string {
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-// ── Meeting Modal Overlay Component ──────────────────────────────────────────
-function MeetingModal({
-  sessionId,
-  clientName,
-  sessionTime,
-  onClose,
-}: {
-  sessionId: string;
-  clientName: string;
-  sessionTime: string;
-  onClose: () => void;
-}) {
-  const [tokenDetails, setTokenDetails] = useState<LiveKitTokenResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const fetchStarted = useRef(false);
-
-  const [callTimer, setCallTimer] = useState<string | null>(null);
-  const [participantInfo, setParticipantInfo] = useState<{ name: string; quality: string } | null>(null);
-
-  const getQualityColor = (quality: string) => {
-    if (quality === "excellent" || quality === "good") return "bg-[#68A688]";
-    if (quality === "poor") return "bg-[#FF8D69]";
-    return "bg-[#FF7894]";
-  };
-
-  useEffect(() => {
-    if (fetchStarted.current) return;
-    fetchStarted.current = true;
-
-    const fetchToken = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const details = await LiveKitApiService.startSession(sessionId);
-        setTokenDetails(details);
-      } catch (err: any) {
-        console.error("[MeetingModal] API fetch failed:", err);
-        setError(err.message || "Failed to establish a connection to the video room.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchToken();
-  }, [sessionId]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  return createPortal(
-    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 p-4">
-      <div
-        className="relative w-full max-w-[950px] bg-white rounded-[24px] p-6 flex flex-col animate-up overflow-hidden"
-        style={{ boxShadow: "0 32px 64px rgba(0,0,0,0.35)" }}
-      >
-        {/* Modal Header */}
-        <div className="flex shrink-0 items-center justify-between pb-4">
-          <div>
-            <h3 className="text-[20px] font-bold text-[#1E252B] font-outfit">
-              Session with {clientName}
-            </h3>
-            <p className="text-[13px] font-sans text-dim mt-0.5">
-              Scheduled time: {sessionTime}{callTimer ? ` · ${callTimer}` : ""}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {participantInfo && (
-              <div
-                className="flex items-center gap-2 border border-[#D2DBE3]"
-                style={{ borderRadius: "20px", padding: "4px 10px", backgroundColor: "rgba(0, 0, 0, 0.05)" }}
-              >
-                <span
-                  className={`w-2 h-2 rounded-full ${getQualityColor(
-                    participantInfo.quality
-                  )} animate-pulse`}
-                />
-                <span className="font-outfit text-sm font-semibold text-[#1E252B]">
-                  {participantInfo.name}
-                </span>
-              </div>
-            )}
-            <button
-              onClick={onClose}
-              className="flex items-center justify-center w-8 h-8 rounded-full border border-[#D2DBE3] text-[#5C6B73] hover:bg-[#F1F6FC] transition-colors font-semibold"
-              title="Leave and Close"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        {/* Modal Body / Call Container */}
-        <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-[#0F172A] border border-[#D2DBE3]">
-          {loading ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-white/95">
-              <div className="w-12 h-12 border-4 border-[#68A688]/20 border-t-[#68A688] rounded-full animate-spin mb-6" />
-              <h3 className="font-outfit font-bold text-xl text-[#1E252B] mb-2">Connecting to session…</h3>
-              <p className="text-sm font-sans text-[#5C6B73]">Preparing secure video session credentials...</p>
-            </div>
-          ) : error ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-white/95">
-              <div className="text-4xl mb-4 text-[#FF8D69]">⚠️</div>
-              <h3 className="font-outfit font-bold text-xl text-[#1E252B] mb-2">Unable to Join Call</h3>
-              <p className="text-sm font-sans text-[#5C6B73] leading-relaxed mb-6 max-w-md">
-                {error}
-              </p>
-              <Button onClick={onClose} size="sm">
-                Close
-              </Button>
-            </div>
-          ) : tokenDetails ? (
-            <SessionVideoCall
-              token={tokenDetails.token}
-              serverUrl={tokenDetails.serverUrl}
-              roomName={tokenDetails.roomName}
-              role="coach"
-              coachId={tokenDetails.coachId}
-              sessionId={sessionId}
-              mode="modal"
-              onLeave={onClose}
-              onTimerUpdate={setCallTimer}
-              onParticipantUpdate={(name, quality) => setParticipantInfo({ name, quality })}
-            />
-          ) : null}
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
+const EMPTY_CONVERSATIONS: ConversationSummary[] = [];
 
 // ── Component ──────────────────────────────────────────────────────────────
-const EMPTY_CONVERSATIONS: ConversationSummary[] = [];
 
 export default function CoachMessagesPage() {
   const router = useRouter();
@@ -274,6 +137,7 @@ export default function CoachMessagesPage() {
   const [showBanner, setShowBanner]     = useState(false);
 
   const [meetingSessionId, setMeetingSessionId] = useState<string | null>(null);
+  const [meetingMemberId, setMeetingMemberId] = useState<string | null>(null);
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [meetingClientName, setMeetingClientName] = useState("");
   const [meetingSessionTime, setMeetingSessionTime] = useState("");
@@ -307,34 +171,39 @@ export default function CoachMessagesPage() {
     },
   });
 
-  // Sync unread counts from API data
+  // Sync unread counts from API data - completely loop-free using functional updates
   useEffect(() => {
+    if (conversations.length === 0) return;
+
     setUnreadCounts((prev) => {
       const counts: Record<string, number> = {};
-      let changed = false;
+      let hasChanged = false;
       for (const c of conversations) {
         counts[c.partnerId] = c.unreadCount;
         if (prev[c.partnerId] !== c.unreadCount) {
-          changed = true;
+          hasChanged = true;
         }
       }
-      if (!changed && Object.keys(prev).length !== conversations.length) {
-        changed = true;
+      if (hasChanged || Object.keys(prev).length !== conversations.length) {
+        return counts;
       }
-      return changed ? counts : prev;
+      return prev;
     });
   }, [conversations]);
 
+  // Handle selected conversation initialization and query parameter sync
   // honor ?partner= from notifications or select first conversation on initial load
   useEffect(() => {
+    if (conversations.length === 0) return;
+
     if (partnerFromUrl && conversations.some((c) => c.partnerId === partnerFromUrl)) {
-      setSelectedId(partnerFromUrl);
-      return;
-    }
-    if (!selectedId && conversations.length > 0) {
+      if (selectedId !== partnerFromUrl) {
+        setSelectedId(partnerFromUrl);
+      }
+    } else if (!selectedId) {
       setSelectedId(conversations[0].partnerId);
     }
-  }, [conversations, selectedId, partnerFromUrl]);
+  }, [conversations, partnerFromUrl, selectedId]);
 
   useEffect(() => {
     setActiveCoachMessagesPartner(selectedId);
@@ -352,7 +221,7 @@ export default function CoachMessagesPage() {
   } = useCoachMessages(selectedId ?? "");
 
   // ── Real-time socket ───────────────────────────────────────────────────
-  const { sendMessage: socketSend, isConnected } = useCoachSocket({
+  const { sendMessage: socketSend, sendTranscription, isConnected } = useCoachSocket({
     onNewMessage: (msg: CoachMessageDTO) => {
       // Prepend to the active thread's cache
       if (selectedId && (msg.userId === selectedId || msg.coachId === selectedId)) {
@@ -515,6 +384,7 @@ useEffect(() => {
 
   const handleStartOrJoinVideo = useCallback((session: CoachSessionRow) => {
     setMeetingSessionId(session.id);
+    setMeetingMemberId(session.memberId);
     setMeetingClientName(session.memberName);
     setMeetingSessionTime(formatSessionDate(session.date));
     setMeetingOpen(true);
@@ -927,14 +797,21 @@ useEffect(() => {
           );
         })()}
       </div>
-      {meetingOpen && meetingSessionId && (
+      {meetingOpen && meetingSessionId && meetingMemberId && (
         <MeetingModal
           sessionId={meetingSessionId}
+          memberId={meetingMemberId}
           clientName={meetingClientName}
           sessionTime={meetingSessionTime}
+          onMemberTranscription={(text) => {
+            if (meetingMemberId) {
+              sendTranscription(meetingMemberId, text, "member");
+            }
+          }}
           onClose={() => {
             setMeetingOpen(false);
             setMeetingSessionId(null);
+            setMeetingMemberId(null);
           }}
         />
       )}

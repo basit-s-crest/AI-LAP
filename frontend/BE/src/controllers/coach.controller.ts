@@ -573,3 +573,80 @@ export const updateCoachNotifications = async (
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+// ─── Risk Engine Proxy Endpoints ──────────────────────────────────────────────
+
+/**
+ * GET /api/coach/risk/member/:memberToken
+ * Fetches the full risk report for a member from the Python FastAPI server.
+ */
+export const getMemberRiskReport = async (
+  req: Request<{ memberToken: string }>,
+  res: Response
+): Promise<Response> => {
+  try {
+    const { memberToken } = req.params;
+    const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+    const response = await fetch(`${pythonBaseUrl}/v1/risk/member/${memberToken}`);
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ message: text || "Failed to fetch risk report from Python backend" });
+    }
+    const data = await response.json();
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error("[getMemberRiskReport]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * POST /api/coach/risk/member/:memberToken/recalculate
+ * Triggers a force recalculation of the risk report for a member on the Python FastAPI server.
+ */
+export const recalculateMemberRisk = async (
+  req: Request<{ memberToken: string }>,
+  res: Response
+): Promise<Response> => {
+  try {
+    const { memberToken } = req.params;
+    const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+    const response = await fetch(`${pythonBaseUrl}/v1/risk/member/${memberToken}/recalculate`, {
+      method: "POST",
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ message: text || "Failed to recalculate risk from Python backend" });
+    }
+    const data = await response.json();
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error("[recalculateMemberRisk]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * GET /api/coach/risk/org/:orgId/summary
+ * Fetches the organization risk summary from the Python FastAPI server.
+ */
+export const getOrgRiskSummary = async (
+  req: Request<{ orgId: string }>,
+  res: Response
+): Promise<Response> => {
+  try {
+    const { orgId } = req.params;
+    const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+    const response = await fetch(`${pythonBaseUrl}/v1/risk/org/${orgId}/summary`);
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ message: text || "Failed to fetch organization risk summary from Python backend" });
+    }
+    const data = await response.json();
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error("[getOrgRiskSummary]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+

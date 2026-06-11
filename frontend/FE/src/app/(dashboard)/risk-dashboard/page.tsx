@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import Link from "next/link";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import type { ScoreUpdateEvent } from "@/lib/vasl/types";
 import { AUTH_ROLE_KEY } from "@/constants/storage";
@@ -386,6 +387,12 @@ export default function RiskDashboardPage() {
       title="Live Risk Dashboard"
       topbarRight={
         <div className="flex items-center gap-3">
+          <Link
+            href="/risk-dashboard/operations"
+            className="rounded-lg border border-line bg-card px-3 py-1.5 text-xs font-bold text-ink hover:bg-canvas transition-colors"
+          >
+            ⚙️ Risk Reports
+          </Link>
           <button
             onClick={clearHistory}
             className="rounded-lg border border-line bg-card px-3 py-1.5 text-xs font-semibold text-dim transition-colors hover:text-ink"

@@ -15,6 +15,7 @@ import orgRouter from "./routes/org.routes";
 import sessionRouter from "./routes/session.routes";
 import sessionNoteRouter from "./routes/sessionNote.routes";
 import onboardingRouter from "./routes/onboarding.routes";
+import aiSessionNoteRouter from "./routes/aiSessionNote.routes";
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use("/api/org", orgRouter);
 app.use("/api/sessions", sessionRouter);
 app.use("/api/session-notes", sessionNoteRouter);
 app.use("/api/onboarding", onboardingRouter);
+app.use("/api/ai-session-notes", aiSessionNoteRouter);
 
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────

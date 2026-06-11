@@ -31,7 +31,7 @@ from app.modules.risk_engine.schemas import (
 logger = logging.getLogger(__name__)
 
 # How many days of history to pull for the report
-HISTORY_DAYS = 30
+HISTORY_DAYS = 60
 
 
 async def _fetch_events(db: AsyncSession, member_token: str) -> list[dict]:
