@@ -12,6 +12,9 @@ import {
   setOnDemandStatus,
   updateCoachNotifications,
   updateCoachProfile,
+  getMemberRiskReport,
+  recalculateMemberRisk,
+  getOrgRiskSummary,
 } from "../controllers/coach.controller";
 import { adminGetScoresHistory } from "../controllers/admin.controller";
 import { authMiddleware, requireRole } from "../middleware/auth.middleware";
@@ -46,5 +49,10 @@ router.post("/assign", authMiddleware, assignCoachHandler);
 // Protected — coach / admin only
 router.get("/members", authMiddleware, requireRole("coach"), getMyMembers);
 router.get("/scores/history", authMiddleware, requireRole("coach", "superadmin"), adminGetScoresHistory);
+
+// Risk Engine Proxy APIs
+router.get("/risk/member/:memberToken", authMiddleware, requireRole("coach", "superadmin"), getMemberRiskReport);
+router.post("/risk/member/:memberToken/recalculate", authMiddleware, requireRole("coach", "superadmin"), recalculateMemberRisk);
+router.get("/risk/org/:orgId/summary", authMiddleware, requireRole("coach", "superadmin"), getOrgRiskSummary);
 
 export default router;
