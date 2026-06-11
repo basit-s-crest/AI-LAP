@@ -23,6 +23,20 @@
 $root = $PSScriptRoot
 $ErrorActionPreference = "Stop"
 
+# Auto-detect Python and uv paths using py.exe if they are not in PATH
+if (-not (Get-Command python -ErrorAction SilentlyContinue) -or -not (Get-Command uv -ErrorAction SilentlyContinue)) {
+    try {
+        $pyPath = & py -c "import sys, os; print(os.path.dirname(sys.executable))" 2>$null
+        if ($pyPath) {
+            $pyPath = $pyPath.Trim()
+            $scriptsPath = Join-Path $pyPath "Scripts"
+            if (Test-Path $pyPath) {
+                $env:PATH = "$pyPath;$scriptsPath;" + $env:PATH
+            }
+        }
+    } catch {}
+}
+
 function Write-Step($n, $total, $msg, $color = "Cyan") {
     Write-Host ""
     Write-Host "[$n/$total] $msg" -ForegroundColor $color
@@ -109,7 +123,7 @@ Write-Step 2 6 "Installing JS dependencies (FE + BE)..." "Green"
 
 Push-Location $root
 try {
-    npm install --force
+    npm install --force --ignore-scripts
     Write-OK "npm install complete - packages hoisted to root node_modules/"
 } catch {
     Write-Fail "npm install failed. Check errors above."

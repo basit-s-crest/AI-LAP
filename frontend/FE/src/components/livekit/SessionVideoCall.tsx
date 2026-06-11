@@ -34,6 +34,7 @@ interface SessionVideoCallProps {
   onLeave?: () => void;
   onTimerUpdate?: (timer: string) => void;
   onParticipantUpdate?: (name: string, quality: string) => void;
+  onRemoteStream?: (stream: MediaStream | null) => void;
 }
 
 const backgroundStyle = {
@@ -73,18 +74,55 @@ function VideoCallInterface({
   mode,
   onTimerUpdate,
   onParticipantUpdate,
+  onRemoteStream,
 }: {
   role: string;
   onLeave: () => void;
   mode?: "page" | "modal";
   onTimerUpdate?: (timer: string) => void;
   onParticipantUpdate?: (name: string, quality: string) => void;
+  onRemoteStream?: (stream: MediaStream | null) => void;
 }) {
   const room = useRoomContext();
   const connectionState = useConnectionState();
   const remoteParticipants = useRemoteParticipants();
   const { isMicrophoneEnabled, isCameraEnabled, localParticipant } = useLocalParticipant();
   const cameraTracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
+  const audioTracks = useTracks([{ source: Track.Source.Microphone, withPlaceholder: false }]);
+
+  const remoteAudioTrack = audioTracks.find(t => t.participant.identity !== localParticipant.identity);
+  const lastStreamIdRef = useRef<string | null>(null);
+
+  // Extract remote participant's audio track and notify parent
+  useEffect(() => {
+    const trackObj = remoteAudioTrack?.publication?.track;
+    const stream = trackObj?.mediaStream;
+    const nativeTrack = (trackObj as any)?.mediaStreamTrack;
+
+    console.log("[DEBUG] SessionVideoCall: remote audio track check:", {
+      hasRemoteAudioTrack: !!remoteAudioTrack,
+      hasPublication: !!remoteAudioTrack?.publication,
+      hasTrackObject: !!trackObj,
+      trackSid: remoteAudioTrack?.publication?.trackSid,
+      trackKind: trackObj?.kind,
+      trackReadyState: nativeTrack?.readyState,
+      trackEnabled: nativeTrack?.enabled || trackObj?.isEnabled,
+      hasMediaStream: !!stream,
+      streamActive: stream?.active,
+      streamTracksCount: stream?.getAudioTracks().length,
+      hasNativeTrack: !!nativeTrack
+    });
+
+    const streamId = stream ? stream.id : null;
+    if (lastStreamIdRef.current !== streamId) {
+      lastStreamIdRef.current = streamId;
+      if (stream) {
+        onRemoteStream?.(stream);
+      } else {
+        onRemoteStream?.(null);
+      }
+    }
+  }, [remoteAudioTrack, remoteAudioTrack?.publication?.track?.mediaStream, onRemoteStream]);
 
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [showControls, setShowControls] = useState(true);
@@ -129,23 +167,20 @@ function VideoCallInterface({
   // Timer logic
   useEffect(() => {
     if (connectionState === "connected" && remoteParticipants.length > 0) {
-      const timerFn = onTimerUpdateRef.current;
-      if (timerFn) {
-        timerFn(formatTimer(0));
-      }
       const interval = setInterval(() => {
-        setTimerSeconds((prev) => {
-          const next = prev + 1;
-          const currentTimerFn = onTimerUpdateRef.current;
-          if (currentTimerFn) {
-            currentTimerFn(formatTimer(next));
-          }
-          return next;
-        });
+        setTimerSeconds((prev) => prev + 1);
       }, 1000);
       return () => clearInterval(interval);
     }
   }, [connectionState, remoteParticipants.length]);
+
+  // Sync timer with parent component
+  useEffect(() => {
+    const timerFn = onTimerUpdateRef.current;
+    if (timerFn) {
+      timerFn(formatTimer(timerSeconds));
+    }
+  }, [timerSeconds]);
 
   useEffect(() => {
     if (connectionState === "connected") {
@@ -390,6 +425,7 @@ export default function SessionVideoCall({
   onLeave,
   onTimerUpdate,
   onParticipantUpdate,
+  onRemoteStream,
 }: SessionVideoCallProps) {
   const router = useRouter();
   const [errorState, setErrorState] = useState<string | null>(null);
@@ -453,6 +489,7 @@ export default function SessionVideoCall({
         mode={mode}
         onTimerUpdate={onTimerUpdate}
         onParticipantUpdate={onParticipantUpdate}
+        onRemoteStream={onRemoteStream}
       />
     </LiveKitRoom>
   );
