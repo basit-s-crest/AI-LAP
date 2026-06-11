@@ -14,8 +14,13 @@ Analyze the following transcript snippet of the session. Check the user's mental
 2. Potential indicators of distress, anxiety, or depression.
 3. Immediate safety or crisis concerns.
 
-Provide a concise, clinical summary of the user's current mental status in 1-2 bullet points.
-Be brief and objective, since this is displayed to the coach in real-time.
+FORMAT RULES:
+- Start your response with a clear risk tier tag on the very first line: either `[LOW]`, `[MODERATE]`, `[HIGH]`, or `[CRISIS]`.
+- Follow it with 1-2 concise bullet points summarizing the clinical findings.
+- Keep observations brief, objective, and easy for a doctor/coach to read at a glance.
+
+CRITICAL SAFETY RULE:
+- If there is ANY mention, indicator, or hint of suicidal ideation, self-harm, or homicidal thoughts/intent in the transcript, you MUST immediately classify the session as `[CRISIS]` or `[HIGH]`, ignoring all other milder context or previous status.
 """.strip()
 
 class LiveMeetingAnalysisEngine:
@@ -35,7 +40,7 @@ class LiveMeetingAnalysisEngine:
         self._buffers: Dict[str, Dict[str, Any]] = {}
         self._engine_lock = asyncio.Lock()
         self._client: Optional[AsyncOpenAI] = None
-        self._model: str = "llama3-8b-8192"
+        self._model: str = "llama-3.1-8b-instant"
 
     def _get_api_client(self) -> Optional[AsyncOpenAI]:
         """Lazy initialization of the LLM API client."""
@@ -47,7 +52,7 @@ class LiveMeetingAnalysisEngine:
         groq_api_key = groq_api_key.strip().strip("'\"")
         
         if groq_api_key:
-            model = os.getenv("GROQ_MODEL", "llama3-8b-8192")
+            model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
             model = model.strip().strip("'\"")
             self._model = model
             self._client = AsyncOpenAI(

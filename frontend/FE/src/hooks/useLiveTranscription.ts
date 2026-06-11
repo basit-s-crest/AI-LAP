@@ -6,7 +6,8 @@ export function useLiveTranscription(
   customStream?: MediaStream | null,
   onFinalTranscript?: (text: string) => void,
   sessionId?: string,
-  transcriptionToken?: string
+  transcriptionToken?: string,
+  onLiveAnalysis?: (text: string) => void
 ) {
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [isListening, setIsListening] = useState(false);
@@ -23,6 +24,11 @@ export function useLiveTranscription(
   useEffect(() => {
     onFinalTranscriptRef.current = onFinalTranscript;
   }, [onFinalTranscript]);
+
+  const onLiveAnalysisRef = useRef(onLiveAnalysis);
+  useEffect(() => {
+    onLiveAnalysisRef.current = onLiveAnalysis;
+  }, [onLiveAnalysis]);
 
   // Keep speaker in a ref in case it changes dynamically
   const speakerRef = useRef(speaker);
@@ -213,6 +219,16 @@ export function useLiveTranscription(
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+
+          if (data?.type === "live_analysis") {
+            const analysisText = data.analysis;
+            console.log('[STT] Received live analysis:', analysisText);
+            if (onLiveAnalysisRef.current) {
+              onLiveAnalysisRef.current(analysisText);
+            }
+            return;
+          }
+
           const alt = data?.channel?.alternatives?.[0];
           if (!alt?.transcript?.trim()) return;
           const text = alt.transcript.trim();

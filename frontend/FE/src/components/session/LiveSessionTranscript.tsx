@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useMemo, useState } from "react";
+import { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import { useLiveTranscription } from "@/hooks/useLiveTranscription";
 import type { TranscriptLine } from "@/types/sessionNote";
-import { Mic, MicOff, AlertTriangle, Play } from "lucide-react";
+import { Mic, MicOff, AlertTriangle, Play, Sparkles, Activity, Clock, Brain } from "lucide-react";
 
 interface LiveSessionTranscriptProps {
   sessionId: string;
@@ -57,6 +57,16 @@ export default function LiveSessionTranscript({
   onMemberTranscription,
   transcriptionToken,
 }: LiveSessionTranscriptProps) {
+  const [activeSubTab, setActiveSubTab] = useState<"transcript" | "insights">("transcript");
+  const [insightsLog, setInsightsLog] = useState<{ text: string; timestamp: string }[]>([]);
+
+  const handleLiveAnalysis = useCallback((text: string) => {
+    setInsightsLog((prev) => [
+      ...prev,
+      { text, timestamp: new Date().toISOString() },
+    ]);
+  }, []);
+
   const {
     transcript: memberTranscript,
     isListening: isMemberListening,
@@ -64,7 +74,14 @@ export default function LiveSessionTranscript({
     startListening: startMemberListening,
     stopListening: stopMemberListening,
     clearTranscript: clearMemberTranscript,
-  } = useLiveTranscription("member", remoteStream, onMemberTranscription, sessionId, transcriptionToken);
+  } = useLiveTranscription(
+    "member",
+    remoteStream,
+    onMemberTranscription,
+    sessionId,
+    transcriptionToken,
+    handleLiveAnalysis
+  );
 
   // Coach audio transcription is disabled right now (scope restriction)
   const coachTranscript = COACH_TRANSCRIPT_STUB;
@@ -81,6 +98,7 @@ export default function LiveSessionTranscript({
   // Coach local microphone control
   useEffect(() => {
     if (isRecordingActive) {
+      setInsightsLog([]); // Clear live insights on recording start
       startCoachListening().catch(err => console.error('[STT] coach mic failed:', err));
     } else {
       stopCoachListening();
@@ -166,65 +184,168 @@ export default function LiveSessionTranscript({
         </div>
       )}
 
-      {/* 2. Scrollable Transcript Feed */}
+      {/* Tab Switcher */}
+      <div className="flex border-b border-[#D2DBE3] bg-[#E4ECF4] shrink-0 p-1">
+        <button
+          onClick={() => setActiveSubTab("transcript")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-[14px] text-xs font-bold font-outfit uppercase tracking-wider transition-all duration-150 ${
+            activeSubTab === "transcript"
+              ? "bg-white text-[#3A6E99] shadow-sm font-bold"
+              : "text-[#5C6B73] hover:text-[#1E252B] hover:bg-white/40"
+          }`}
+        >
+          <Mic size={14} />
+          <span>Live Transcript</span>
+        </button>
+        <button
+          onClick={() => setActiveSubTab("insights")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-[14px] text-xs font-bold font-outfit uppercase tracking-wider transition-all duration-150 relative ${
+            activeSubTab === "insights"
+              ? "bg-white text-[#4E8C58] shadow-sm font-bold"
+              : "text-[#5C6B73] hover:text-[#1E252B] hover:bg-white/40"
+          }`}
+        >
+          <Sparkles size={14} className={activeSubTab === "insights" ? "text-[#4E8C58]" : "text-[#5C6B73]"} />
+          <span>AI Insights</span>
+          {insightsLog.length > 0 && activeSubTab !== "insights" && (
+            <span className="absolute right-3 w-2 h-2 rounded-full bg-[#FF7894] animate-pulse" />
+          )}
+        </button>
+      </div>
+
+      {/* 2. Scrollable Content Feed */}
       <div
         ref={scrollContainerRef}
-        className="flex-grow overflow-y-auto px-6 py-6 space-y-4 min-h-0 scroll-smooth"
+        className="flex-grow overflow-y-auto px-6 py-6 min-h-0 scroll-smooth"
       >
-        {unifiedTranscript.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center p-8 space-y-3">
-            <div className="w-12 h-12 bg-white border border-[#D2DBE3] rounded-full flex items-center justify-center text-dim shadow-sm">
-              <Mic size={20} className="text-[#8D99AE]" />
-            </div>
-            <h4 className="font-outfit font-bold text-[#3A4550]">No conversation logged yet</h4>
-            <p className="text-xs font-sans text-soft max-w-[280px] leading-relaxed">
-              Turn on the microphones below to start transcribing speech in real time.
-            </p>
+        {activeSubTab === "transcript" ? (
+          <div className="space-y-4">
+            {unifiedTranscript.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center p-8 space-y-3">
+                <div className="w-12 h-12 bg-white border border-[#D2DBE3] rounded-full flex items-center justify-center text-dim shadow-sm">
+                  <Mic size={20} className="text-[#8D99AE]" />
+                </div>
+                <h4 className="font-outfit font-bold text-[#3A4550]">No conversation logged yet</h4>
+                <p className="text-xs font-sans text-soft max-w-[280px] leading-relaxed">
+                  Turn on the microphones below to start transcribing speech in real time.
+                </p>
+              </div>
+            ) : (
+              unifiedTranscript.map((line, idx) => {
+                const isCoach = line.speaker === "coach";
+                return (
+                  <div
+                    key={`${line.timestamp}-${idx}`}
+                    className={`flex flex-col ${isCoach ? "items-end" : "items-start"} space-y-1`}
+                  >
+                    {/* Speaker Indicator & Time */}
+                    <div className="flex items-center gap-2 text-[10px] font-sans font-semibold text-soft">
+                      {isCoach ? (
+                        <>
+                          <span>{formatTime(line.timestamp)}</span>
+                          <span className="px-2 py-0.5 rounded bg-sage-light text-sage font-bold">
+                            Coach
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="px-2 py-0.5 rounded bg-[#D4E8F5] text-[#3A6E99] font-bold">
+                            Member
+                          </span>
+                          <span>{formatTime(line.timestamp)}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Speech Text Bubble */}
+                    <div
+                      className={`max-w-[80%] px-4 py-2.5 rounded-[16px] text-sm shadow-[0_1px_3px_rgba(0,0,0,0.02)] border ${
+                        isCoach
+                          ? "bg-white border-sage/10 text-ink rounded-tr-none"
+                          : "bg-white border-[#D2DBE3]/50 text-ink rounded-tl-none"
+                      } ${
+                        !line.isFinal
+                          ? "italic text-dim bg-gray-50/50 border-dashed border-dim/20"
+                          : ""
+                      }`}
+                    >
+                      <p className="leading-relaxed whitespace-pre-wrap">{line.text}</p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         ) : (
-          unifiedTranscript.map((line, idx) => {
-            const isCoach = line.speaker === "coach";
-            return (
-              <div
-                key={`${line.timestamp}-${idx}`}
-                className={`flex flex-col ${isCoach ? "items-end" : "items-start"} space-y-1`}
-              >
-                {/* Speaker Indicator & Time */}
-                <div className="flex items-center gap-2 text-[10px] font-sans font-semibold text-soft">
-                  {isCoach ? (
-                    <>
-                      <span>{formatTime(line.timestamp)}</span>
-                      <span className="px-2 py-0.5 rounded bg-sage-light text-sage font-bold">
-                        Coach
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="px-2 py-0.5 rounded bg-[#D4E8F5] text-[#3A6E99] font-bold">
-                        Member
-                      </span>
-                      <span>{formatTime(line.timestamp)}</span>
-                    </>
-                  )}
+          <div className="space-y-6">
+            {insightsLog.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-[280px] text-center p-8 space-y-4">
+                <div className="w-16 h-16 bg-white border border-[#D2DBE3] rounded-2xl flex items-center justify-center text-dim shadow-sm">
+                  <Brain size={28} className="text-[#8D99AE] animate-pulse" />
+                </div>
+                <h4 className="font-outfit font-bold text-[#3A4550]">Awaiting Clinical Observations</h4>
+                <p className="text-xs font-sans text-soft max-w-[280px] leading-relaxed">
+                  Real-time clinical insights will populate here automatically every 5 lines or 40 words spoken by the member.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Active Indicator Banner */}
+                <div className="flex items-center justify-between bg-[#EBF7EE] border border-[#C8E6C9] rounded-xl px-4 py-2.5 text-[#2E7D32]">
+                  <div className="flex items-center gap-2 text-xs font-sans font-bold uppercase tracking-wider">
+                    <Activity size={14} className="animate-pulse" />
+                    <span>Live AI Monitoring Active</span>
+                  </div>
+                  <span className="text-[10px] bg-white/60 px-2 py-0.5 rounded font-mono font-bold">
+                    {insightsLog.length} {insightsLog.length === 1 ? 'Insight' : 'Insights'}
+                  </span>
                 </div>
 
-                {/* Speech Text Bubble */}
-                <div
-                  className={`max-w-[80%] px-4 py-2.5 rounded-[16px] text-sm shadow-[0_1px_3px_rgba(0,0,0,0.02)] border ${
-                    isCoach
-                      ? "bg-white border-sage/10 text-ink rounded-tr-none"
-                      : "bg-white border-[#D2DBE3]/50 text-ink rounded-tl-none"
-                  } ${
-                    !line.isFinal
-                      ? "italic text-dim bg-gray-50/50 border-dashed border-dim/20"
-                      : ""
-                  }`}
-                >
-                  <p className="leading-relaxed whitespace-pre-wrap">{line.text}</p>
+                {/* Latest Insight Card */}
+                <div className="bg-gradient-to-br from-white to-[#F8FAFC] border-[1.5px] border-[#D2DBE3] rounded-2xl p-5 shadow-sm space-y-3 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#EBF7EE]/30 rounded-full blur-xl -mr-6 -mt-6 pointer-events-none" />
+                  <div className="flex items-center gap-1.5 text-xs font-outfit font-bold text-[#4E8C58]">
+                    <Sparkles size={14} />
+                    <span>LATEST CLINICAL OBSERVATION</span>
+                  </div>
+                  <p className="text-sm font-sans text-ink leading-relaxed font-semibold">
+                    {insightsLog[insightsLog.length - 1].text}
+                  </p>
+                  <div className="flex items-center gap-1 text-[10px] text-soft font-mono font-semibold pt-2 border-t border-[#D2DBE3]/50">
+                    <Clock size={10} />
+                    <span>Updated at {formatTime(insightsLog[insightsLog.length - 1].timestamp)}</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })
+
+                {/* History Timeline */}
+                {insightsLog.length > 1 && (
+                  <div className="space-y-4 pt-2">
+                    <h5 className="font-outfit font-bold text-[#3A4550] text-[10.5px] uppercase tracking-wider">
+                      Observation History
+                    </h5>
+                    <div className="space-y-3 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[2px] before:bg-[#D2DBE3]/70">
+                      {insightsLog.slice(0, -1).reverse().map((insight, idx) => (
+                        <div key={idx} className="flex gap-4 relative">
+                          <div className="w-9 h-9 rounded-full bg-white border-2 border-[#D2DBE3] flex items-center justify-center shrink-0 z-10 shadow-sm text-dim">
+                            <Brain size={14} className="text-[#8D99AE]" />
+                          </div>
+                          <div className="bg-white border border-[#D2DBE3]/75 rounded-xl p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex-1 space-y-1.5">
+                            <p className="text-xs font-sans text-[#5C6B73] leading-relaxed">
+                              {insight.text}
+                            </p>
+                            <div className="flex items-center gap-1 text-[9px] text-soft font-mono">
+                              <Clock size={8} />
+                              <span>{formatTime(insight.timestamp)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         )}
       </div>
 
