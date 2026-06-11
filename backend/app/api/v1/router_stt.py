@@ -1,13 +1,18 @@
 import os
 import logging
 import asyncio
+import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import websockets
 import jwt
+from app.modules.live_analysis import LiveMeetingAnalysisEngine
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/stt", tags=["STT"])
+
+# Instantiate the live meeting analysis engine
+live_analysis_engine = LiveMeetingAnalysisEngine()
 
 # Deepgram live streaming endpoint
 DEEPGRAM_URL = (
@@ -64,6 +69,9 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     logger.info("[STT Proxy] Client WebSocket connected and authorized")
 
+    # Lock to serialize writes to this WebSocket from different concurrent tasks
+    websocket_write_lock = asyncio.Lock()
+
     api_key = os.getenv("DEEPGRAM_API_KEY")
     if not api_key:
         logger.error("[STT Proxy] DEEPGRAM_API_KEY is not set on the server")
@@ -98,9 +106,27 @@ async def websocket_endpoint(websocket: WebSocket):
                 try:
                     async for msg in dg_socket:
                         if isinstance(msg, bytes):
-                            await websocket.send_bytes(msg)
+                            async with websocket_write_lock:
+                                await websocket.send_bytes(msg)
                         else:
-                            await websocket.send_text(msg)
+                            # Forward the raw Deepgram response to client first
+                            async with websocket_write_lock:
+                                await websocket.send_text(msg)
+                            
+                            # Parse final transcripts and buffer for live analysis
+                            try:
+                                data = json.loads(msg)
+                                alt = data.get("channel", {}).get("alternatives", [{}])[0]
+                                transcript = alt.get("transcript", "").strip()
+                                is_final = data.get("is_final") or data.get("speech_final")
+                                if is_final and transcript:
+                                    asyncio.create_task(
+                                        live_analysis_engine.add_transcript(
+                                            session_id, transcript, websocket, websocket_write_lock
+                                        )
+                                    )
+                            except Exception as e:
+                                logger.debug(f"[STT Proxy] Live analysis parsing skipped/failed: {e}")
                 except Exception as e:
                     logger.warning(f"[STT Proxy] Exception in dg_to_client loop: {e}")
                 finally:
@@ -115,7 +141,10 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.error(f"[STT Proxy] Connection to Deepgram failed: {err}")
     finally:
         logger.info("[STT Proxy] Connection finalized")
+        if session_id:
+            await live_analysis_engine.clear_session(session_id)
         try:
             await websocket.close()
         except Exception:
             pass
+
