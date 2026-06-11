@@ -31,8 +31,9 @@ function getHandler(eventName: string): ((...args: unknown[]) => void) | undefin
 
 beforeEach(() => {
   jest.clearAllMocks();
-  // Reset localStorage
+  // Reset localStorage and cookies
   localStorage.clear();
+  document.cookie = "safecircle_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 });
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -43,8 +44,8 @@ describe("useCoachSocket", () => {
     expect(io).toHaveBeenCalledTimes(1);
   });
 
-  it("passes the JWT token from localStorage in auth.token", () => {
-    localStorage.setItem("vasl_token", "test-jwt-token");
+  it("passes the JWT token from cookies in auth.token", () => {
+    document.cookie = "safecircle_token=test-jwt-token";
     renderHook(() => useCoachSocket());
     const callArgs = (io as jest.Mock).mock.calls[0];
     expect(callArgs[1]).toMatchObject({ auth: { token: "test-jwt-token" } });

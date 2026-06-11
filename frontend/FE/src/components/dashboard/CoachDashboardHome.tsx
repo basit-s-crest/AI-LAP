@@ -7,6 +7,7 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import api from "@/lib/api";
 import type { ConversationSummary } from "@/types/coachMessage";
+import { useRiskScoreStream } from "@/hooks/useRiskScoreStream";
 
 interface CoachMember {
   id: string;
@@ -16,6 +17,8 @@ interface CoachMember {
   isVerified: boolean;
   createdAt: string;
   assignedAt: string;
+  risk_tier?: string;
+  risk_score?: number;
 }
 
 function formatDate(value: string) {
@@ -24,8 +27,24 @@ function formatDate(value: string) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+const TIER_EMOJI: Record<string, string> = {
+  crisis: "🔴",
+  high: "🟠",
+  moderate: "🟡",
+  low: "🟢",
+};
+
+const TIER_BADGE_PILL: Record<string, { bg: string; text: string }> = {
+  low: { bg: "#e8f5e9", text: "#2e7d32" },
+  moderate: { bg: "#fff8e1", text: "#f57f17" },
+  high: { bg: "#fff3e0", text: "#e65100" },
+  crisis: { bg: "#ffebee", text: "#c62828" },
+};
+
 export function CoachDashboardHome() {
   const [onDemand, setOnDemandLocal] = useState(false);
+  const { dashboard } = useRiskScoreStream();
+  const scoreUpdates = dashboard.scores;
 
   // Load initial on-demand status from the API
   useEffect(() => {
@@ -162,22 +181,49 @@ export function CoachDashboardHome() {
                     </td>
                   </tr>
                 ) : (
-                  members.slice(0, 5).map((member) => (
-                    <tr key={member.id} style={{ borderBottom: "1px solid var(--border)", transition: "background 0.15s" }}>
-                      <td style={{ padding: "16px 20px" }}>
-                        <div style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--ink)" }}>{member.name}</div>
-                        <div style={{ fontSize: "11.5px", color: "var(--ink-ghost)", marginTop: "2px" }}>{member.email}</div>
-                      </td>
-                      <td style={{ padding: "16px 20px", fontSize: "13px", color: "var(--ink-soft)" }}>
-                        {formatDate(member.assignedAt)}
-                      </td>
-                      <td style={{ padding: "16px 20px" }}>
-                        <span className={cn("badge", member.isVerified ? "b-sage" : "b-dim")} style={{ fontSize: "10px", padding: "3px 8px", fontWeight: 700, textTransform: "uppercase" }}>
-                          {member.isVerified ? "Verified" : "Pending"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  members.slice(0, 5).map((member) => {
+                    const scoreUpdate = scoreUpdates[member.id];
+                    const tier = scoreUpdate?.risk_tier ?? member.risk_tier ?? "low";
+                    const score = scoreUpdate?.risk_score ?? member.risk_score ?? 0;
+                    const badge = TIER_BADGE_PILL[tier] ?? TIER_BADGE_PILL.low;
+                    const emoji = TIER_EMOJI[tier] ?? "🟢";
+
+                    return (
+                      <tr key={member.id} style={{ borderBottom: "1px solid var(--border)", transition: "background 0.15s" }}>
+                        <td style={{ padding: "16px 20px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--ink)" }}>{member.name}</span>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                borderRadius: "9999px",
+                                backgroundColor: badge.bg,
+                                color: badge.text,
+                                padding: "2px 8px",
+                                fontSize: "10px",
+                                fontWeight: 600,
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              <span>{emoji}</span>
+                              <span>{tier} ({(score * 100).toFixed(0)}%)</span>
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "11.5px", color: "var(--ink-ghost)", marginTop: "2px" }}>{member.email}</div>
+                        </td>
+                        <td style={{ padding: "16px 20px", fontSize: "13px", color: "var(--ink-soft)" }}>
+                          {formatDate(member.assignedAt)}
+                        </td>
+                        <td style={{ padding: "16px 20px" }}>
+                          <span className={cn("badge", member.isVerified ? "b-sage" : "b-dim")} style={{ fontSize: "10px", padding: "3px 8px", fontWeight: 700, textTransform: "uppercase" }}>
+                            {member.isVerified ? "Verified" : "Pending"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

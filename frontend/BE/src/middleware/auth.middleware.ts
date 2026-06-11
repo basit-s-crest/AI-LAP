@@ -18,6 +18,10 @@ declare global {
   }
 }
 
+// Throttling cache for lastActiveAt updates to prevent DB pool exhaustion (in-memory, per-process)
+const lastActiveUpdates = new Map<string, number>();
+const LAST_ACTIVE_THROTTLE_MS = 60 * 1000; // 1 minute
+
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 /**
@@ -56,28 +60,38 @@ export const authMiddleware = (
       orgId: decoded.orgId,
     };
 
-    // Update lastActiveAt for all user types (async, don't wait)
-    if (decoded.role === "member") {
-      void prisma.user.update({
-        where: { id: decoded.id },
-        data: { lastActiveAt: new Date() },
-      }).catch(() => {
-        // Silently fail - don't block the request
-      });
-    } else if (decoded.role === "coach") {
-      void prisma.coach.update({
-        where: { id: decoded.id },
-        data: { lastActiveAt: new Date() },
-      }).catch(() => {
-        // Silently fail - don't block the request
-      });
-    } else if (decoded.role === "organization") {
-      void prisma.organization.update({
-        where: { id: decoded.id },
-        data: { lastActiveAt: new Date() },
-      }).catch(() => {
-        // Silently fail - don't block the request
-      });
+    // Update lastActiveAt for all user types (async, throttled, don't wait)
+    const now = Date.now();
+    const lastUpdate = lastActiveUpdates.get(decoded.id);
+    if (!lastUpdate || now - lastUpdate > LAST_ACTIVE_THROTTLE_MS) {
+      // Manage memory footprint by clearing cache if it grows too large
+      if (lastActiveUpdates.size > 5000) {
+        lastActiveUpdates.clear();
+      }
+      lastActiveUpdates.set(decoded.id, now);
+
+      if (decoded.role === "member") {
+        void prisma.user.update({
+          where: { id: decoded.id },
+          data: { lastActiveAt: new Date() },
+        }).catch(() => {
+          // Silently fail - don't block the request
+        });
+      } else if (decoded.role === "coach") {
+        void prisma.coach.update({
+          where: { id: decoded.id },
+          data: { lastActiveAt: new Date() },
+        }).catch(() => {
+          // Silently fail - don't block the request
+        });
+      } else if (decoded.role === "organization") {
+        void prisma.organization.update({
+          where: { id: decoded.id },
+          data: { lastActiveAt: new Date() },
+        }).catch(() => {
+          // Silently fail - don't block the request
+        });
+      }
     }
 
     return next();
