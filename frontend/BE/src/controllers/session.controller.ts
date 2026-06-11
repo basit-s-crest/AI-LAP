@@ -79,29 +79,20 @@ export const getCoachAvailability = async (
       where: { coachId },
     });
 
-    const defaultSlots = [
-      { day: "Monday", start: "09:00 AM", end: "05:00 PM", enabled: true },
-      { day: "Tuesday", start: "09:00 AM", end: "05:00 PM", enabled: true },
-      { day: "Wednesday", start: "09:00 AM", end: "05:00 PM", enabled: true },
-      { day: "Thursday", start: "09:00 AM", end: "05:00 PM", enabled: true },
-      { day: "Friday", start: "09:00 AM", end: "05:00 PM", enabled: true },
-      { day: "Saturday", start: "09:00 AM", end: "05:00 PM", enabled: false },
-      { day: "Sunday", start: "09:00 AM", end: "05:00 PM", enabled: false },
+    // Overridden 24/7 availability slots to support any-time testing
+    const slotsOverride = [
+      { day: "Monday", start: "12:00 AM", end: "11:59 PM", enabled: true },
+      { day: "Tuesday", start: "12:00 AM", end: "11:59 PM", enabled: true },
+      { day: "Wednesday", start: "12:00 AM", end: "11:59 PM", enabled: true },
+      { day: "Thursday", start: "12:00 AM", end: "11:59 PM", enabled: true },
+      { day: "Friday", start: "12:00 AM", end: "11:59 PM", enabled: true },
+      { day: "Saturday", start: "12:00 AM", end: "11:59 PM", enabled: true },
+      { day: "Sunday", start: "12:00 AM", end: "11:59 PM", enabled: true },
     ];
 
-    if (!avail) {
-      return res.status(200).json({
-        slots: defaultSlots,
-        duration: 50,
-        bookedToday: bookedToday.map((b) => ({
-          date: b.scheduledAt.toISOString(),
-          memberId: b.memberId,
-        })),
-      });
-    }
     return res.status(200).json({
-      slots: avail.slots,
-      duration: avail.duration,
+      slots: slotsOverride,
+      duration: avail?.duration ?? 50,
       bookedToday: bookedToday.map((b) => ({
         date: b.scheduledAt.toISOString(),
         memberId: b.memberId,
@@ -228,14 +219,15 @@ export const bookSession = async (
       where: { coachId },
     });
 
-    const slots = (avail?.slots as SlotEntry[] | undefined) ?? [
-      { day: "Monday", start: "09:00 AM", end: "05:00 PM", enabled: true },
-      { day: "Tuesday", start: "09:00 AM", end: "05:00 PM", enabled: true },
-      { day: "Wednesday", start: "09:00 AM", end: "05:00 PM", enabled: true },
-      { day: "Thursday", start: "09:00 AM", end: "05:00 PM", enabled: true },
-      { day: "Friday", start: "09:00 AM", end: "05:00 PM", enabled: true },
-      { day: "Saturday", start: "09:00 AM", end: "05:00 PM", enabled: false },
-      { day: "Sunday", start: "09:00 AM", end: "05:00 PM", enabled: false },
+    // Overridden 24/7 availability slots to support any-time testing
+    const slots = [
+      { day: "Monday", start: "12:00 AM", end: "11:59 PM", enabled: true },
+      { day: "Tuesday", start: "12:00 AM", end: "11:59 PM", enabled: true },
+      { day: "Wednesday", start: "12:00 AM", end: "11:59 PM", enabled: true },
+      { day: "Thursday", start: "12:00 AM", end: "11:59 PM", enabled: true },
+      { day: "Friday", start: "12:00 AM", end: "11:59 PM", enabled: true },
+      { day: "Saturday", start: "12:00 AM", end: "11:59 PM", enabled: true },
+      { day: "Sunday", start: "12:00 AM", end: "11:59 PM", enabled: true },
     ];
     const dayName = requestedDate.toLocaleDateString("en-US", { weekday: "long" });
     const slot = slots.find((s) => s.day === dayName);
