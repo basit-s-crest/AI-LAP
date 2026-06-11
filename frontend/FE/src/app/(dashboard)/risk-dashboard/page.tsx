@@ -391,7 +391,7 @@ export default function RiskDashboardPage() {
             href="/risk-dashboard/operations"
             className="rounded-lg border border-line bg-card px-3 py-1.5 text-xs font-bold text-ink hover:bg-canvas transition-colors"
           >
-            ⚙️ Risk API Console
+            ⚙️ Risk Reports
           </Link>
           <button
             onClick={clearHistory}
