@@ -17,6 +17,20 @@
 
 $root = $PSScriptRoot
 
+# Auto-detect Python and uv paths using py.exe if they are not in PATH
+if (-not (Get-Command python -ErrorAction SilentlyContinue) -or -not (Get-Command uv -ErrorAction SilentlyContinue)) {
+    try {
+        $pyPath = & py -c "import sys, os; print(os.path.dirname(sys.executable))" 2>$null
+        if ($pyPath) {
+            $pyPath = $pyPath.Trim()
+            $scriptsPath = Join-Path $pyPath "Scripts"
+            if (Test-Path $pyPath) {
+                $env:PATH = "$pyPath;$scriptsPath;" + $env:PATH
+            }
+        }
+    } catch {}
+}
+
 function Write-OK($msg)   { Write-Host "  [OK] $msg" -ForegroundColor Green }
 function Write-Warn($msg) { Write-Host "  [!!] $msg" -ForegroundColor Yellow }
 function Write-Fail($msg) { Write-Host "  [XX] $msg" -ForegroundColor Red }
@@ -31,7 +45,7 @@ Write-Host ""
 if (-not (Test-Path "$root\node_modules")) {
     Write-Warn "node_modules missing - running npm install first..."
     Push-Location $root
-    npm install --force
+    npm install --force --ignore-scripts
     Pop-Location
     Write-OK "npm install done"
     Write-Host ""

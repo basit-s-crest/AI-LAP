@@ -11,6 +11,7 @@ export interface LiveKitTokenResponse {
   scheduledAt: string;
   livekitStartedAt: string;
   expiresAt: string;
+  transcriptionToken?: string;
 }
 
 export interface LiveKitStatusResponse {

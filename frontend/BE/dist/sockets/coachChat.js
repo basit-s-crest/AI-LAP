@@ -66,6 +66,55 @@ function registerCoachChatHandlers(io, socket) {
             }
         }
     });
+    // send_transcription — save STT transcripts into database
+    socket.on("send_transcription", async (data) => {
+        try {
+            const userId = user.role === "member" ? user.id : data.partnerId;
+            const coachId = user.role === "coach" ? user.id : data.partnerId;
+            // Assignment guard
+            const assignment = await prisma_1.default.coachMember.findUnique({
+                where: { coachId_userId: { coachId, userId } },
+            });
+            if (!assignment) {
+                socket.emit("error", {
+                    code: "UNAUTHORIZED_THREAD",
+                    message: "No assignment found",
+                });
+                return;
+            }
+            const message = await (0, coachMessage_service_1.saveMessage)({
+                userId,
+                coachId,
+                content: data.content,
+                senderRole: data.senderRole,
+            });
+            const dto = (0, coachMessage_service_1.toCoachMessageDTO)(message);
+            // Acknowledge sender
+            socket.emit("message_saved", dto);
+            // Deliver to partner's personal room
+            const partnerRoom = user.role === "member" ? `coach:${coachId}` : `user:${userId}`;
+            io.of("/coach-chat").to(partnerRoom).emit("new_message", dto);
+            // Sentiment — member messages only
+            if (data.senderRole === "member") {
+                (0, sentimentForwarder_1.forwardToSentiment)(message, message.id);
+                void (0, notificationEmail_service_1.maybeEmailCoachUnreadMessages)(coachId, userId);
+            }
+        }
+        catch (err) {
+            if (err instanceof coachMessage_service_1.ValidationError || err instanceof coachMessage_service_1.AssignmentError) {
+                socket.emit("error", {
+                    code: err instanceof coachMessage_service_1.AssignmentError ? "UNAUTHORIZED_THREAD" : "VALIDATION_ERROR",
+                    message: err.message,
+                });
+            }
+            else {
+                socket.emit("error", {
+                    code: "SAVE_FAILED",
+                    message: "Message could not be saved",
+                });
+            }
+        }
+    });
     // 4.7 — mark_read
     socket.on("mark_read", async (data) => {
         try {

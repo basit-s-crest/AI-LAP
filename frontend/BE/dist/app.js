@@ -19,6 +19,7 @@ const org_routes_1 = __importDefault(require("./routes/org.routes"));
 const session_routes_1 = __importDefault(require("./routes/session.routes"));
 const sessionNote_routes_1 = __importDefault(require("./routes/sessionNote.routes"));
 const onboarding_routes_1 = __importDefault(require("./routes/onboarding.routes"));
+const aiSessionNote_routes_1 = __importDefault(require("./routes/aiSessionNote.routes"));
 const app = (0, express_1.default)();
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use((0, cors_1.default)());
@@ -38,6 +39,7 @@ app.use("/api/org", org_routes_1.default);
 app.use("/api/sessions", session_routes_1.default);
 app.use("/api/session-notes", sessionNote_routes_1.default);
 app.use("/api/onboarding", onboarding_routes_1.default);
+app.use("/api/ai-session-notes", aiSessionNote_routes_1.default);
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_, res) => {
     return res.status(404).json({ message: "Route not found" });
