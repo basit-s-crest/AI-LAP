@@ -118,7 +118,6 @@ function formatDateLabel(dateStr: string): string {
 const EMPTY_CONVERSATIONS: ConversationSummary[] = [];
 
 // ── Component ──────────────────────────────────────────────────────────────
-const EMPTY_CONVERSATIONS: ConversationSummary[] = [];
 
 export default function CoachMessagesPage() {
   const router = useRouter();
@@ -193,11 +192,10 @@ export default function CoachMessagesPage() {
   }, [conversations]);
 
   // Handle selected conversation initialization and query parameter sync
+  // honor ?partner= from notifications or select first conversation on initial load
   useEffect(() => {
     if (conversations.length === 0) return;
 
-  // honor ?partner= from notifications or select first conversation on initial load
-  useEffect(() => {
     if (partnerFromUrl && conversations.some((c) => c.partnerId === partnerFromUrl)) {
       if (selectedId !== partnerFromUrl) {
         setSelectedId(partnerFromUrl);

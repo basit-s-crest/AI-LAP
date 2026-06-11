@@ -35,6 +35,12 @@ export function useLiveTranscription(
     isListeningRef.current = isListening;
   }, [isListening]);
 
+  // Keep customStream in a ref to prevent stale closures and avoid track-stopping bugs
+  const customStreamRef = useRef(customStream);
+  useEffect(() => {
+    customStreamRef.current = customStream;
+  }, [customStream]);
+
   const stopListening = useCallback(() => {
     if (!isListeningRef.current && !mediaRecorderRef.current) return;
 
@@ -51,7 +57,7 @@ export function useLiveTranscription(
 
     if (streamRef.current) {
       try {
-        if (streamRef.current !== customStream) {
+        if (streamRef.current !== customStreamRef.current) {
           streamRef.current.getTracks().forEach((track) => track.stop());
         }
       } catch (err) {
@@ -91,7 +97,21 @@ export function useLiveTranscription(
     try {
       console.log('[STT] Initializing STT proxy connection for speaker:', speakerRef.current);
 
-      const stream = customStream || await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('[STT DEBUG] customStreamRef.current exists:', !!customStreamRef.current);
+      if (customStreamRef.current) {
+        console.log('[STT DEBUG] customStreamRef.current properties:', {
+          active: customStreamRef.current.active,
+          id: customStreamRef.current.id,
+          tracks: customStreamRef.current.getAudioTracks().map(t => ({
+            id: t.id,
+            kind: t.kind,
+            readyState: t.readyState,
+            enabled: t.enabled
+          }))
+        });
+      }
+
+      const stream = customStreamRef.current || await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
       // 1. Log exact track/stream properties
@@ -117,23 +137,35 @@ export function useLiveTranscription(
         "audio/mp4": typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported ? MediaRecorder.isTypeSupported("audio/mp4") : "N/A"
       });
 
-      // 3. Test wrapper/cloned stream creation
-      try {
-        const testClonedStream = new MediaStream(stream.getAudioTracks());
-        console.log("[DEBUG] useLiveTranscription: Cloned stream successfully created", {
-          clonedStreamActive: testClonedStream.active,
-          clonedStreamId: testClonedStream.id,
-          clonedTracksCount: testClonedStream.getAudioTracks().length
-        });
-      } catch (cloneErr: any) {
-        console.error("[DEBUG] useLiveTranscription: Failed to clone stream", cloneErr);
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        throw new Error("No active audio tracks found in the stream.");
       }
+
+      // Filter out only tracks that have explicitly ended.
+      // If all tracks are filtered, fall back to using the original audioTracks array.
+      const activeTracks = audioTracks.filter(t => t.readyState !== 'ended');
+      const tracksToUse = activeTracks.length > 0 ? activeTracks : audioTracks;
+
+      // Wrap the tracks in a new MediaStream to bypass WebRTC metadata recording issues
+      const recordStream = new MediaStream(tracksToUse);
+      console.log('[STT DEBUG] recordStream properties:', {
+        active: recordStream.active,
+        id: recordStream.id,
+        tracks: recordStream.getAudioTracks().map(t => ({
+          id: t.id,
+          kind: t.kind,
+          readyState: t.readyState,
+          enabled: t.enabled
+        }))
+      });
 
       // Create MediaRecorder (no mimeType option — let browser pick)
       let mediaRecorder: MediaRecorder;
       try {
-        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder = new MediaRecorder(recordStream);
         mediaRecorderRef.current = mediaRecorder;
+        console.log('[STT DEBUG] MediaRecorder created successfully. Initial state:', mediaRecorder.state);
       } catch (err: any) {
         console.error('[STT] MediaRecorder creation failed:', err);
         if (err.name === 'NotSupportedError') {
@@ -158,10 +190,13 @@ export function useLiveTranscription(
       socket.onopen = () => {
         console.log('[STT] Deepgram WebSocket open for:', speakerRef.current);
         try {
+          console.log('[STT DEBUG] socket.onopen - mediaRecorder state:', mediaRecorder.state);
           // Start MediaRecorder only AFTER the WebSocket is successfully open
           // to ensure the first WebM container header is successfully sent to Deepgram.
           if (mediaRecorder.state !== "recording") {
+            console.log('[STT DEBUG] socket.onopen - Calling mediaRecorder.start(250)...');
             mediaRecorder.start(250);
+            console.log('[STT DEBUG] socket.onopen - mediaRecorder.start call completed. state:', mediaRecorder.state);
           }
           setIsListening(true);
           isListeningRef.current = true;
@@ -224,9 +259,11 @@ export function useLiveTranscription(
       };
 
       mediaRecorder.ondataavailable = async (event) => {
+        console.log('[STT DEBUG] ondataavailable fired. size:', event.data.size, 'socketExist:', !!socket, 'readyState:', socket?.readyState);
         if (event.data.size > 0 && socket && socket.readyState === 1) {
           try {
             const arrayBuffer = await event.data.arrayBuffer();
+            console.log('[STT DEBUG] Sending audio buffer of size:', arrayBuffer.byteLength);
             socket.send(arrayBuffer);
           } catch (err) {
             console.warn("[useLiveTranscription] Failed to send audio data chunk:", err);
@@ -240,7 +277,7 @@ export function useLiveTranscription(
     } finally {
       isStartingRef.current = false;
     }
-  }, [stopListening, customStream]);
+  }, [stopListening, transcriptionToken, sessionId]);
 
   const clearTranscript = useCallback(() => {
     setTranscript([]);

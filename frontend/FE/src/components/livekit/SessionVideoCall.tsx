@@ -442,6 +442,10 @@ export default function SessionVideoCall({
   };
 
   const handleError = (err: Error) => {
+    if (err.message && (err.message.includes("Client initiated disconnect") || err.message.includes("client initiated disconnect"))) {
+      console.log("[SessionVideoCall] Client initiated disconnect (normal cleanup).");
+      return;
+    }
     console.error("[SessionVideoCall] LiveKit connection error:", err);
     setErrorState(err.message || "Failed to establish a connection to the video room.");
   };
