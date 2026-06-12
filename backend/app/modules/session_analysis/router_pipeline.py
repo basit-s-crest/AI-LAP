@@ -334,7 +334,7 @@ async def list_pipeline_runs(
     db: AsyncSession = Depends(get_db),
 ):
     """Paginated list of pipeline runs, newest first."""
-    from app.modules.sentiment.pipeline_run_model import PipelineRun
+    from app.modules.session_analysis.pipeline_run_model import PipelineRun
     q = select(PipelineRun).order_by(desc(PipelineRun.created_at))
     if risk_tier:    q = q.where(PipelineRun.risk_tier == risk_tier)
     if is_complete is not None: q = q.where(PipelineRun.is_complete == is_complete)
@@ -347,7 +347,7 @@ async def list_pipeline_runs(
 @router.get("/runs/{event_id}", response_model=PipelineRunOut)
 async def get_pipeline_run(event_id: str, db: AsyncSession = Depends(get_db)):
     """Full detail for a single pipeline run."""
-    from app.modules.sentiment.pipeline_run_model import PipelineRun
+    from app.modules.session_analysis.pipeline_run_model import PipelineRun
     result = await db.execute(select(PipelineRun).where(PipelineRun.event_id == event_id))
     row = result.scalar_one_or_none()
     if not row:

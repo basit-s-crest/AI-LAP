@@ -18,7 +18,7 @@ from sqlalchemy import select, func, desc, Integer, cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.modules.sentiment.request_log_model import RequestLog
+from app.modules.session_analysis.request_log_model import RequestLog
 
 router = APIRouter(prefix="/v1/logs", tags=["Request Logs"])
 
