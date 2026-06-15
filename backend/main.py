@@ -14,6 +14,11 @@ API docs:
 """
 
 import sys
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load env variables from .env file, overriding any pre-existing environment variables
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env", override=True)
 
 # ── Windows: psycopg (async) requires SelectorEventLoop, not ProactorEventLoop.
 # The policy must be set before uvicorn creates its event loop.

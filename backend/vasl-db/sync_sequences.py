@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 # Load .env
 env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
+load_dotenv(dotenv_path=env_path, override=True)
 
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:

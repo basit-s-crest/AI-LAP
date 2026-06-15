@@ -24,7 +24,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load .env from backend directory absolutely
-load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env")
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env", override=True)
 
 # ── Change your database here (or in .env) ────────────────────────────────────
 DATABASE_URL: str = os.getenv(

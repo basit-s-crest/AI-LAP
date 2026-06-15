@@ -26,7 +26,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load .env from backend directory absolutely
-load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env")
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env", override=True)
 
 from openai import AsyncOpenAI
 from app.modules.sentiment.schemas import InferenceResultIn, SignalIn, ShapIn
