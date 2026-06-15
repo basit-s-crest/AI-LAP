@@ -1,0 +1,71 @@
+{
+  "run_at": "2026-06-15T09:10:19.719Z",
+  "total_jobs": 5,
+  "enqueued": 5,
+  "received": 5,
+  "errors": 0,
+  "wall_time_ms": 81064,
+  "throughput_rps": 0.062,
+  "tier_distribution": {
+    "low": 5,
+    "moderate": 0,
+    "high": 0,
+    "crisis": 0
+  },
+  "stage_stats": {
+    "s1_frontend_to_bullmq": {
+      "count": 5,
+      "min": 24,
+      "avg": 25,
+      "p50": 25,
+      "p90": 25,
+      "p99": 25,
+      "max": 25
+    },
+    "s2_bullmq_to_fastapi": {
+      "count": 5,
+      "min": 11674,
+      "avg": 37800,
+      "p50": 24033,
+      "p90": 78955,
+      "p99": 78955,
+      "max": 78955
+    },
+    "s3_llm_call": {
+      "count": 5,
+      "min": 2352,
+      "avg": 26885,
+      "p50": 4704,
+      "p90": 69185,
+      "p99": 69185,
+      "max": 69185
+    },
+    "s4_llm_to_postgres": {
+      "count": 5,
+      "min": 959,
+      "avg": 1982,
+      "p50": 2375,
+      "p90": 2805,
+      "p99": 2805,
+      "max": 2805
+    },
+    "s5_llm_to_publish": {
+      "count": 5,
+      "min": 2,
+      "avg": 2,
+      "p50": 2,
+      "p90": 2,
+      "p99": 2,
+      "max": 2
+    },
+    "s6_full_roundtrip": {
+      "count": 5,
+      "min": 12044,
+      "avg": 39859,
+      "p50": 26731,
+      "p90": 79027,
+      "p99": 79027,
+      "max": 79027
+    }
+  }
+}
