@@ -29,7 +29,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env", override=True)
 
 from openai import AsyncOpenAI
-from app.modules.sentiment.schemas import InferenceResultIn, SignalIn, ShapIn
+from app.modules.session_analysis.schemas import InferenceResultIn, SignalIn, ShapIn
 
 logger = logging.getLogger(__name__)
 

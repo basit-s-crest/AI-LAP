@@ -10,11 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
 from sqlalchemy.orm import selectinload
 
-from app.modules.sentiment.models import (
+from app.modules.session_analysis.models import (
     Member, InferenceEvent, EventSignal,
     ShapAttribution, ReviewAction, MemberRiskSnapshot,
 )
-from app.modules.sentiment.schemas import InferenceResultIn, ReviewIn
+from app.modules.session_analysis.schemas import InferenceResultIn, ReviewIn
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────

@@ -785,11 +785,6 @@ useEffect(() => {
           memberId={meetingMemberId}
           clientName={meetingClientName}
           sessionTime={meetingSessionTime}
-          onMemberTranscription={(text) => {
-            if (meetingMemberId) {
-              sendTranscription(meetingMemberId, text, "member");
-            }
-          }}
           onClose={() => {
             setMeetingOpen(false);
             setMeetingSessionId(null);

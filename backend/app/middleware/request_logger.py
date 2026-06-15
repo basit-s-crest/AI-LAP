@@ -35,7 +35,7 @@ from starlette.responses import Response
 from starlette.types import ASGIApp
 
 from app.core.database import AsyncSessionLocal
-from app.modules.sentiment.request_log_model import RequestLog
+from app.modules.session_analysis.request_log_model import RequestLog
 
 logger = logging.getLogger(__name__)
 

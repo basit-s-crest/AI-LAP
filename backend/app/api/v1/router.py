@@ -8,13 +8,13 @@ main.py never imports individual module routers directly.
 
 from fastapi import APIRouter
 
-from app.modules.sentiment.router_ingest        import router as ingest_router
-from app.modules.sentiment.router_store         import router as store_router
-from app.modules.sentiment.router_dashboard     import router as dashboard_router
-from app.modules.sentiment.router_pipeline      import router as pipeline_router
-from app.modules.sentiment.router_request_logs  import router as request_logs_router
-from app.modules.risk_engine.router             import router as risk_router
-from app.api.v1.router_stt                      import router as stt_router
+from app.modules.session_analysis.router_ingest        import router as ingest_router
+from app.modules.session_analysis.router_store         import router as store_router
+from app.modules.session_analysis.router_dashboard     import router as dashboard_router
+from app.modules.session_analysis.router_pipeline      import router as pipeline_router
+from app.modules.session_analysis.router_request_logs  import router as request_logs_router
+from app.modules.risk_engine.router                    import router as risk_router
+from app.modules.stt.router                            import router as stt_router
 
 api_router = APIRouter()
 

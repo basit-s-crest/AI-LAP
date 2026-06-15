@@ -14,12 +14,12 @@ from datetime import datetime
 from typing import Optional
 
 from app.core.database import get_db
-from app.modules.sentiment.schemas import (
+from app.modules.session_analysis.schemas import (
     MemberResultOut, EventOut, SignalOut, ShapOut,
     AdminSummaryOut, TopSignalOut, RiskDistribution, AdminRecentEventOut,
 )
-from app.modules.sentiment import crud
-from app.modules.sentiment.cache import (
+from app.modules.session_analysis import crud
+from app.modules.session_analysis.cache import (
     get_member_cache, set_member_cache,
     get_admin_cache, set_admin_cache,
 )

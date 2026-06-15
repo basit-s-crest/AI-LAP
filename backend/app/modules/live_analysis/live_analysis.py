@@ -3,7 +3,7 @@ import logging
 import asyncio
 from typing import Dict, Any, Optional
 from openai import AsyncOpenAI
-from app.modules.sentiment.llm import _get_client as get_fallback_client
+from app.modules.session_analysis.llm import _get_client as get_fallback_client
 
 logger = logging.getLogger(__name__)
 

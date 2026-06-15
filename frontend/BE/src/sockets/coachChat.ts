@@ -81,62 +81,11 @@ export function registerCoachChatHandlers(io: Server, socket: Socket): void {
     }
   );
 
-  // send_transcription — save STT transcripts into database
+  // send_transcription — deactivated to prevent message pollution
   socket.on(
     "send_transcription",
     async (data: { partnerId: string; content: string; senderRole: "member" | "coach" }) => {
-      try {
-        const userId = user.role === "member" ? user.id : data.partnerId;
-        const coachId = user.role === "coach" ? user.id : data.partnerId;
-
-        // Assignment guard
-        const assignment = await prisma.coachMember.findUnique({
-          where: { coachId_userId: { coachId, userId } },
-        });
-
-        if (!assignment) {
-          socket.emit("error", {
-            code: "UNAUTHORIZED_THREAD",
-            message: "No assignment found",
-          });
-          return;
-        }
-
-        const message = await saveMessage({
-          userId,
-          coachId,
-          content: data.content,
-          senderRole: data.senderRole,
-        });
-
-        const dto = toCoachMessageDTO(message);
-
-        // Acknowledge sender
-        socket.emit("message_saved", dto);
-
-        // Deliver to partner's personal room
-        const partnerRoom =
-          user.role === "member" ? `coach:${coachId}` : `user:${userId}`;
-        io.of("/coach-chat").to(partnerRoom).emit("new_message", dto);
-
-        // Sentiment — member messages only
-        if (data.senderRole === "member") {
-          forwardToSentiment(message, message.id);
-          void maybeEmailCoachUnreadMessages(coachId, userId);
-        }
-      } catch (err) {
-        if (err instanceof ValidationError || err instanceof AssignmentError) {
-          socket.emit("error", {
-            code: err instanceof AssignmentError ? "UNAUTHORIZED_THREAD" : "VALIDATION_ERROR",
-            message: err.message,
-          });
-        } else {
-          socket.emit("error", {
-            code: "SAVE_FAILED",
-            message: "Message could not be saved",
-          });
-        }
-      }
+      console.log(`[coachChat] Ignored send_transcription event from user ${user.id} to partner ${data.partnerId} to prevent message pollution.`);
     }
   );
 

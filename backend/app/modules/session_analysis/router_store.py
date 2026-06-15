@@ -9,8 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.modules.sentiment.schemas import InferenceResultIn, InferenceResultOut, ReviewIn, ReviewOut
-from app.modules.sentiment import crud
+from app.modules.session_analysis.schemas import InferenceResultIn, InferenceResultOut, ReviewIn, ReviewOut
+from app.modules.session_analysis import crud
 
 router = APIRouter(prefix="/v1", tags=["Store"])
 

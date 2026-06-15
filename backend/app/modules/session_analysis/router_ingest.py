@@ -30,11 +30,11 @@ import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.sentiment.schemas import PeerPostIn, JournalIn, ChatIn, AssessmentIn, IngestOut
+from app.modules.session_analysis.schemas import PeerPostIn, JournalIn, ChatIn, AssessmentIn, IngestOut
 from app.core.database import get_db, AsyncSessionLocal
-from app.modules.sentiment import crud
-from app.modules.sentiment.llm import run_inference
-from app.modules.sentiment.cache import bust_member_cache
+from app.modules.session_analysis import crud
+from app.modules.session_analysis.llm import run_inference
+from app.modules.session_analysis.cache import bust_member_cache
 from app.shared.pipeline_logger import log_stage
 
 logger = logging.getLogger(__name__)
