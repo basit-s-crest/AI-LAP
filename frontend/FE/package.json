@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "worker": "node worker.mjs",
+    "worker": "node --env-file=.env.local worker.mjs",
     "test": "jest --runInBand"
   },
   "jest": {

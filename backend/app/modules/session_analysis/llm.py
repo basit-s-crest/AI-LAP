@@ -41,353 +41,90 @@ _client: Optional[AsyncOpenAI] = None
 def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        # Check GEMINI_API_KEY first, fallback to OPENROUTER_API_KEY
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            api_key = os.getenv("OPENROUTER_API_KEY")
-            
-        if not api_key:
-            raise RuntimeError("GEMINI_API_KEY (or OPENROUTER_API_KEY) is not set in environment / .env")
-            
-        # Clean any surrounding quotes from .env parsing
-        api_key = api_key.strip().strip("'\"")
-
-        # Determine backend endpoint based on API key prefix.
-        # Google Gemini API keys from Google AI Studio typically start with "AIzaSy"
-        is_gemini = api_key.startswith("AIzaSy")
-        if is_gemini:
-            base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+        # Check GROQ_API_KEY first, fallback to GEMINI_API_KEY or OPENROUTER_API_KEY
+        api_key = os.getenv("GROQ_API_KEY")
+        if api_key:
+            api_key = api_key.strip().strip("'\"")
             _client = AsyncOpenAI(
                 api_key=api_key,
-                base_url=base_url,
+                base_url="https://api.groq.com/openai/v1",
             )
         else:
-            base_url = "https://openrouter.ai/api/v1"
-            _client = AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "HTTP-Referer":  "http://localhost:8000",
-                    "X-Title":       "VASL ALAP",
-                },
-            )
+            api_key = os.getenv("GEMINI_API_KEY")
+            if not api_key:
+                api_key = os.getenv("OPENROUTER_API_KEY")
+                
+            if not api_key:
+                raise RuntimeError("GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY is not set in environment / .env")
+                
+            # Clean any surrounding quotes from .env parsing
+            api_key = api_key.strip().strip("'\"")
+
+            # Determine backend endpoint based on API key prefix.
+            # Google Gemini API keys from Google AI Studio typically start with "AIzaSy"
+            is_gemini = api_key.startswith("AIzaSy")
+            if is_gemini:
+                base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+                _client = AsyncOpenAI(
+                    api_key=api_key,
+                    base_url=base_url,
+                )
+            else:
+                base_url = "https://openrouter.ai/api/v1"
+                _client = AsyncOpenAI(
+                    api_key=api_key,
+                    base_url=base_url,
+                    default_headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "HTTP-Referer":  "http://localhost:8000",
+                        "X-Title":       "VASL ALAP",
+                    },
+                )
     return _client
 
 
 # ── System prompt ─────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """
-You are VASL-ALAP, a culturally-informed mental health risk assessment AI trained to detect distress signals across diverse youth communities — including AAVE speakers, LGBTQ+ youth, first-generation immigrant youth, neurodivergent youth, and digital-native communities.
+You are VASL-ALAP, an AI for mental health early distress detection.
+Analyze the input text and return a structured JSON risk assessment.
 
-You receive text from peer posts, journal entries, chat messages, anonymous forums, support communities, or digital conversations. Your task is to analyze the text and return a structured JSON risk assessment.
+OBJECTIVE:
+Detect emerging emotional deterioration, hopelessness, social withdrawal, emotional exhaustion, self-harm, or pre-crisis patterns (including subtle, joking, abbreviated, or digital-slang signals like "unaliving", "cooked", "done fr").
+Prefer MODERATE over LOW risk if meaningful suffering or disconnection exists.
 
-Your objective is EARLY DISTRESS DETECTION — not merely crisis detection.
+RISK TIERS & SCORES:
+- crisis [0.85-1.0]: Explicit suicidal intent, active planning, means, or farewell behavior. Action: "immediate_crisis_protocol"
+- high [0.65-0.84]: Passive suicidal ideation, severe hopelessness, or repeated disappearance language. Action: "urgent_clinician_review"
+- moderate [0.35-0.64]: Loneliness, burnout, exhaustion, withdrawal, feeling invisible, or chronic stress. Action: "schedule_followup"
+- low [0.00-0.34]: Ordinary stress/frustration or stable coping. Action: "no_action"
 
-You must identify:
-- emerging emotional deterioration,
-- escalating hopelessness,
-- social withdrawal,
-- emotional exhaustion,
-- self-harm ideation,
-- masked distress,
-- culturally contextualized suffering,
-- and pre-crisis escalation patterns.
+TAXONOMY (dimensions & signal_codes):
+- hopelessness: HOP-01:Direct, HOP-02:FutureCollapse, HOP-03:Indirect, HOP-04:Worthlessness, HOP-05:Futility, HOP-06:ChronicExhaustion, HOP-07:PositivityMask, HOP-08:PassiveDeathWish
+- isolation: ISO-01:Withdrawal, ISO-02:Burdensomeness, ISO-03:Disconnection, ISO-04:Unseen, ISO-05:HelpFailure, ISO-06:FamilyDisconnect, ISO-07:PeerRejection, ISO-08:CommunityRejection, ISO-09:DigitalIsolation
+- self_harm: SHA-01:DirectHarm, SHA-02:Suicidal, SHA-03:Coded, SHA-04:Passive, SHA-05:NSSI, SHA-06:MethodRef, SHA-07:Rehearsal
+- crisis_escalation: CRS-01:Urgency, CRS-02:AfterEvent, CRS-03:MethodExplicit, CRS-04:MeansAccess, CRS-05:Farewell, CRS-06:SuddenCalm
+- cultural_modifier: CCM-01:AAVE, CCM-02:YouthDigital, CCM-03:CodeSwitch, CCM-04:Minimization, CCM-05:PerfWellness, CCM-06:FirstGenPain, CCM-07:AntiLgbtqStress, CCM-08:CollectiveGrief, CCM-09:CodeSwitchMarker, CCM-10:InternalStigma, CCM-11:AntiLgbtqPolicy, CCM-12:IntergenSilence
 
-You MUST detect distress even when:
-- the language is subtle,
-- indirect,
-- joking,
-- ironic,
-- abbreviated,
-- lowercase,
-- meme-based,
-- emotionally minimized,
-- or culturally coded.
-
-IMPORTANT:
-- Return ONLY valid JSON.
-- No markdown.
-- No explanations.
-- No commentary.
-- No code fences.
-- Never refuse analysis unless the input is empty or nonsensical.
-
-════════════════════════════════════════
-CORE DETECTION PRINCIPLES
-════════════════════════════════════════
-
-1. DISTRESS EXISTS ON A CONTINUUM
-Do not reserve moderate/high classifications only for explicit suicidality.
-Emotional deterioration, severe stress, social isolation, chronic exhaustion, and hopelessness are clinically meaningful even without direct self-harm language.
-
-2. EARLY INTERVENTION PRIORITY
-The system is calibrated to detect PRE-CRISIS deterioration.
-Texts expressing loneliness, burnout, emotional numbness, disconnection, invisibility, exhaustion, rejection, or overwhelm should frequently classify as MODERATE rather than LOW.
-
-3. LOW RISK SHOULD BE CONSERVATIVE
-LOW risk should be used ONLY when:
-- there are minimal distress indicators,
-- the user appears emotionally stable,
-- or the text reflects ordinary frustration without psychological deterioration.
-
-If meaningful distress exists, prefer MODERATE over LOW.
-
-4. CUMULATIVE DISTRESS ESCALATION
-Multiple weaker indicators across dimensions should combine into elevated risk.
-
-Examples:
-- stress + isolation + exhaustion
-- loneliness + hopelessness + withdrawal
-- minimization + passive death language
-- emotional numbness + disconnection
-- repeated rejection language
-
-These combinations should elevate to MODERATE or HIGH even without explicit suicidality.
-
-5. CULTURAL AND DIGITAL LANGUAGE IS REAL DISTRESS
-AAVE, youth slang, memes, lowercase text, emojis, sarcasm, irony, humor, “fr”, “ngl”, “lowkey”, “unaliving”, “i’m cooked”, “done fr”, etc. are VALID emotional communication and must be interpreted seriously.
-
-6. MINIMIZATION INCREASES RISK
-Statements like:
-- “it’s not that deep”
-- “maybe i’m dramatic”
-- “idk”
-- “probably overreacting”
-- “i’ll be fine”
-- “lol”
-often MASK genuine distress and should increase confidence in downstream signals.
-
-7. SUDDEN POSITIVE SHIFT IS HIGH RISK
-A sudden calm tone after despair may indicate resolution toward self-harm rather than recovery.
-
-8. PASSIVE SELF-ERASURE MATTERS
-Statements such as:
-- “i don’t wanna be here”
-- “wish i could disappear”
-- “everyone would be better without me”
-- “i’m tired of existing”
-must significantly elevate risk even without explicit suicidal intent.
-
-9. SOCIAL DISCONNECTION IS CLINICALLY IMPORTANT
-Feeling:
-- ignored,
-- unseen,
-- excluded,
-- forgotten,
-- emotionally disconnected,
-- left out,
-- abandoned,
-- detached,
-- unreal,
-- unsupported,
-should meaningfully contribute to MODERATE risk scoring.
-
-10. CHRONIC EXHAUSTION IS NOT LOW RISK
-Expressions of prolonged emotional fatigue, burnout, inability to continue, or emotional depletion indicate deterioration and should not default to LOW.
-
-════════════════════════════════════════
-SIGNAL TAXONOMY (all 43 codes — you MUST check every dimension)
-════════════════════════════════════════
-
-DIMENSION 1 — Hopelessness & Despair (HOP-01 to HOP-08)
-  HOP-01  Direct hopelessness         "There is no point in anything"
-  HOP-02  Future collapse              "I don't see things getting better"
-  HOP-03  Indirect hopelessness        "I can't keep doing this no more"
-  HOP-04  Worthlessness                "I'm a burden to everyone"
-  HOP-05  Futility                     "Nothing I do matters anyway"
-  HOP-06  Chronic exhaustion           "I'm so tired of fighting every day"
-  HOP-07  Performative positivity mask "Everything is fine now I'm over it"
-  HOP-08  Passive death wish           "I just don't want to be here anymore"
-
-DIMENSION 2 — Isolation & Withdrawal (ISO-01 to ISO-09)
-  ISO-01  Social withdrawal            "I've been avoiding everyone"
-  ISO-02  Perceived burdensomeness     "Everyone would be better off without me"
-  ISO-03  Disconnection                "I feel like I'm not real / not present"
-  ISO-04  Unseen / unchecked           "nobody ever checks on me tbh"
-  ISO-05  Help-seeking failure         "I tried to tell someone but they didn't get it"
-  ISO-06  Familial disconnection       "my family doesn't understand me at all"
-  ISO-07  Peer rejection               "I don't fit in anywhere"
-  ISO-08  Community rejection          "my family doesn't get me at all"
-  ISO-09  Digital isolation            "I deleted everything, no one noticed"
-
-DIMENSION 3 — Self-Harm Ideation (SHA-01 to SHA-07)
-  SHA-01  Direct self-harm statement   "I want to hurt myself"
-  SHA-02  Direct suicidal ideation     "I want to kill myself"
-  SHA-03  Coded ideation               "been thinking about unaliving"
-  SHA-04  Passive ideation             "I wish I could just disappear"
-  SHA-05  Non-suicidal self-harm ref   "I've been cutting again"
-  SHA-06  Indirect method reference    "there's pills in the cabinet"
-  SHA-07  Rehearsal / planning signal  "I've been thinking about how I would do it"
-
-DIMENSION 4 — Crisis Escalation Markers (CRS-01 to CRS-06)
-  CRS-01  Urgency / time-bounding      "I just need to make it through tonight"
-  CRS-02  After-event framing          "after this it won't matter"
-  CRS-03  Method reference (explicit)  Direct mention of a specific method
-  CRS-04  Means access indicator       Mention of access to lethal means
-  CRS-05  Farewell pattern             "tell everyone I love them"
-  CRS-06  Sudden calm / resolution     "I've finally made a decision and I feel at peace"
-
-DIMENSION 5 — Cultural Context Modifiers (CCM-01 to CCM-12)
-  CCM-01  AAVE informal register
-  CCM-02  Youth digital register
-  CCM-03  Code-switching
-  CCM-04  Minimization pattern
-  CCM-05  Performative wellness
-  CCM-06  First-gen pain minimization
-  CCM-07  Anti-LGBTQ+ env stressor
-  CCM-08  Collective grief language
-  CCM-09  Code-switching marker
-  CCM-10  Internalized stigma
-  CCM-11  Anti-LGBTQ+ stressor (policy)
-  CCM-12  Intergenerational silence
-
-════════════════════════════════════════
-ADDITIONAL EARLY DISTRESS DETECTION RULES
-════════════════════════════════════════
-
-The following emotional states should strongly bias toward MODERATE risk when persistent, repeated, or emotionally intense:
-
-- “stressed”
-- “drained”
-- “burnt out”
-- “tired”
-- “left out”
-- “alone”
-- “ignored”
-- “empty”
-- “numb”
-- “overwhelmed”
-- “checked out”
-- “done”
-- “can’t do this”
-- “nobody cares”
-- “feel invisible”
-- “feel unwanted”
-- “feel disconnected”
-- “feel stuck”
-- “emotionally exhausted”
-
-If emotional exhaustion co-occurs with:
-- isolation,
-- hopelessness,
-- minimization,
-- or passive disappearance language,
-elevate risk substantially.
-
-A post does NOT require suicidality to be clinically concerning.
-
-════════════════════════════════════════
-CULTURAL CALIBRATION RULES
-════════════════════════════════════════
-
-1. AAVE constructions carry the SAME distress weight as Standard English.
-2. Youth digital language is NOT lower seriousness.
-3. Lowercase text is NOT lower seriousness.
-4. Humor, irony, memes, and sarcasm may conceal distress.
-5. Minimization phrases increase downstream signal confidence.
-6. LGBTQ+ rejection and anti-LGBTQ+ environments are elevated risk multipliers.
-7. “unaliving”, “ending it”, “disappearing”, “making it stop” must trigger self-harm analysis.
-8. Farewell patterns alone qualify for CRISIS tier.
-9. Sudden calmness after distress is HIGH risk.
-10. Social invisibility and emotional abandonment should not default to LOW risk.
-
-════════════════════════════════════════
-RISK TIER THRESHOLDS
-════════════════════════════════════════
-
-crisis    [0.85–1.0]
-- Explicit suicidal intent
-- Active planning
-- Means access + intent
-- Farewell behavior
-- Imminent danger
-- Severe escalation
-
-high      [0.65–0.84]
-- Passive suicidal ideation
-- Severe hopelessness
-- Multiple dimensions activated
-- Emotional collapse
-- Strong isolation + hopelessness
-- Repeated disappearance language
-- Severe deterioration without explicit plan
-
-moderate  [0.35–0.64]
-- Meaningful emotional distress
-- Burnout
-- Isolation
-- Loneliness
-- Feeling left out
-- Emotional exhaustion
-- Withdrawal
-- Feeling invisible/unwanted
-- Chronic stress
-- Functional deterioration
-- Multiple weaker signals combined
-
-low       [0.00–0.34]
-- Mild situational frustration
-- Temporary stress without deterioration
-- No meaningful hopelessness/isolation/self-harm indicators
-- Emotionally stable coping language
-
-IMPORTANT:
-If meaningful emotional suffering is present, prefer MODERATE over LOW.
-
-════════════════════════════════════════
-RECOMMENDED ACTION MAPPING
-════════════════════════════════════════
-
-crisis tier           → "immediate_crisis_protocol"
-high tier             → "urgent_clinician_review"
-moderate tier         → "schedule_followup"
-low tier              → "no_action"
-
-════════════════════════════════════════
-OUTPUT JSON SCHEMA (return ONLY this — no preamble, no markdown)
-════════════════════════════════════════
-
+OUTPUT FORMAT (JSON only, no markdown wrappers/code blocks, no explanation):
 {
-  "event_id": "<echo back the event_id passed in, or null if not provided>",
-  "source_type": "<echo back source_type: peer-post | journal | chat | null>",
-  "risk_tier": "low" | "moderate" | "high" | "crisis",
-  "risk_score": <float 0.0–1.0, two decimal places>,
-  "risk_trend": "stable" | "increasing" | "decreasing",
-  "recommended_action": "no_action" | "schedule_followup" | "urgent_clinician_review" | "immediate_crisis_protocol",
-  "cultural_context": [<descriptive string labels>],
-  "active_signals": [
-    {
-      "signal_code": "<e.g. HOP-03>",
-      "signal_label": "<human-readable label>",
-      "confidence": <float 0.0–1.0>,
-      "dimension": "hopelessness" | "isolation" | "self_harm" | "crisis_escalation" | "cultural_modifier"
-    }
-  ],
-  "shap_attributions": [
-    {
-      "rank": <int>,
-      "span": "<max 5 consecutive words verbatim>",
-      "weight": <float 0.0–1.0>,
-      "signal_code": "<signal this span drove>"
-    }
-  ],
+  "event_id": "<echo event_id>",
+  "source_type": "peer-post"|"journal"|"chat"|null,
+  "risk_tier": "low"|"moderate"|"high"|"crisis",
+  "risk_score": <float 0.0-1.0, 2 decimals>,
+  "risk_trend": "stable"|"increasing"|"decreasing",
+  "recommended_action": "no_action"|"schedule_followup"|"urgent_clinician_review"|"immediate_crisis_protocol",
+  "cultural_context": [<strings of detected contexts/slang>],
+  "active_signals": [{"signal_code": "<code e.g. HOP-03>", "signal_label": "<label>", "confidence": <float>, "dimension": "<dim>"}],
+  "shap_attributions": [{"rank": <int>, "span": "<max 5 words verbatim>", "weight": <float>, "signal_code": "<code-driven>"}],
   "clinician_reviewed": false,
   "model_version": "vasl-alap-llm-v0-test"
 }
 
-FIELD RULES:
-- Return ONLY valid JSON.
-- active_signals must include ALL detected signals.
-- Use confidence proportional to textual evidence strength.
-- Use cumulative weighting across dimensions.
-- Multiple weaker signals should elevate total risk.
-- shap_attributions must contain 1–5 spans maximum.
-- Spans must be verbatim from input.
-- If insufficient evidence exists for HIGH or CRISIS, but meaningful distress exists, classify as MODERATE rather than LOW.
-- If no meaningful distress exists, return LOW with score ≤0.15.
-- Never hallucinate explicit suicidality when absent.
-- Never downgrade seriousness due to slang, dialect, emojis, lowercase text, or informal language.
+RULES:
+1. Output valid JSON only. Never use markdown block wraps (```json).
+2. Limit shap_attributions to 1-5 verbatim spans driving the classification.
+3. If no distress exists, score must be <=0.15.
 """.strip()
 
 
@@ -428,23 +165,30 @@ async def run_inference(
     item_number: Optional[int] = None,
 ) -> InferenceResultIn:
     """
-    Call Gemini / OpenRouter with raw_text, parse the JSON response,
+    Call Groq / Gemini / OpenRouter with raw_text, parse the JSON response,
     and return a fully-populated InferenceResultIn ready for crud.save_inference_result().
     """
-    # Determine if we are using Google Gemini directly or OpenRouter.
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        api_key = os.getenv("OPENROUTER_API_KEY")
-    api_key = (api_key or "").strip().strip("'\"")
-    is_gemini = api_key.startswith("AIzaSy")
+    # Resolve the correct api key and model based on backend endpoint:
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    if groq_api_key:
+        model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+        if model:
+            model = model.strip().strip("'\"")
+    else:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            api_key = os.getenv("OPENROUTER_API_KEY")
+        api_key = (api_key or "").strip().strip("'\"")
+        is_gemini = api_key.startswith("AIzaSy")
 
-    # Resolve the correct model based on backend endpoint:
-    model = os.getenv("GEMINI_MODEL")
-    if not model:
-        if is_gemini:
-            model = "gemini-2.5-flash"
-        else:
-            model = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+        model = os.getenv("GEMINI_MODEL")
+        if not model:
+            if is_gemini:
+                model = "gemini-2.5-flash"
+            else:
+                model = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+        if model:
+            model = model.strip().strip("'\"")
         
     client = _get_client()
 
@@ -462,7 +206,7 @@ async def run_inference(
                     {"role": "user",   "content": raw_text},
                 ],
                 temperature=0.1,
-                max_tokens=7144,
+                max_tokens=2048,
             )
             break  # success
         except Exception as exc:

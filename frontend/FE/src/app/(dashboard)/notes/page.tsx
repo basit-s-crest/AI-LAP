@@ -148,6 +148,69 @@ export default function NotesPage() {
   return (
     <DashboardLayout title="Session Notes">
       <div className="grid anim-up grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+        <Card>
+          <h3 className="mb-3 serif text-lg font-semibold text-ink">Session Note</h3>
+          <div className="mb-4">
+            <Label>Client</Label>
+            <Select
+              options={memberOptions}
+              value={form.memberId}
+              onChange={(v) => setForm((prev) => ({ ...prev, memberId: v }))}
+            />
+          </div>
+          <div className="mb-4">
+            <Label>Session Type</Label>
+            <Select
+              options={SESSION_TYPE_OPTIONS}
+              value={form.sessionType}
+              onChange={(v) =>
+                setForm((prev) => ({
+                  ...prev,
+                  sessionType: v as SessionNoteType,
+                }))
+              }
+            />
+          </div>
+          <div className="mb-4">
+            <Label>Notes</Label>
+            <Textarea
+              rows={5}
+              placeholder="Session observations, progress, action items..."
+              value={form.notes}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, notes: e.target.value }))
+              }
+            />
+          </div>
+          <div className="mb-4">
+            <Label>Next Session Goal</Label>
+            <Textarea
+              rows={2}
+              placeholder="What to focus on next time..."
+              value={form.nextSessionGoal}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, nextSessionGoal: e.target.value }))
+              }
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              type="button"
+              disabled={saving}
+              onClick={() => saveNote("draft")}
+            >
+              Save Draft
+            </Button>
+            <Button
+              type="button"
+              disabled={saving}
+              onClick={() => saveNote("saved")}
+            >
+              Save & Close
+            </Button>
+          </div>
+        </Card>
         <TableWrap>
           <TableToolbar title="Recent Notes">
             <Button size="sm" type="button" onClick={resetForm}>

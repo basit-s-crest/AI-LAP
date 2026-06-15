@@ -1,4 +1,4 @@
-// Load env vars FIRST — before any other imports that might need them
+// Load env vars FIRST — before any other imports that might need them - reloaded
 import dotenv from "dotenv";
 dotenv.config();
 
