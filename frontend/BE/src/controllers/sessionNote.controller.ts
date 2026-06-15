@@ -1,60 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 
-const SESSION_TYPES = [
-  "Weekly Check-in",
-  "Initial Session",
-  "Follow-up",
-  "Crisis",
-] as const;
-
-const STATUSES = ["draft", "saved"] as const;
-
-type SessionNoteStatus = (typeof STATUSES)[number];
-
-function isSessionType(value: string): boolean {
-  return SESSION_TYPES.includes(value as (typeof SESSION_TYPES)[number]);
-}
-
-function isStatus(value: string): value is SessionNoteStatus {
-  return STATUSES.includes(value as SessionNoteStatus);
-}
-
-async function coachOwnsMember(coachId: string, memberId: string): Promise<boolean> {
-  const assignment = await prisma.coachMember.findUnique({
-    where: { coachId_userId: { coachId, userId: memberId } },
-  });
-  return !!assignment;
-}
-
-function toDto(note: {
-  id: string;
-  coachId: string;
-  memberId: string;
-  sessionType: string;
-  notes: string;
-  nextSessionGoal: string;
-  status: string;
-  createdAt: Date;
-  updatedAt: Date;
-  member: { id: string; name: string };
-}) {
-  return {
-    id: note.id,
-    coachId: note.coachId,
-    memberId: note.memberId,
-    clientName: note.member.name,
-    sessionType: note.sessionType,
-    notes: note.notes,
-    nextSessionGoal: note.nextSessionGoal,
-    status: note.status,
-    sessionDate: note.createdAt.toISOString(),
-    createdAt: note.createdAt.toISOString(),
-    updatedAt: note.updatedAt.toISOString(),
-  };
-}
-
-export const createSessionNote = async (
+export const getCoachSessionNotes = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
@@ -62,130 +9,404 @@ export const createSessionNote = async (
     const coachId = req.user?.id;
     if (!coachId) return res.status(401).json({ message: "Unauthorized" });
 
-    const { memberId, sessionType, notes, nextSessionGoal, status } = req.body as {
-      memberId?: string;
-      sessionType?: string;
-      notes?: string;
-      nextSessionGoal?: string;
-      status?: string;
-    };
-
-    if (!memberId || !sessionType) {
-      return res.status(400).json({ message: "memberId and sessionType are required" });
-    }
-    if (!isSessionType(sessionType)) {
-      return res.status(400).json({ message: "Invalid sessionType" });
-    }
-    const noteStatus = status ?? "draft";
-    if (!isStatus(noteStatus)) {
-      return res.status(400).json({ message: "status must be draft or saved" });
-    }
-
-    const owns = await coachOwnsMember(coachId, memberId);
-    if (!owns) {
-      return res.status(403).json({ message: "Member is not assigned to this coach" });
-    }
-
-    const created = await prisma.sessionNote.create({
-      data: {
-        coachId,
-        memberId,
-        sessionType,
-        notes: notes ?? "",
-        nextSessionGoal: nextSessionGoal ?? "",
-        status: noteStatus,
-      },
-      include: { member: { select: { id: true, name: true } } },
-    });
-
-    return res.status(201).json({ note: toDto(created) });
-  } catch (error) {
-    console.error("[createSessionNote]", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-export const getCoachSessionNotes = async (
-  req: Request<{ coachId: string }>,
-  res: Response
-): Promise<Response> => {
-  try {
-    const user = req.user;
-    if (!user) return res.status(401).json({ message: "Unauthorized" });
-
-    const { coachId } = req.params;
-    if (user.role !== "coach" || user.id !== coachId) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
-
     const notes = await prisma.sessionNote.findMany({
       where: { coachId },
-      include: { member: { select: { id: true, name: true } } },
-      orderBy: { createdAt: "desc" },
+      include: {
+        versions: {
+          orderBy: { version: "desc" },
+          take: 1,
+        },
+        member: { select: { id: true, name: true } },
+      },
+      orderBy: { updatedAt: "desc" },
     });
 
-    return res.status(200).json({ notes: notes.map(toDto) });
+    const mappedNotes = notes.map((note) => {
+      const latest = note.versions[0];
+      return {
+        id: note.id,
+        sessionId: note.sessionId,
+        coachId: note.coachId,
+        memberId: note.memberId,
+        clientName: note.member.name,
+        aiSessionNoteId: note.aiSessionNoteId,
+        status: note.status,
+        createdAt: note.createdAt.toISOString(),
+        updatedAt: note.updatedAt.toISOString(),
+        version: latest ? latest.version : null,
+        summary: latest ? latest.summary : "",
+        keyThemes: latest ? latest.keyThemes : [],
+        memberSentiment: latest ? latest.memberSentiment : "Neutral",
+        coachObservations: latest ? latest.coachObservations : "",
+        riskFlag: latest ? latest.riskFlag : false,
+        riskNotes: latest ? latest.riskNotes : "",
+        recommendedFollowUp: latest ? latest.recommendedFollowUp : "",
+      };
+    });
+
+    return res.status(200).json({ notes: mappedNotes });
   } catch (error) {
     console.error("[getCoachSessionNotes]", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-export const updateSessionNote = async (
-  req: Request<{ id: string }>,
+export const getSessionNote = async (
+  req: Request<{ sessionId: string }>,
   res: Response
 ): Promise<Response> => {
   try {
     const coachId = req.user?.id;
     if (!coachId) return res.status(401).json({ message: "Unauthorized" });
 
-    const existing = await prisma.sessionNote.findUnique({ where: { id: req.params.id } });
-    if (!existing) return res.status(404).json({ message: "Note not found" });
-    if (existing.coachId !== coachId) {
+    const { sessionId } = req.params;
+
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+    if (session.coachId !== coachId) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    const { memberId, sessionType, notes, nextSessionGoal, status } = req.body as {
-      memberId?: string;
-      sessionType?: string;
-      notes?: string;
-      nextSessionGoal?: string;
-      status?: string;
-    };
-
-    if (sessionType !== undefined && !isSessionType(sessionType)) {
-      return res.status(400).json({ message: "Invalid sessionType" });
-    }
-    if (status !== undefined && !isStatus(status)) {
-      return res.status(400).json({ message: "status must be draft or saved" });
-    }
-    if (memberId !== undefined && memberId !== existing.memberId) {
-      const owns = await coachOwnsMember(coachId, memberId);
-      if (!owns) {
-        return res.status(403).json({ message: "Member is not assigned to this coach" });
-      }
-    }
-
-    const updated = await prisma.sessionNote.update({
-      where: { id: req.params.id },
-      data: {
-        ...(memberId !== undefined && { memberId }),
-        ...(sessionType !== undefined && { sessionType }),
-        ...(notes !== undefined && { notes }),
-        ...(nextSessionGoal !== undefined && { nextSessionGoal }),
-        ...(status !== undefined && { status }),
+    const note = await prisma.sessionNote.findUnique({
+      where: { sessionId },
+      include: {
+        versions: {
+          orderBy: { version: "desc" },
+          take: 1,
+        },
+        member: { select: { id: true, name: true } },
       },
-      include: { member: { select: { id: true, name: true } } },
     });
 
-    return res.status(200).json({ note: toDto(updated) });
+    if (note) {
+      const latest = note.versions[0];
+      return res.status(200).json({
+        exists: true,
+        note: {
+          id: note.id,
+          sessionId: note.sessionId,
+          coachId: note.coachId,
+          memberId: note.memberId,
+          clientName: note.member.name,
+          aiSessionNoteId: note.aiSessionNoteId,
+          status: note.status,
+          createdAt: note.createdAt.toISOString(),
+          updatedAt: note.updatedAt.toISOString(),
+          version: latest ? latest.version : null,
+          summary: latest ? latest.summary : "",
+          keyThemes: latest ? latest.keyThemes : [],
+          memberSentiment: latest ? latest.memberSentiment : "Neutral",
+          coachObservations: latest ? latest.coachObservations : "",
+          riskFlag: latest ? latest.riskFlag : false,
+          riskNotes: latest ? latest.riskNotes : "",
+          recommendedFollowUp: latest ? latest.recommendedFollowUp : "",
+          createdById: latest ? latest.createdById : "",
+          versionCreatedAt: latest ? latest.createdAt.toISOString() : "",
+        },
+      });
+    }
+
+    // Prefill from AiSessionNote if exists
+    const aiNote = await prisma.aiSessionNote.findFirst({
+      where: { sessionId },
+    });
+
+    if (aiNote) {
+      return res.status(200).json({
+        exists: false,
+        prefillData: {
+          aiSessionNoteId: aiNote.id,
+          summary: aiNote.summary,
+          keyThemes: aiNote.keyThemes,
+          memberSentiment: aiNote.memberSentiment,
+          coachObservations: aiNote.coachObservations,
+          riskFlag: aiNote.riskFlag,
+          riskNotes: aiNote.riskNotes,
+          recommendedFollowUp: aiNote.recommendedFollowUp,
+        },
+      });
+    }
+
+    return res.status(200).json({
+      exists: false,
+      prefillData: null,
+    });
   } catch (error) {
-    console.error("[updateSessionNote]", error);
+    console.error("[getSessionNote]", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-export const deleteSessionNote = async (
+export const saveSessionNote = async (
+  req: Request<{ sessionId: string }>,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId) return res.status(401).json({ message: "Unauthorized" });
+
+    const { sessionId } = req.params;
+    const {
+      summary,
+      keyThemes,
+      memberSentiment,
+      coachObservations,
+      riskFlag,
+      riskNotes,
+      recommendedFollowUp,
+      status,
+      aiSessionNoteId,
+    } = req.body as {
+      summary?: string;
+      keyThemes?: any;
+      memberSentiment?: string;
+      coachObservations?: string;
+      riskFlag?: boolean;
+      riskNotes?: string;
+      recommendedFollowUp?: string;
+      status?: "DRAFT" | "FINAL";
+      aiSessionNoteId?: string;
+    };
+
+    if (!status || (status !== "DRAFT" && status !== "FINAL")) {
+      return res.status(400).json({ message: "Invalid status. Must be DRAFT or FINAL" });
+    }
+
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+    if (session.coachId !== coachId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const validatedKeyThemes = Array.isArray(keyThemes) ? keyThemes : [];
+
+    const result = await prisma.$transaction(async (tx) => {
+      let note = await tx.sessionNote.findUnique({
+        where: { sessionId },
+      });
+
+      let newVersionNumber = 1;
+
+      if (!note) {
+        note = await tx.sessionNote.create({
+          data: {
+            sessionId,
+            coachId,
+            memberId: session.memberId,
+            aiSessionNoteId: aiSessionNoteId || null,
+            status,
+          },
+        });
+      } else {
+        const latestVersion = await tx.sessionNoteVersion.findFirst({
+          where: { noteId: note.id },
+          orderBy: { version: "desc" },
+        });
+        if (latestVersion) {
+          newVersionNumber = latestVersion.version + 1;
+        }
+
+        note = await tx.sessionNote.update({
+          where: { id: note.id },
+          data: {
+            status,
+            updatedAt: new Date(),
+          },
+        });
+      }
+
+      const version = await tx.sessionNoteVersion.create({
+        data: {
+          noteId: note.id,
+          version: newVersionNumber,
+          summary: summary || "",
+          keyThemes: validatedKeyThemes,
+          memberSentiment: memberSentiment || "Neutral",
+          coachObservations: coachObservations || "",
+          riskFlag: riskFlag ?? false,
+          riskNotes: riskNotes || "",
+          recommendedFollowUp: recommendedFollowUp || "",
+          createdById: coachId,
+        },
+      });
+
+      return { note, version };
+    });
+
+    const member = await prisma.user.findUnique({
+      where: { id: session.memberId },
+      select: { name: true },
+    });
+
+    return res.status(200).json({
+      message: "Session note saved successfully",
+      note: {
+        id: result.note.id,
+        sessionId: result.note.sessionId,
+        coachId: result.note.coachId,
+        memberId: result.note.memberId,
+        clientName: member?.name || "",
+        aiSessionNoteId: result.note.aiSessionNoteId,
+        status: result.note.status,
+        createdAt: result.note.createdAt.toISOString(),
+        updatedAt: result.note.updatedAt.toISOString(),
+        version: result.version.version,
+        summary: result.version.summary,
+        keyThemes: result.version.keyThemes,
+        memberSentiment: result.version.memberSentiment,
+        coachObservations: result.version.coachObservations,
+        riskFlag: result.version.riskFlag,
+        riskNotes: result.version.riskNotes,
+        recommendedFollowUp: result.version.recommendedFollowUp,
+        createdById: result.version.createdById,
+        versionCreatedAt: result.version.createdAt.toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error("[saveSessionNote]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getSessionNoteVersions = async (
+  req: Request<{ sessionId: string }>,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId) return res.status(401).json({ message: "Unauthorized" });
+
+    const { sessionId } = req.params;
+
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+    if (session.coachId !== coachId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const note = await prisma.sessionNote.findUnique({
+      where: { sessionId },
+    });
+    if (!note) {
+      return res.status(404).json({ message: "Session note not found" });
+    }
+
+    const versions = await prisma.sessionNoteVersion.findMany({
+      where: { noteId: note.id },
+      orderBy: { version: "desc" },
+    });
+
+    return res.status(200).json({ versions });
+  } catch (error) {
+    console.error("[getSessionNoteVersions]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const createManualSessionNote = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId) return res.status(401).json({ message: "Unauthorized" });
+
+    const { memberId, notes, nextSessionGoal, status } = req.body as {
+      memberId?: string;
+      notes?: string;
+      nextSessionGoal?: string;
+      status?: "draft" | "saved" | "DRAFT" | "FINAL";
+    };
+
+    if (!memberId) {
+      return res.status(400).json({ message: "memberId is required" });
+    }
+
+    let noteStatus: "DRAFT" | "FINAL" = "DRAFT";
+    if (status === "saved" || status === "FINAL") {
+      noteStatus = "FINAL";
+    }
+
+    const owns = await prisma.coachMember.findUnique({
+      where: { coachId_userId: { coachId, userId: memberId } },
+    });
+    if (!owns) {
+      return res.status(403).json({ message: "Member is not assigned to this coach" });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const note = await tx.sessionNote.create({
+        data: {
+          coachId,
+          memberId,
+          sessionId: null,
+          status: noteStatus,
+        },
+      });
+
+      const version = await tx.sessionNoteVersion.create({
+        data: {
+          noteId: note.id,
+          version: 1,
+          summary: notes || "",
+          keyThemes: [],
+          memberSentiment: "Neutral",
+          coachObservations: notes || "",
+          riskFlag: false,
+          riskNotes: "",
+          recommendedFollowUp: nextSessionGoal || "",
+          createdById: coachId,
+        },
+      });
+
+      return { note, version };
+    });
+
+    const member = await prisma.user.findUnique({
+      where: { id: memberId },
+      select: { name: true },
+    });
+
+    return res.status(201).json({
+      note: {
+        id: result.note.id,
+        sessionId: null,
+        coachId: result.note.coachId,
+        memberId: result.note.memberId,
+        clientName: member?.name || "",
+        aiSessionNoteId: null,
+        status: result.note.status,
+        createdAt: result.note.createdAt.toISOString(),
+        updatedAt: result.note.updatedAt.toISOString(),
+        version: 1,
+        summary: result.version.summary,
+        keyThemes: [],
+        memberSentiment: "Neutral",
+        coachObservations: result.version.coachObservations,
+        riskFlag: false,
+        riskNotes: "",
+        recommendedFollowUp: result.version.recommendedFollowUp,
+      },
+    });
+  } catch (error) {
+    console.error("[createManualSessionNote]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateManualSessionNote = async (
   req: Request<{ id: string }>,
   res: Response
 ): Promise<Response> => {
@@ -193,16 +414,122 @@ export const deleteSessionNote = async (
     const coachId = req.user?.id;
     if (!coachId) return res.status(401).json({ message: "Unauthorized" });
 
-    const existing = await prisma.sessionNote.findUnique({ where: { id: req.params.id } });
-    if (!existing) return res.status(404).json({ message: "Note not found" });
+    const noteId = req.params.id;
+    const { notes, nextSessionGoal, status } = req.body as {
+      notes?: string;
+      nextSessionGoal?: string;
+      status?: "draft" | "saved" | "DRAFT" | "FINAL";
+    };
+
+    const existing = await prisma.sessionNote.findUnique({
+      where: { id: noteId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: "Note not found" });
+    }
     if (existing.coachId !== coachId) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    await prisma.sessionNote.delete({ where: { id: req.params.id } });
-    return res.status(200).json({ message: "Note deleted" });
+    let noteStatus: "DRAFT" | "FINAL" = "DRAFT";
+    if (status === "saved" || status === "FINAL") {
+      noteStatus = "FINAL";
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const latest = await tx.sessionNoteVersion.findFirst({
+        where: { noteId },
+        orderBy: { version: "desc" },
+      });
+
+      const nextVersion = latest ? latest.version + 1 : 1;
+
+      const updatedNote = await tx.sessionNote.update({
+        where: { id: noteId },
+        data: {
+          status: noteStatus,
+          updatedAt: new Date(),
+        },
+      });
+
+      const newVersion = await tx.sessionNoteVersion.create({
+        data: {
+          noteId,
+          version: nextVersion,
+          summary: notes !== undefined ? notes : (latest?.summary || ""),
+          keyThemes: latest?.keyThemes || [],
+          memberSentiment: latest?.memberSentiment || "Neutral",
+          coachObservations: notes !== undefined ? notes : (latest?.coachObservations || ""),
+          riskFlag: latest?.riskFlag || false,
+          riskNotes: latest?.riskNotes || "",
+          recommendedFollowUp: nextSessionGoal !== undefined ? nextSessionGoal : (latest?.recommendedFollowUp || ""),
+          createdById: coachId,
+        },
+      });
+
+      return { note: updatedNote, version: newVersion };
+    });
+
+    const member = await prisma.user.findUnique({
+      where: { id: result.note.memberId },
+      select: { name: true },
+    });
+
+    return res.status(200).json({
+      note: {
+        id: result.note.id,
+        sessionId: result.note.sessionId,
+        coachId: result.note.coachId,
+        memberId: result.note.memberId,
+        clientName: member?.name || "",
+        aiSessionNoteId: result.note.aiSessionNoteId,
+        status: result.note.status,
+        createdAt: result.note.createdAt.toISOString(),
+        updatedAt: result.note.updatedAt.toISOString(),
+        version: result.version.version,
+        summary: result.version.summary,
+        keyThemes: result.version.keyThemes,
+        memberSentiment: result.version.memberSentiment,
+        coachObservations: result.version.coachObservations,
+        riskFlag: result.version.riskFlag,
+        riskNotes: result.version.riskNotes,
+        recommendedFollowUp: result.version.recommendedFollowUp,
+      },
+    });
   } catch (error) {
-    console.error("[deleteSessionNote]", error);
+    console.error("[updateManualSessionNote]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const deleteManualSessionNote = async (
+  req: Request<{ id: string }>,
+  res: Response
+): Promise<Response> => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId) return res.status(401).json({ message: "Unauthorized" });
+
+    const noteId = req.params.id;
+    const existing = await prisma.sessionNote.findUnique({
+      where: { id: noteId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+    if (existing.coachId !== coachId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    await prisma.sessionNote.delete({
+      where: { id: noteId },
+    });
+
+    return res.status(200).json({ message: "Note deleted successfully" });
+  } catch (error) {
+    console.error("[deleteManualSessionNote]", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

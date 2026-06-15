@@ -21,4 +21,5 @@ router.patch("/:id/reschedule", auth_middleware_1.authMiddleware, session_contro
 router.post("/:id/livekit/start", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach"), livekit_controller_1.startVideoSession);
 router.post("/:id/livekit/token", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach", "member"), livekit_controller_1.getVideoToken);
 router.get("/:id/livekit/status", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach", "member"), livekit_controller_1.getVideoStatus);
+router.post("/:id/livekit/end", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach"), livekit_controller_1.endVideoSession);
 exports.default = router;

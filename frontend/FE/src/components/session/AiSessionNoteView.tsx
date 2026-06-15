@@ -1,19 +1,42 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { AiSessionNoteDTO } from "@/types/sessionNote";
 import { cn } from "@/lib/cn";
+import { sessionNoteService } from "@/services/sessionNote.service";
+import { Button } from "@/components/ui/Button";
 
 interface AiSessionNoteViewProps {
   note?: AiSessionNoteDTO | null;
   isLoading?: boolean;
+  sessionId: string;
+  onEditNote: () => void;
 }
 
-export default function AiSessionNoteView({ note, isLoading }: AiSessionNoteViewProps) {
+export default function AiSessionNoteView({
+  note,
+  isLoading,
+  sessionId,
+  onEditNote,
+}: AiSessionNoteViewProps) {
   const [activeTab, setActiveTab] = useState<"summary" | "sentiment" | "themes" | "safety">("summary");
+  const [hasExistingNote, setHasExistingNote] = useState(false);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    sessionNoteService.getSessionNote(sessionId)
+      .then((res) => {
+        if (res.exists) {
+          setHasExistingNote(true);
+        }
+      })
+      .catch((err) => {
+        console.error("[AiSessionNoteView] Failed to verify existing note status:", err);
+      });
+  }, [sessionId]);
 
   if (isLoading) {
     return (
-      <div className="flex flex-col space-y-4 p-5 animate-pulse bg-white rounded-2xl border border-[#D2DBE3]">
-        <div className="h-6 w-1/3 bg-[#F1F6FC] rounded-lg" />
+      <div className="flex flex-col space-y-4 p-5 animate-pulse bg-white rounded-2xl border border-[#D2DBE3] h-full justify-center">
+        <div className="h-6 w-1/3 bg-[#F1F6FC] rounded-lg self-center" />
         <div className="h-4 w-full bg-[#F1F6FC] rounded-lg" />
         <div className="h-4 w-5/6 bg-[#F1F6FC] rounded-lg" />
         <div className="h-4 w-4/6 bg-[#F1F6FC] rounded-lg" />
@@ -46,21 +69,20 @@ export default function AiSessionNoteView({ note, isLoading }: AiSessionNoteView
   };
 
   const getSentimentStyle = (sentimentText: string) => {
-    // Attempt partial match
     for (const key of Object.keys(sentimentStyles)) {
       if (sentimentText.toLowerCase().includes(key.toLowerCase())) {
         return sentimentStyles[key];
       }
     }
-    return { bg: "bg-[#E0F7FA]", text: "text-[#006064]", emoji: "🧠" }; // Default cool cyan
+    return { bg: "bg-[#E0F7FA]", text: "text-[#006064]", emoji: "🧠" };
   };
 
   const sentimentStyle = getSentimentStyle(note.memberSentiment);
 
   return (
-    <div className="flex flex-col w-full bg-white rounded-2xl border border-[#D2DBE3] overflow-hidden shadow-sm">
+    <div className="flex flex-col w-full bg-white rounded-2xl border border-[#D2DBE3] overflow-hidden shadow-sm h-full max-h-[700px]">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#68A688] to-[#4E8C58] p-4 text-white flex justify-between items-center">
+      <div className="bg-gradient-to-r from-[#68A688] to-[#4E8C58] p-4 text-white flex justify-between items-center shrink-0">
         <div>
           <h4 className="font-outfit font-bold text-md tracking-wide">AI SESSION NOTES</h4>
           <p className="text-[11px] opacity-90 font-sans mt-0.5">
@@ -79,7 +101,7 @@ export default function AiSessionNoteView({ note, isLoading }: AiSessionNoteView
       </div>
 
       {/* Tabs Menu */}
-      <div className="flex border-b border-[#D2DBE3] bg-[#F8FAFC]">
+      <div className="flex border-b border-[#D2DBE3] bg-[#F8FAFC] shrink-0">
         {(["summary", "sentiment", "themes", "safety"] as const).map((tab) => (
           <button
             key={tab}
@@ -97,7 +119,7 @@ export default function AiSessionNoteView({ note, isLoading }: AiSessionNoteView
       </div>
 
       {/* Tab Contents */}
-      <div className="p-5 min-h-[190px]">
+      <div className="p-5 flex-1 overflow-y-auto min-h-[190px]">
         {activeTab === "summary" && (
           <div className="space-y-2 animate-fadeIn">
             <h5 className="font-outfit font-bold text-[#1E252B] text-sm">Clinical Summary</h5>
@@ -175,6 +197,19 @@ export default function AiSessionNoteView({ note, isLoading }: AiSessionNoteView
             )}
           </div>
         )}
+      </div>
+
+      {/* Action Footer Button */}
+      <div className="p-3 border-t border-[#D2DBE3] bg-[#F8FAFC] flex justify-end shrink-0">
+        <Button
+          variant="primary"
+          size="sm"
+          type="button"
+          className="px-4 py-2 font-outfit text-xs font-bold"
+          onClick={onEditNote}
+        >
+          {hasExistingNote ? "✍️ Edit Coach Note" : "✍️ Save to Session Notes"}
+        </Button>
       </div>
     </div>
   );

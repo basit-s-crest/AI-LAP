@@ -8,6 +8,7 @@ import type { LiveKitTokenResponse } from "@/types/livekit";
 import SessionVideoCall from "@/components/livekit/SessionVideoCall";
 import LiveSessionTranscript from "@/components/session/LiveSessionTranscript";
 import AiSessionNoteView from "@/components/session/AiSessionNoteView";
+import SessionNoteEditor from "@/components/session/SessionNoteEditor";
 import { aiSessionNoteService } from "@/services/aiSessionNote.service";
 import type { TranscriptLine, AiSessionNoteDTO } from "@/types/sessionNote";
 import { cn } from "@/lib/cn";
@@ -58,7 +59,7 @@ export default function MeetingModal({
   const [accumulatedTranscript, setAccumulatedTranscript] = useState<TranscriptLine[]>([]);
   const [aiNote, setAiNote] = useState<AiSessionNoteDTO | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [panelView, setPanelView] = useState<"transcript" | "ai">("transcript");
+  const [panelView, setPanelView] = useState<"transcript" | "ai" | "editor">("transcript");
 
   const getQualityColor = (quality: string) => {
     if (quality === "excellent" || quality === "good") return "bg-[#68A688]";
@@ -245,10 +246,23 @@ export default function MeetingModal({
                   onMemberTranscription={onMemberTranscription}
                   transcriptionToken={tokenDetails?.transcriptionToken}
                 />
+              ) : panelView === "editor" ? (
+                <SessionNoteEditor
+                  sessionId={sessionId}
+                  memberId={memberId}
+                  clientName={clientName}
+                  sessionType="Weekly Check-in"
+                  initialNotes={aiNote ? `• Summary: ${aiNote.summary || ""}\n• Sentiment: ${aiNote.memberSentiment || ""}\n• Observations: ${aiNote.coachObservations || ""}\n• Themes: ${(aiNote.keyThemes || []).join(", ")}` : ""}
+                  initialNextSessionGoal={aiNote?.recommendedFollowUp || ""}
+                  aiSessionNoteId={aiNote?.id || null}
+                  onCancel={() => setPanelView("ai")}
+                />
               ) : (
                 <AiSessionNoteView
                   note={aiNote}
                   isLoading={isAnalyzing}
+                  sessionId={sessionId}
+                  onEditNote={() => setPanelView("editor")}
                 />
               )}
             </div>

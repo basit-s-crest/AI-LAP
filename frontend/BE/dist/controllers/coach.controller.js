@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateCoachNotifications = exports.updateCoachProfile = exports.getCoachProfile = exports.setOnDemandStatus = exports.getOnDemandStatus = exports.getMyMembers = exports.assignCoachHandler = exports.getCoachPublicByIdHandler = exports.listCoachesHandler = exports.loginCoach = exports.registerCoach = void 0;
+exports.getOrgRiskSummary = exports.recalculateMemberRisk = exports.getMemberRiskReport = exports.updateCoachNotifications = exports.updateCoachProfile = exports.getCoachProfile = exports.setOnDemandStatus = exports.getOnDemandStatus = exports.getMyMembers = exports.assignCoachHandler = exports.getCoachPublicByIdHandler = exports.listCoachesHandler = exports.loginCoach = exports.registerCoach = void 0;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const notificationEmail_service_1 = require("../services/notificationEmail.service");
 const auth_service_1 = require("../services/auth.service");
@@ -470,3 +470,72 @@ const updateCoachNotifications = async (req, res) => {
     }
 };
 exports.updateCoachNotifications = updateCoachNotifications;
+// ─── Risk Engine Proxy Endpoints ──────────────────────────────────────────────
+/**
+ * GET /api/coach/risk/member/:memberToken
+ * Fetches the full risk report for a member from the Python FastAPI server.
+ */
+const getMemberRiskReport = async (req, res) => {
+    try {
+        const { memberToken } = req.params;
+        const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+        const response = await fetch(`${pythonBaseUrl}/v1/risk/member/${memberToken}`);
+        if (!response.ok) {
+            const text = await response.text();
+            return res.status(response.status).json({ message: text || "Failed to fetch risk report from Python backend" });
+        }
+        const data = await response.json();
+        return res.status(200).json(data);
+    }
+    catch (error) {
+        console.error("[getMemberRiskReport]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getMemberRiskReport = getMemberRiskReport;
+/**
+ * POST /api/coach/risk/member/:memberToken/recalculate
+ * Triggers a force recalculation of the risk report for a member on the Python FastAPI server.
+ */
+const recalculateMemberRisk = async (req, res) => {
+    try {
+        const { memberToken } = req.params;
+        const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+        const response = await fetch(`${pythonBaseUrl}/v1/risk/member/${memberToken}/recalculate`, {
+            method: "POST",
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            return res.status(response.status).json({ message: text || "Failed to recalculate risk from Python backend" });
+        }
+        const data = await response.json();
+        return res.status(200).json(data);
+    }
+    catch (error) {
+        console.error("[recalculateMemberRisk]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.recalculateMemberRisk = recalculateMemberRisk;
+/**
+ * GET /api/coach/risk/org/:orgId/summary
+ * Fetches the organization risk summary from the Python FastAPI server.
+ */
+const getOrgRiskSummary = async (req, res) => {
+    try {
+        const { orgId } = req.params;
+        const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+        const response = await fetch(`${pythonBaseUrl}/v1/risk/org/${orgId}/summary`);
+        if (!response.ok) {
+            const text = await response.text();
+            return res.status(response.status).json({ message: text || "Failed to fetch organization risk summary from Python backend" });
+        }
+        const data = await response.json();
+        return res.status(200).json(data);
+    }
+    catch (error) {
+        console.error("[getOrgRiskSummary]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getOrgRiskSummary = getOrgRiskSummary;

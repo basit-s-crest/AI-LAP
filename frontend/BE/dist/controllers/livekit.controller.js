@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getVideoStatus = exports.getVideoToken = exports.startVideoSession = void 0;
+exports.endVideoSession = exports.getVideoStatus = exports.getVideoToken = exports.startVideoSession = void 0;
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const livekit_service_1 = require("../services/livekit.service");
 /**
@@ -72,6 +73,20 @@ const startVideoSession = async (req, res) => {
             return res.status(503).json({ message: "LiveKit service is not configured on the server" });
         }
         const expiresAt = new Date(startedAt.getTime() + (session.duration + 15) * 60 * 1000);
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            throw new Error("JWT_SECRET is not configured");
+        }
+        const transcriptionToken = jsonwebtoken_1.default.sign({
+            sessionId: session.id,
+            coachId: session.coachId,
+            memberId: session.memberId,
+            requestedBy: authContext.userId,
+            speaker: "member",
+            purpose: "transcription",
+        }, secret, {
+            expiresIn: "15m",
+        });
         return res.status(200).json({
             sessionId: session.id,
             coachId: session.coachId,
@@ -85,6 +100,7 @@ const startVideoSession = async (req, res) => {
             scheduledAt: session.scheduledAt,
             livekitStartedAt: startedAt,
             expiresAt,
+            transcriptionToken,
         });
     }
     catch (error) {
@@ -139,6 +155,23 @@ const getVideoToken = async (req, res) => {
             return res.status(503).json({ message: "LiveKit service is not configured on the server" });
         }
         const expiresAt = new Date(session.livekitStartedAt.getTime() + (session.duration + 15) * 60 * 1000);
+        let transcriptionToken;
+        if (isCoach) {
+            const secret = process.env.JWT_SECRET;
+            if (!secret) {
+                throw new Error("JWT_SECRET is not configured");
+            }
+            transcriptionToken = jsonwebtoken_1.default.sign({
+                sessionId: session.id,
+                coachId: session.coachId,
+                memberId: session.memberId,
+                requestedBy: authContext.userId,
+                speaker: "member",
+                purpose: "transcription",
+            }, secret, {
+                expiresIn: "15m",
+            });
+        }
         return res.status(200).json({
             sessionId: session.id,
             coachId: session.coachId,
@@ -152,6 +185,7 @@ const getVideoToken = async (req, res) => {
             scheduledAt: session.scheduledAt,
             livekitStartedAt: session.livekitStartedAt,
             expiresAt,
+            ...(transcriptionToken ? { transcriptionToken } : {}),
         });
     }
     catch (error) {
@@ -186,3 +220,38 @@ const getVideoStatus = async (req, res) => {
     }
 };
 exports.getVideoStatus = getVideoStatus;
+/**
+ * POST /api/sessions/:id/livekit/end
+ * Coach only: Ends the video session, updates end timestamp.
+ */
+const endVideoSession = async (req, res) => {
+    try {
+        const authContext = await getValidatedSession(req, res);
+        if (!authContext)
+            return;
+        const { session, isCoach } = authContext;
+        if (!isCoach) {
+            return res.status(403).json({ message: "Forbidden: Only the assigned coach can end the call" });
+        }
+        const updatedSession = await prisma_1.default.session.update({
+            where: { id: session.id },
+            data: {
+                livekitEndedAt: new Date(),
+            },
+        });
+        return res.status(200).json({
+            sessionId: updatedSession.id,
+            coachId: updatedSession.coachId,
+            memberId: updatedSession.memberId,
+            roomName: updatedSession.livekitRoomName,
+            livekitStartedAt: updatedSession.livekitStartedAt,
+            livekitEndedAt: updatedSession.livekitEndedAt,
+            status: updatedSession.status,
+        });
+    }
+    catch (error) {
+        console.error("[endVideoSession] Error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.endVideoSession = endVideoSession;

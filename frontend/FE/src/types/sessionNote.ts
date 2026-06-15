@@ -1,4 +1,4 @@
-export type SessionNoteStatus = "draft" | "saved";
+export type SessionNoteStatus = "DRAFT" | "FINAL" | "draft" | "saved";
 
 export type SessionNoteType =
   | "Weekly Check-in"
@@ -15,23 +15,64 @@ export type TranscriptLine = {
 
 export interface SessionNoteDTO {
   id: string;
+  sessionId: string | null;
   coachId: string;
   memberId: string;
   clientName: string;
-  sessionType: SessionNoteType;
-  notes: string;
-  nextSessionGoal: string;
+  aiSessionNoteId: string | null;
   status: SessionNoteStatus;
-  sessionDate: string;
   createdAt: string;
   updatedAt: string;
+  version: number | null;
+  // Structured versioned fields
+  summary: string;
+  keyThemes: string[];
+  memberSentiment: string;
+  coachObservations: string;
+  riskFlag: boolean;
+  riskNotes: string;
+  recommendedFollowUp: string;
+  // Legacy / Manual fields
+  notes?: string;
+  nextSessionGoal?: string;
+}
+
+export interface SessionNoteVersionDTO {
+  id: string;
+  noteId: string;
+  version: number;
+  summary: string;
+  keyThemes: string[];
+  memberSentiment: string;
+  coachObservations: string;
+  riskFlag: boolean;
+  riskNotes: string;
+  recommendedFollowUp: string;
+  createdById: string;
+  createdAt: string;
+}
+
+export interface SaveSessionNotePayload {
+  // New fields
+  summary?: string;
+  keyThemes?: string[];
+  memberSentiment?: string;
+  coachObservations?: string;
+  riskFlag?: boolean;
+  riskNotes?: string;
+  recommendedFollowUp?: string;
+  status: SessionNoteStatus;
+  aiSessionNoteId?: string;
+  // Old fields for manual saves
+  notes?: string;
+  nextSessionGoal?: string;
 }
 
 export interface CreateSessionNotePayload {
   memberId: string;
-  sessionType: SessionNoteType;
-  notes: string;
-  nextSessionGoal: string;
+  sessionType?: SessionNoteType;
+  notes?: string;
+  nextSessionGoal?: string;
   status: SessionNoteStatus;
 }
 
@@ -63,4 +104,3 @@ export interface CreateAiSessionNotePayload {
   sessionId?: string | null;
   transcript: TranscriptLine[];
 }
-

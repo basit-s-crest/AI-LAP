@@ -33,6 +33,8 @@ function formatSessionDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -47,6 +49,7 @@ export default function NotesPage() {
   const queryClient = useQueryClient();
   const coachId = useAppSelector((s) => s.auth.user?.id);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
@@ -77,6 +80,7 @@ export default function NotesPage() {
 
   const resetForm = useCallback(() => {
     setSelectedNoteId(null);
+    setSelectedSessionId(null);
     setForm({
       ...emptyForm,
       memberId: memberOptions[0]?.value ?? "",
@@ -85,11 +89,12 @@ export default function NotesPage() {
 
   const loadNoteIntoForm = useCallback((note: SessionNoteDTO) => {
     setSelectedNoteId(note.id);
+    setSelectedSessionId(note.sessionId);
     setForm({
       memberId: note.memberId,
-      sessionType: note.sessionType,
-      notes: note.notes,
-      nextSessionGoal: note.nextSessionGoal,
+      sessionType: "Weekly Check-in" as SessionNoteType,
+      notes: note.summary || note.notes || "",
+      nextSessionGoal: note.recommendedFollowUp || note.nextSessionGoal || "",
     });
   }, []);
 
@@ -105,13 +110,32 @@ export default function NotesPage() {
 
     setSaving(true);
     try {
-      if (selectedNoteId) {
-        await sessionNoteService.update(selectedNoteId, { ...form, status });
-        toast.success(status === "draft" ? "Draft saved" : "Note saved & closed");
+      if (selectedSessionId) {
+        // Session-based note versions
+        await sessionNoteService.saveSessionNote(selectedSessionId, {
+          summary: form.notes,
+          recommendedFollowUp: form.nextSessionGoal,
+          status: status === "draft" ? "DRAFT" : "FINAL",
+        });
       } else {
-        await sessionNoteService.create({ ...form, status });
-        toast.success(status === "draft" ? "Draft created" : "Note saved & closed");
+        // Manual notes
+        if (selectedNoteId) {
+          await sessionNoteService.update(selectedNoteId, {
+            notes: form.notes,
+            nextSessionGoal: form.nextSessionGoal,
+            status: status === "draft" ? "draft" : "saved",
+          });
+        } else {
+          await sessionNoteService.create({
+            memberId: form.memberId,
+            sessionType: form.sessionType,
+            notes: form.notes,
+            nextSessionGoal: form.nextSessionGoal,
+            status: status === "draft" ? "draft" : "saved",
+          });
+        }
       }
+      toast.success(status === "draft" ? "Draft saved" : "Note saved & closed");
       await queryClient.invalidateQueries({ queryKey: ["session-notes", coachId] });
       if (status === "saved") resetForm();
     } catch (err) {
@@ -176,11 +200,11 @@ export default function NotesPage() {
                       {n.clientName}
                     </td>
                     <td className="border-b border-line px-[22px] py-[13px] font-mono text-xs text-mid group-hover:bg-[var(--bg-surface-2)]">
-                      {formatSessionDate(n.sessionDate)}
+                      {formatSessionDate(n.updatedAt)}
                     </td>
                     <td className="border-b border-line px-[22px] py-[13px] text-sm text-mid group-hover:bg-[var(--bg-surface-2)]">
-                      {n.sessionType}
-                      {n.status === "draft" && (
+                      {n.sessionId ? "Video Call Note" : "Manual Note"}
+                      {(n.status === "draft" || n.status === "DRAFT") && (
                         <span className="ml-2 text-[10px] font-semibold uppercase text-dim">
                           (draft)
                         </span>
@@ -199,6 +223,7 @@ export default function NotesPage() {
             <Select
               options={memberOptions}
               value={form.memberId}
+              disabled={!!selectedNoteId}
               onChange={(v) => setForm((prev) => ({ ...prev, memberId: v }))}
             />
           </div>
@@ -207,6 +232,7 @@ export default function NotesPage() {
             <Select
               options={SESSION_TYPE_OPTIONS}
               value={form.sessionType}
+              disabled={!!selectedNoteId}
               onChange={(v) =>
                 setForm((prev) => ({
                   ...prev,

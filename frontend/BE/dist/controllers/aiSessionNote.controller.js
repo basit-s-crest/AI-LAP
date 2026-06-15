@@ -75,6 +75,62 @@ function generateMockAnalysis(transcript, memberName) {
         recommendedFollowUp,
     };
 }
+async function runAnthropicAnalysis(formattedTranscript, apiKey) {
+    console.log(`[createAiSessionNote] Calling Anthropic API using model 'claude-sonnet-4-20250514'...`);
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 2000,
+            system: "You are an AI psychiatric clinical assistant. Analyze the session transcript between a Mental Health Coach and a Member. Respond ONLY with a valid, clean JSON object matching the requested schema. Do not output any markdown code blocks, backticks, or text before/after the JSON.",
+            messages: [
+                {
+                    role: "user",
+                    content: `Analyze the following mental health coaching session transcript.
+
+Transcript:
+${formattedTranscript}
+
+Provide a JSON object with the exact keys:
+- "summary": (string) A clinical, objective summary of the session.
+- "keyThemes": (array of strings) 2 to 4 major topics or issues discussed in the session.
+- "memberSentiment": (string) The primary emotional state of the member (e.g., "Anxious", "Depressed", "Neutral", "Reflective", "Agitated").
+- "coachObservations": (string) Observations of the member's engagement and response during the session.
+- "riskFlag": (boolean) Set to true if the member mentions active self-harm, suicidal ideation, violence, abuse, or other high-risk indicators. Otherwise false.
+- "riskNotes": (string) If riskFlag is true, provide details of the specific risk indicators. Otherwise, empty string.
+- "recommendedFollowUp": (string) Concrete clinical recommendations or goals for the next session.
+
+Respond with ONLY the JSON object. Do not wrap in markdown \`\`\`json blocks.`,
+                },
+            ],
+        }),
+    });
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Anthropic API returned status ${response.status}: ${errText}`);
+    }
+    const data = (await response.json());
+    const textContent = data.content?.[0]?.text;
+    if (!textContent) {
+        throw new Error("Empty content from Anthropic API response.");
+    }
+    // Clean any markdown block wrappers if present
+    let cleanedJson = textContent.trim();
+    if (cleanedJson.startsWith("```")) {
+        cleanedJson = cleanedJson.replace(/^```json\s*/, "").replace(/```$/, "").trim();
+    }
+    const parsed = JSON.parse(cleanedJson);
+    // Basic validation
+    if (typeof parsed.summary !== "string" || !Array.isArray(parsed.keyThemes)) {
+        throw new Error("Invalid structure returned by Anthropic Claude model.");
+    }
+    return parsed;
+}
 const createAiSessionNote = async (req, res) => {
     try {
         const coachId = req.user?.id;
@@ -96,31 +152,28 @@ const createAiSessionNote = async (req, res) => {
             select: { name: true },
         });
         const memberName = member?.name || "Member";
-        const apiKey = process.env.ANTHROPIC_API_KEY;
+        const xaiApiKey = process.env.XAI_API_KEY;
+        const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
         let analysisResult;
-        if (!apiKey || apiKey === "your_key_here") {
-            console.log("[createAiSessionNote] ANTHROPIC_API_KEY is not set. Using rule-based fallback generator.");
-            analysisResult = generateMockAnalysis(transcript, memberName);
-        }
-        else {
+        const formattedTranscript = transcript
+            .map((line) => `${line.speaker === "coach" ? "Coach" : "Member"}: ${line.text}`)
+            .join("\n");
+        if (xaiApiKey && xaiApiKey !== "your_key_here") {
             try {
-                // Format transcript for Claude
-                const formattedTranscript = transcript
-                    .map((line) => `${line.speaker === "coach" ? "Coach" : "Member"}: ${line.text}`)
-                    .join("\n");
-                console.log(`[createAiSessionNote] Calling Anthropic API using model 'claude-sonnet-4-20250514'...`);
-                const response = await fetch("https://api.anthropic.com/v1/messages", {
+                console.log(`[createAiSessionNote] Calling xAI API using model 'grok-beta'...`);
+                const response = await fetch("https://api.x.ai/v1/chat/completions", {
                     method: "POST",
                     headers: {
-                        "x-api-key": apiKey,
-                        "anthropic-version": "2023-06-01",
-                        "content-type": "application/json",
+                        "Authorization": `Bearer ${xaiApiKey}`,
+                        "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        model: "claude-sonnet-4-20250514",
-                        max_tokens: 2000,
-                        system: "You are an AI psychiatric clinical assistant. Analyze the session transcript between a Mental Health Coach and a Member. Respond ONLY with a valid, clean JSON object matching the requested schema. Do not output any markdown code blocks, backticks, or text before/after the JSON.",
+                        model: "grok-beta",
                         messages: [
+                            {
+                                role: "system",
+                                content: "You are an AI psychiatric clinical assistant. Analyze the session transcript between a Mental Health Coach and a Member. Respond ONLY with a valid, clean JSON object matching the requested schema. Do not output any markdown code blocks, backticks, or text before/after the JSON."
+                            },
                             {
                                 role: "user",
                                 content: `Analyze the following mental health coaching session transcript.
@@ -129,43 +182,78 @@ Transcript:
 ${formattedTranscript}
 
 Provide a JSON object with the exact keys:
-- "summary": (string) A clinical, objective summary of the session.
-- "keyThemes": (array of strings) 2 to 4 major topics or issues discussed in the session.
-- "memberSentiment": (string) The primary emotional state of the member (e.g., "Anxious", "Depressed", "Neutral", "Reflective", "Agitated").
-- "coachObservations": (string) Observations of the member's engagement and response during the session.
+- "sessionSummary": (string) A clinical, objective summary of the session.
+- "keyTopics": (array of strings) 2 to 4 major topics or issues discussed in the session.
+- "memberMood": (string) The primary emotional state of the member (e.g., "Anxious", "Depressed", "Neutral", "Reflective", "Agitated").
+- "concerns": (string) Major observed concerns or clinical impressions.
+- "actionItems": (string) Specific tasks, exercises, or homework decided.
+- "followUpRecommendations": (string) Concrete clinical recommendations or goals for the next session.
 - "riskFlag": (boolean) Set to true if the member mentions active self-harm, suicidal ideation, violence, abuse, or other high-risk indicators. Otherwise false.
 - "riskNotes": (string) If riskFlag is true, provide details of the specific risk indicators. Otherwise, empty string.
-- "recommendedFollowUp": (string) Concrete clinical recommendations or goals for the next session.
 
-Respond with ONLY the JSON object. Do not wrap in markdown \`\`\`json blocks.`,
-                            },
+Respond with ONLY the JSON object. Do not wrap in markdown \`\`\`json blocks.`
+                            }
                         ],
-                    }),
+                        temperature: 0
+                    })
                 });
                 if (!response.ok) {
                     const errText = await response.text();
-                    throw new Error(`Anthropic API returned status ${response.status}: ${errText}`);
+                    throw new Error(`xAI API returned status ${response.status}: ${errText}`);
                 }
-                const data = (await response.json());
-                const textContent = data.content?.[0]?.text;
+                const data = await response.json();
+                const textContent = data.choices?.[0]?.message?.content;
                 if (!textContent) {
-                    throw new Error("Empty content from Anthropic API response.");
+                    throw new Error("Empty content from xAI API response.");
                 }
                 // Clean any markdown block wrappers if present
                 let cleanedJson = textContent.trim();
                 if (cleanedJson.startsWith("```")) {
                     cleanedJson = cleanedJson.replace(/^```json\s*/, "").replace(/```$/, "").trim();
                 }
-                analysisResult = JSON.parse(cleanedJson);
+                const rawResult = JSON.parse(cleanedJson);
+                analysisResult = {
+                    summary: rawResult.sessionSummary || "",
+                    keyThemes: rawResult.keyTopics || [],
+                    memberSentiment: rawResult.memberMood || "Neutral",
+                    coachObservations: `Concerns:\n${rawResult.concerns || ""}\n\nAction Items:\n${rawResult.actionItems || ""}`.trim(),
+                    riskFlag: !!rawResult.riskFlag,
+                    riskNotes: rawResult.riskNotes || "",
+                    recommendedFollowUp: rawResult.followUpRecommendations || "",
+                };
                 // Basic validation
                 if (typeof analysisResult.summary !== "string" || !Array.isArray(analysisResult.keyThemes)) {
-                    throw new Error("Invalid structure returned by Anthropic Claude model.");
+                    throw new Error("Invalid structure returned by xAI Grok model.");
                 }
             }
             catch (err) {
-                console.warn("[createAiSessionNote] Claude call failed or returned malformed JSON. Falling back to local generation. Error:", err);
+                console.warn("[createAiSessionNote] xAI call failed. Falling back to next available provider. Error:", err);
+                if (anthropicApiKey && anthropicApiKey !== "your_key_here") {
+                    try {
+                        analysisResult = await runAnthropicAnalysis(formattedTranscript, anthropicApiKey);
+                    }
+                    catch (antErr) {
+                        console.warn("[createAiSessionNote] Fallback Claude call failed. Using mock generator. Error:", antErr);
+                        analysisResult = generateMockAnalysis(transcript, memberName);
+                    }
+                }
+                else {
+                    analysisResult = generateMockAnalysis(transcript, memberName);
+                }
+            }
+        }
+        else if (anthropicApiKey && anthropicApiKey !== "your_key_here") {
+            try {
+                analysisResult = await runAnthropicAnalysis(formattedTranscript, anthropicApiKey);
+            }
+            catch (err) {
+                console.warn("[createAiSessionNote] Claude call failed. Falling back to local generation. Error:", err);
                 analysisResult = generateMockAnalysis(transcript, memberName);
             }
+        }
+        else {
+            console.log("[createAiSessionNote] Neither XAI_API_KEY nor ANTHROPIC_API_KEY is configured. Using rule-based fallback generator.");
+            analysisResult = generateMockAnalysis(transcript, memberName);
         }
         // Save to the database
         const savedNote = await prisma_1.default.aiSessionNote.create({
@@ -182,6 +270,23 @@ Respond with ONLY the JSON object. Do not wrap in markdown \`\`\`json blocks.`,
                 recommendedFollowUp: analysisResult.recommendedFollowUp || "",
             },
         });
+        // Fallback: update session's livekitEndedAt if not set
+        if (sessionId) {
+            try {
+                const session = await prisma_1.default.session.findUnique({
+                    where: { id: sessionId },
+                });
+                if (session && !session.livekitEndedAt) {
+                    await prisma_1.default.session.update({
+                        where: { id: sessionId },
+                        data: { livekitEndedAt: new Date() },
+                    });
+                }
+            }
+            catch (err) {
+                console.error("[createAiSessionNote] Failed to set fallback livekitEndedAt:", err);
+            }
+        }
         return res.status(201).json({ note: savedNote });
     }
     catch (error) {

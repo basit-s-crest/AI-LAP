@@ -254,6 +254,7 @@ model Session {
   livekitEndedAt    DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+  sessionNote       SessionNote?
 }
 
 // ─── Coach Availability ───────────────────────────────────────────────────────
@@ -268,23 +269,49 @@ model CoachAvailability {
 
 // ─── Session Notes ────────────────────────────────────────────────────────────
 
+enum SessionNoteStatus {
+  DRAFT
+  FINAL
+}
+
 model SessionNote {
-  id              String   @id @default(cuid())
+  id              String             @id @default(cuid())
+  sessionId       String?            @unique
   coachId         String
   memberId        String
-  sessionType     String
-  notes           String   @default("")
-  nextSessionGoal String   @default("")
-  status          String   @default("draft")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  aiSessionNoteId String?
+  status          SessionNoteStatus  @default(DRAFT)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
-  coach  Coach @relation(fields: [coachId], references: [id], onDelete: Cascade)
-  member User  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  session         Session?           @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  coach           Coach              @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  member          User               @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  versions        SessionNoteVersion[]
 
   @@index([coachId])
   @@index([memberId])
-  @@index([coachId, createdAt(sort: Desc)])
+  @@index([coachId, updatedAt(sort: Desc)])
+}
+
+model SessionNoteVersion {
+  id                  String      @id @default(cuid())
+  noteId              String
+  version             Int
+  summary             String      @db.Text
+  keyThemes           Json        // JSON array of strings
+  memberSentiment     String
+  coachObservations   String      @db.Text
+  riskFlag            Boolean     @default(false)
+  riskNotes           String      @db.Text @default("")
+  recommendedFollowUp String      @db.Text
+  createdById         String
+  createdAt           DateTime    @default(now())
+
+  sessionNote         SessionNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, version])
+  @@index([noteId])
 }
 
 // ─── Onboarding Assessment ─────────────────────────────────────────────────────

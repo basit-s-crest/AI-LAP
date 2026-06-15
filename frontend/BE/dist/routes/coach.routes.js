@@ -26,4 +26,8 @@ router.post("/assign", auth_middleware_1.authMiddleware, coach_controller_1.assi
 // Protected — coach / admin only
 router.get("/members", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach"), coach_controller_1.getMyMembers);
 router.get("/scores/history", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach", "superadmin"), admin_controller_1.adminGetScoresHistory);
+// Risk Engine Proxy APIs
+router.get("/risk/member/:memberToken", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach", "superadmin"), coach_controller_1.getMemberRiskReport);
+router.post("/risk/member/:memberToken/recalculate", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach", "superadmin"), coach_controller_1.recalculateMemberRisk);
+router.get("/risk/org/:orgId/summary", auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)("coach", "superadmin"), coach_controller_1.getOrgRiskSummary);
 exports.default = router;
