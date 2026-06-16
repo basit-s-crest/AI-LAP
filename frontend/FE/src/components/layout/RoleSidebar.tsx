@@ -11,6 +11,8 @@ import { useRouter } from "next/navigation";
 import { useHydratedPlatformBranding, getLogoUrl } from "@/hooks/useHydratedPlatformBranding";
 import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
 import Image from "next/image";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { toggleSidebarMinimized } from "@/store/slices/uiSlice";
 
 function groupItems(items: NavItem[]) {
   const sections: { section: string; items: NavItem[] }[] = [];
@@ -54,6 +56,8 @@ export function RoleSidebar({
     return "active";
   };
 
+  const sidebarMinimized = useAppSelector((s) => s.ui.sidebarMinimized);
+
   const navBody = (
     <>
       <div className="nav-brand" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "8px", paddingBottom: "20px", borderBottom: "1px solid var(--border)", marginBottom: "20px" }}>
@@ -95,6 +99,23 @@ export function RoleSidebar({
             })}
           </div>
         ))}
+        {variant !== "drawer" && (
+          <button
+            onClick={() => dispatch(toggleSidebarMinimized())}
+            className="nav-item mt-auto border-none bg-transparent text-left w-full flex items-center gap-3"
+            style={{ padding: "12px 16px" }}
+            title={sidebarMinimized ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            <span className="nav-icon">
+              {sidebarMinimized ? (
+                <ChevronRight className="h-[18px] w-[18px]" />
+              ) : (
+                <ChevronLeft className="h-[18px] w-[18px]" />
+              )}
+            </span>
+            <span className="nav-label">Collapse Sidebar</span>
+          </button>
+        )}
       </div>
     </>
   );

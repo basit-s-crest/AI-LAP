@@ -8,6 +8,7 @@ import { MobileSidebar } from "./MobileSidebar";
 import type { Role } from "@/types/role";
 import { useAppSelector, useAppDispatch } from "@/hooks/redux";
 import { setSession } from "@/store/slices/authSlice";
+import { setSidebarMinimized } from "@/store/slices/uiSlice";
 import { cn } from "@/lib/cn";
 import api from "@/lib/api";
 
@@ -38,6 +39,8 @@ export function DashboardLayout({
   const displayName = reduxUser
     ? `${reduxUser.firstName} ${reduxUser.lastName}`.trim() || serverDisplayName
     : serverDisplayName;
+
+  const sidebarMinimized = useAppSelector((s) => s.ui.sidebarMinimized);
 
   // Sync name from DB on mount so admin name changes reflect immediately
   useEffect(() => {
@@ -75,8 +78,16 @@ export function DashboardLayout({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once on mount only
 
+  // Hydrate sidebar minimized state from localStorage on client
+  useEffect(() => {
+    const stored = localStorage.getItem("sidebar-minimized");
+    if (stored === "true") {
+      dispatch(setSidebarMinimized(true));
+    }
+  }, [dispatch]);
+
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className={cn("min-h-screen bg-canvas", sidebarMinimized && "sidebar-minimized")}>
       {impersonationBanner}
       <div className="flex min-h-screen">
         <div className="hidden md:block">
