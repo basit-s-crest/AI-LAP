@@ -99,10 +99,8 @@ const getOrgOverview = async (req, res) => {
         const organization = await prisma_1.default.organization.findUnique({ where: { id: orgId } });
         if (!organization)
             return res.status(404).json({ message: "Organization not found" });
-        const [metrics, totalCoaches] = await Promise.all([
-            (0, orgStats_service_1.buildOrgOverviewMetrics)(orgId),
-            prisma_1.default.organizationCoach.count({ where: { organizationId: orgId } }),
-        ]);
+        const metrics = await (0, orgStats_service_1.buildOrgOverviewMetrics)(orgId);
+        const totalCoaches = await prisma_1.default.organizationCoach.count({ where: { organizationId: orgId } });
         return res.status(200).json({
             orgName: organization.name,
             type: organization.type,

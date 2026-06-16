@@ -372,10 +372,8 @@ async function emailOrgWeeklyOutcomeReport(orgId) {
     if (!org?.primaryContactEmail || !org.notifyWeeklyReport)
         return;
     const { buildOrgOutcomesMetrics, buildOrgOverviewMetrics } = await Promise.resolve().then(() => __importStar(require("./orgStats.service")));
-    const [overview, outcomes] = await Promise.all([
-        buildOrgOverviewMetrics(orgId),
-        buildOrgOutcomesMetrics(orgId),
-    ]);
+    const overview = await buildOrgOverviewMetrics(orgId);
+    const outcomes = await buildOrgOutcomesMetrics(orgId);
     (0, email_service_1.sendAppEmailSafe)(org.primaryContactEmail, `Weekly outcomes — ${org.name}`, {
         title: "Weekly Outcome Report",
         greeting: `Hi ${org.primaryContactName},`,

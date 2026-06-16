@@ -386,21 +386,22 @@ export default function RiskDashboardPage() {
     <DashboardLayout
       title="Live Risk Dashboard"
       topbarRight={
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/risk-dashboard/operations"
             className="rounded-lg border border-line bg-card px-3 py-1.5 text-xs font-bold text-ink hover:bg-canvas transition-colors"
           >
-            ⚙️ Risk Reports
+            ⚙️ <span className="hidden sm:inline">Risk Reports</span>
           </Link>
           <button
             onClick={clearHistory}
             className="rounded-lg border border-line bg-card px-3 py-1.5 text-xs font-semibold text-dim transition-colors hover:text-ink"
           >
-            Clear History
+            <span className="hidden sm:inline">Clear History</span>
+            <span className="sm:hidden">Clear</span>
           </button>
           <div
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5"
+            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 sm:px-3"
             style={{ background: connected ? "rgba(78,140,88,.15)" : "rgba(192,57,43,.15)" }}
           >
             <div
@@ -408,14 +409,14 @@ export default function RiskDashboardPage() {
               style={{ background: connected ? "#7AB882" : "#C0392B" }}
             />
             <span
-              className="text-xs font-semibold"
+              className="text-xs font-semibold hidden md:inline"
               style={{ color: connected ? "#4E8C58" : "#C0392B" }}
             >
               {connected ? "SSE Connected" : "Disconnected"}
             </span>
           </div>
           {lastPing && (
-            <span className="font-mono text-[11px] text-dim">Last: {lastPing}</span>
+            <span className="hidden lg:inline font-mono text-[11px] text-dim">Last: {lastPing}</span>
           )}
         </div>
       }
@@ -423,7 +424,7 @@ export default function RiskDashboardPage() {
       {/* ── Filter Controls Row ── */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-card border border-line bg-card p-4 shadow-soft">
         {/* Left side: Patient selector dropdown */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs font-bold uppercase tracking-wider text-dim">Filter:</span>
           {/* Patient Dropdown */}
           <div className="relative" ref={dropdownRef}>
@@ -630,7 +631,7 @@ export default function RiskDashboardPage() {
       </div>
 
       {/* ── Stats row ── */}
-      <div className="mb-5 grid grid-cols-5 gap-4">
+      <div className="mb-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {[
           { label: "Total Analysed", value: totalCount,          color: "#4E8C58", bg: "#D4EDD7" },
           { label: "Crisis",         value: tierTotals.crisis,   color: "#C0392B", bg: "#FAE0DC" },
@@ -656,7 +657,7 @@ export default function RiskDashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* ── Member score cards ── */}
         <div>

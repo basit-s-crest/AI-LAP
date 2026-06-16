@@ -382,10 +382,8 @@ export async function emailOrgWeeklyOutcomeReport(orgId: string): Promise<void> 
   if (!org?.primaryContactEmail || !org.notifyWeeklyReport) return;
 
   const { buildOrgOutcomesMetrics, buildOrgOverviewMetrics } = await import("./orgStats.service");
-  const [overview, outcomes] = await Promise.all([
-    buildOrgOverviewMetrics(orgId),
-    buildOrgOutcomesMetrics(orgId),
-  ]);
+  const overview = await buildOrgOverviewMetrics(orgId);
+  const outcomes = await buildOrgOutcomesMetrics(orgId);
 
   sendAppEmailSafe(org.primaryContactEmail, `Weekly outcomes — ${org.name}`, {
     title: "Weekly Outcome Report",

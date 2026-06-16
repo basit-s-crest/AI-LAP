@@ -33,66 +33,54 @@ export async function buildOrgOverviewMetrics(orgId: string) {
   const since30 = daysAgo(30);
   const since15 = daysAgo(14);
 
-  const [
-    activeMoodUserIds,
-    activeSessionUserIds,
-    sessionsThisMonth,
-    assessments,
-    moods15,
-    onboardingCount,
-    assessedCount,
-    sessionMemberIds,
-    moodGrouped,
-  ] = await Promise.all([
-    prisma.mood.findMany({
-      where: { userId: { in: memberIds }, date: { gte: since30 } },
-      select: { userId: true },
-      distinct: ["userId"],
-    }),
-    prisma.session.findMany({
-      where: {
-        memberId: { in: memberIds },
-        scheduledAt: { gte: since30 },
-        status: { not: "cancelled" },
-      },
-      select: { memberId: true },
-      distinct: ["memberId"],
-    }),
-    prisma.session.count({
-      where: {
-        memberId: { in: memberIds },
-        scheduledAt: { gte: startOfMonth() },
-        status: { not: "cancelled" },
-      },
-    }),
-    prisma.onboardingAssessment.findMany({
-      where: { userId: { in: memberIds } },
-      select: { phqScore: true, gadScore: true },
-    }),
-    prisma.mood.findMany({
-      where: { userId: { in: memberIds }, date: { gte: since15 } },
-      select: { userId: true, date: true, mood: true },
-    }),
-    prisma.onboardingAssessment.count({
-      where: { userId: { in: memberIds } },
-    }),
-    prisma.onboardingAssessment.count({
-      where: { userId: { in: memberIds }, phqScore: { gt: 0 } },
-    }),
-    prisma.session.findMany({
-      where: {
-        memberId: { in: memberIds },
-        status: { not: "cancelled" },
-      },
-      select: { memberId: true },
-      distinct: ["memberId"],
-    }),
-    prisma.mood.groupBy({
-      where: { userId: { in: memberIds } },
-      by: ["mood"],
-      _count: { _all: true },
-    }),
-  ]);
+  const activeMoodUserIds = await prisma.mood.findMany({
+    where: { userId: { in: memberIds }, date: { gte: since30 } },
+    select: { userId: true },
+    distinct: ["userId"],
+  });
+  const activeSessionUserIds = await prisma.session.findMany({
+    where: {
+      memberId: { in: memberIds },
+      scheduledAt: { gte: since30 },
+      status: { not: "cancelled" },
+    },
+    select: { memberId: true },
+    distinct: ["memberId"],
+  });
+  const sessionsThisMonth = await prisma.session.count({
+    where: {
+      memberId: { in: memberIds },
+      scheduledAt: { gte: startOfMonth() },
+      status: { not: "cancelled" },
+    },
+  });
+  const assessments = await prisma.onboardingAssessment.findMany({
+    where: { userId: { in: memberIds } },
+    select: { phqScore: true, gadScore: true },
+  });
+  const moods15 = await prisma.mood.findMany({
+    where: { userId: { in: memberIds }, date: { gte: since15 } },
+    select: { userId: true, date: true, mood: true },
+  });
+  const onboardingCount = await prisma.onboardingAssessment.count({
+    where: { userId: { in: memberIds } },
+  });
+  const assessedCount = await prisma.onboardingAssessment.count({
+    where: { userId: { in: memberIds }, phqScore: { gt: 0 } },
+  });
+  const sessionMemberIds = await prisma.session.findMany({
+    where: {
+      memberId: { in: memberIds },
+      status: { not: "cancelled" },
+    },
+    select: { memberId: true },
+    distinct: ["memberId"],
+  });
+  const moodGrouped = await prisma.mood.groupBy({
+    where: { userId: { in: memberIds } },
+    by: ["mood"],
+    _count: { _all: true },
+  });
 
   const activeSet = new Set([
     ...activeMoodUserIds.map((m) => m.userId),
@@ -198,21 +186,19 @@ export async function buildOrgOutcomesMetrics(orgId: string) {
   const memberIds = await memberIdsForOrg(orgId);
   const totalMembers = memberIds.length;
 
-  const [assessments, sessionRows, groupRows] = await Promise.all([
-    prisma.onboardingAssessment.findMany({
-      where: { userId: { in: memberIds } },
-      select: { phqScore: true, gadScore: true, userId: true },
-    }),
-    prisma.session.findMany({
-      where: { memberId: { in: memberIds }, status: { not: "cancelled" } },
-      select: { memberId: true },
-    }),
-    prisma.groupMembership.findMany({
-      where: { memberId: { in: memberIds }, isActive: true },
-      select: { memberId: true },
-      distinct: ["memberId"],
-    }),
-  ]);
+  const assessments = await prisma.onboardingAssessment.findMany({
+    where: { userId: { in: memberIds } },
+    select: { phqScore: true, gadScore: true, userId: true },
+  });
+  const sessionRows = await prisma.session.findMany({
+    where: { memberId: { in: memberIds }, status: { not: "cancelled" } },
+    select: { memberId: true },
+  });
+  const groupRows = await prisma.groupMembership.findMany({
+    where: { memberId: { in: memberIds }, isActive: true },
+    select: { memberId: true },
+    distinct: ["memberId"],
+  });
 
   const phqByUser = new Map<string, number>();
   const gadByUser = new Map<string, number>();

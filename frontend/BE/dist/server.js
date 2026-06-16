@@ -3,9 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-// Load env vars FIRST — before any other imports that might need them
+// Load env vars FIRST — before any other imports that might need them - reloaded
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
+const dns_1 = __importDefault(require("dns"));
+dns_1.default.setDefaultResultOrder("ipv4first");
 const http_1 = require("http");
 const socket_io_1 = require("socket.io");
 const app_1 = __importDefault(require("./app"));
