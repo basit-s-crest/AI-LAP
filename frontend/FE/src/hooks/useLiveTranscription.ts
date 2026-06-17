@@ -17,6 +17,7 @@ export function useLiveTranscription(
   const socketRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const isListeningRef = useRef(false);
   const isStartingRef = useRef(false);
 
@@ -69,6 +70,17 @@ export function useLiveTranscription(
       } catch (err) {
         console.warn("[useLiveTranscription] Failed to stop MediaStream tracks:", err);
       }
+    }
+
+    if (audioContextRef.current) {
+      try {
+        if (audioContextRef.current.state !== "closed") {
+          audioContextRef.current.close();
+        }
+      } catch (err) {
+        console.warn("[useLiveTranscription] Failed to close AudioContext:", err);
+      }
+      audioContextRef.current = null;
     }
 
     if (socketRef.current) {
@@ -143,18 +155,49 @@ export function useLiveTranscription(
         "audio/mp4": typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported ? MediaRecorder.isTypeSupported("audio/mp4") : "N/A"
       });
 
-      const audioTracks = stream.getAudioTracks();
-      if (audioTracks.length === 0) {
-        throw new Error("No active audio tracks found in the stream.");
+      let recordStream: MediaStream;
+
+      if (customStreamRef.current) {
+        try {
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContextClass) {
+            console.log('[STT DEBUG] Creating AudioContext to route customStream...');
+            const audioCtx = new AudioContextClass();
+            audioContextRef.current = audioCtx;
+            
+            if (audioCtx.state === "suspended") {
+              await audioCtx.resume();
+              console.log('[STT DEBUG] AudioContext resumed successfully. State:', audioCtx.state);
+            }
+            
+            const sourceNode = audioCtx.createMediaStreamSource(stream);
+            const destNode = audioCtx.createMediaStreamDestination();
+            sourceNode.connect(destNode);
+            
+            recordStream = destNode.stream;
+            console.log('[STT DEBUG] AudioContext routing configured successfully.');
+          } else {
+            recordStream = stream;
+          }
+        } catch (audioCtxErr) {
+          console.warn('[STT] Failed to initialize AudioContext routing, falling back to raw stream:', audioCtxErr);
+          recordStream = stream;
+        }
+      } else {
+        const audioTracks = stream.getAudioTracks();
+        if (audioTracks.length === 0) {
+          throw new Error("No active audio tracks found in the stream.");
+        }
+
+        // Filter out only tracks that have explicitly ended.
+        // If all tracks are filtered, fall back to using the original audioTracks array.
+        const activeTracks = audioTracks.filter(t => t.readyState !== 'ended');
+        const tracksToUse = activeTracks.length > 0 ? activeTracks : audioTracks;
+
+        // Wrap the tracks in a new MediaStream to bypass WebRTC metadata recording issues
+        recordStream = new MediaStream(tracksToUse);
       }
 
-      // Filter out only tracks that have explicitly ended.
-      // If all tracks are filtered, fall back to using the original audioTracks array.
-      const activeTracks = audioTracks.filter(t => t.readyState !== 'ended');
-      const tracksToUse = activeTracks.length > 0 ? activeTracks : audioTracks;
-
-      // Wrap the tracks in a new MediaStream to bypass WebRTC metadata recording issues
-      const recordStream = new MediaStream(tracksToUse);
       console.log('[STT DEBUG] recordStream properties:', {
         active: recordStream.active,
         id: recordStream.id,

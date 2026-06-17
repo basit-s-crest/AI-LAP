@@ -21,6 +21,7 @@ export interface SessionNoteDTO {
   clientName: string;
   aiSessionNoteId: string | null;
   status: SessionNoteStatus;
+  sessionType?: SessionNoteType;
   createdAt: string;
   updatedAt: string;
   version: number | null;
@@ -63,6 +64,7 @@ export interface SaveSessionNotePayload {
   recommendedFollowUp?: string;
   status: SessionNoteStatus;
   aiSessionNoteId?: string;
+  sessionType?: SessionNoteType;
   // Old fields for manual saves
   notes?: string;
   nextSessionGoal?: string;

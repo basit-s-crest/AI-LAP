@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -46,18 +46,34 @@ export default function CoachSessionsPage() {
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [meetingClientName, setMeetingClientName] = useState("");
   const [meetingSessionTime, setMeetingSessionTime] = useState("");
+  const [meetingSessionType, setMeetingSessionType] = useState("");
 
   useEffect(() => {
     setPortalReady(true);
   }, []);
 
-  useEffect(() => {
+  const fetchSessions = useCallback((isSilent = false) => {
+    if (!isSilent) {
+      setLoading(true);
+    }
     api
       .get<SessionRow[]>("/api/sessions/coach")
       .then(({ data }) => setSessions(data))
       .catch(() => setSessions([]))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!isSilent) {
+          setLoading(false);
+        }
+      });
   }, []);
+
+  useEffect(() => {
+    fetchSessions(false);
+    const interval = setInterval(() => {
+      fetchSessions(true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchSessions]);
 
   // Derived stats
   const now = new Date();
@@ -132,6 +148,7 @@ export default function CoachSessionsPage() {
     setMeetingMemberId(session.memberId);
     setMeetingClientName(session.memberName);
     setMeetingSessionTime(formatDate(session.date));
+    setMeetingSessionType(session.type);
     setMeetingOpen(true);
   };
 
@@ -193,21 +210,28 @@ export default function CoachSessionsPage() {
                     <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
                       <Badge
                         variant={
-                          s.status === "upcoming"
-                            ? "blue"
-                            : s.status === "cancelled"
-                              ? "red"
-                              : s.status === "rescheduled"
-                                ? "gold"
-                                : "sage"
+                          s.status === "completed" || s.livekitEndedAt
+                            ? "sage"
+                            : s.status === "upcoming"
+                              ? "blue"
+                              : s.status === "cancelled"
+                                ? "red"
+                                : s.status === "rescheduled"
+                                  ? "gold"
+                                  : "sage"
                         }
                       >
-                        {s.status}
+                        {s.status === "completed" || s.livekitEndedAt ? "completed" : s.status}
                       </Badge>
                     </td>
                     <td className="border-b border-line px-[22px] py-[13px] group-hover:bg-[var(--bg-surface-2)]">
-                      {s.status === "completed" ? (
-                        <Button variant="ghost" size="xs" type="button">
+                      {s.status === "completed" || s.livekitEndedAt ? (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          type="button"
+                          onClick={() => router.push(`/notes?sessionId=${s.id}`)}
+                        >
                           View Notes
                         </Button>
                       ) : s.status === "cancelled" ? (
@@ -403,10 +427,14 @@ export default function CoachSessionsPage() {
           memberId={meetingMemberId}
           clientName={meetingClientName}
           sessionTime={meetingSessionTime}
+          sessionType={meetingSessionType}
+          onSessionEnded={fetchSessions}
           onClose={() => {
             setMeetingOpen(false);
             setMeetingSessionId(null);
             setMeetingMemberId(null);
+            setMeetingSessionType("");
+            fetchSessions();
           }}
         />
       )}

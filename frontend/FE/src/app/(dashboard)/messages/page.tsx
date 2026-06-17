@@ -141,6 +141,7 @@ export default function CoachMessagesPage() {
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [meetingClientName, setMeetingClientName] = useState("");
   const [meetingSessionTime, setMeetingSessionTime] = useState("");
+  const [meetingSessionType, setMeetingSessionType] = useState("");
 
   const { dashboard, latestUpdate } = useRiskScoreStream(selectedId);
   const scoreUpdates = dashboard.scores;
@@ -160,6 +161,7 @@ export default function CoachMessagesPage() {
       const { data } = await api.get<CoachSessionRow[]>("/api/sessions/coach");
       return data;
     },
+    refetchInterval: 5000,
   });
 
   // ── Fetch conversation list ────────────────────────────────────────────
@@ -387,6 +389,7 @@ useEffect(() => {
     setMeetingMemberId(session.memberId);
     setMeetingClientName(session.memberName);
     setMeetingSessionTime(formatSessionDate(session.date));
+    setMeetingSessionType(session.type);
     setMeetingOpen(true);
   }, []);
 
@@ -690,11 +693,11 @@ useEffect(() => {
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <Badge variant={statusVariant(session.status)}>
-                            {session.status}
+                          <Badge variant={statusVariant(session.livekitEndedAt ? "completed" : session.status)}>
+                            {session.livekitEndedAt ? "completed" : session.status}
                           </Badge>
 
-                          {session.status !== "cancelled" && session.status !== "completed" && (
+                          {session.status !== "cancelled" && session.status !== "completed" && !session.livekitEndedAt && (
                             <Button
                               variant={session.livekitStartedAt ? "primary" : "outline"}
                               size="xs"
@@ -706,6 +709,16 @@ useEffect(() => {
                                 : session.livekitStartedAt
                                 ? "Join Call"
                                 : "Start Call"}
+                            </Button>
+                          )}
+                          {(session.status === "completed" || session.livekitEndedAt) && (
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              type="button"
+                              onClick={() => router.push(`/notes?sessionId=${session.id}`)}
+                            >
+                              View Notes
                             </Button>
                           )}
                         </div>
@@ -785,10 +798,16 @@ useEffect(() => {
           memberId={meetingMemberId}
           clientName={meetingClientName}
           sessionTime={meetingSessionTime}
+          sessionType={meetingSessionType}
+          onSessionEnded={() => {
+            queryClient.invalidateQueries({ queryKey: ["coach-sessions"] });
+          }}
           onClose={() => {
             setMeetingOpen(false);
             setMeetingSessionId(null);
             setMeetingMemberId(null);
+            setMeetingSessionType("");
+            queryClient.invalidateQueries({ queryKey: ["coach-sessions"] });
           }}
         />
       )}

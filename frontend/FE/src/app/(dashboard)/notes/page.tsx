@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TableWrap } from "@/components/ui/Table";
 import { TableToolbar } from "@/components/tables/TableToolbar";
@@ -47,6 +48,8 @@ const emptyForm = {
 
 export default function NotesPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const sessionIdParam = searchParams.get("sessionId");
   const coachId = useAppSelector((s) => s.auth.user?.id);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -92,11 +95,32 @@ export default function NotesPage() {
     setSelectedSessionId(note.sessionId);
     setForm({
       memberId: note.memberId,
-      sessionType: "Weekly Check-in" as SessionNoteType,
+      sessionType: (note.sessionType || "Weekly Check-in") as SessionNoteType,
       notes: note.summary || note.notes || "",
       nextSessionGoal: note.recommendedFollowUp || note.nextSessionGoal || "",
     });
   }, []);
+
+  useEffect(() => {
+    if (sessionIdParam) {
+      const matched = notes.find((n) => n.sessionId === sessionIdParam);
+      if (matched) {
+        loadNoteIntoForm(matched);
+      } else {
+        const fetchNoteBySessionId = async () => {
+          try {
+            const res = await sessionNoteService.getSessionNote(sessionIdParam);
+            if (res.exists && res.note) {
+              loadNoteIntoForm(res.note);
+            }
+          } catch (err) {
+            console.error("[NotesPage] Failed to fetch session note:", err);
+          }
+        };
+        fetchNoteBySessionId();
+      }
+    }
+  }, [sessionIdParam, notes, loadNoteIntoForm]);
 
   const saveNote = async (status: "draft" | "saved") => {
     if (!coachId) {
@@ -116,6 +140,7 @@ export default function NotesPage() {
           summary: form.notes,
           recommendedFollowUp: form.nextSessionGoal,
           status: status === "draft" ? "DRAFT" : "FINAL",
+          sessionType: form.sessionType,
         });
       } else {
         // Manual notes
@@ -124,6 +149,7 @@ export default function NotesPage() {
             notes: form.notes,
             nextSessionGoal: form.nextSessionGoal,
             status: status === "draft" ? "draft" : "saved",
+            sessionType: form.sessionType,
           });
         } else {
           await sessionNoteService.create({
@@ -148,69 +174,6 @@ export default function NotesPage() {
   return (
     <DashboardLayout title="Session Notes">
       <div className="grid anim-up grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
-        <Card>
-          <h3 className="mb-3 serif text-lg font-semibold text-ink">Session Note</h3>
-          <div className="mb-4">
-            <Label>Client</Label>
-            <Select
-              options={memberOptions}
-              value={form.memberId}
-              onChange={(v) => setForm((prev) => ({ ...prev, memberId: v }))}
-            />
-          </div>
-          <div className="mb-4">
-            <Label>Session Type</Label>
-            <Select
-              options={SESSION_TYPE_OPTIONS}
-              value={form.sessionType}
-              onChange={(v) =>
-                setForm((prev) => ({
-                  ...prev,
-                  sessionType: v as SessionNoteType,
-                }))
-              }
-            />
-          </div>
-          <div className="mb-4">
-            <Label>Notes</Label>
-            <Textarea
-              rows={5}
-              placeholder="Session observations, progress, action items..."
-              value={form.notes}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, notes: e.target.value }))
-              }
-            />
-          </div>
-          <div className="mb-4">
-            <Label>Next Session Goal</Label>
-            <Textarea
-              rows={2}
-              placeholder="What to focus on next time..."
-              value={form.nextSessionGoal}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, nextSessionGoal: e.target.value }))
-              }
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              type="button"
-              disabled={saving}
-              onClick={() => saveNote("draft")}
-            >
-              Save Draft
-            </Button>
-            <Button
-              type="button"
-              disabled={saving}
-              onClick={() => saveNote("saved")}
-            >
-              Save & Close
-            </Button>
-          </div>
-        </Card>
         <TableWrap>
           <TableToolbar title="Recent Notes">
             <Button size="sm" type="button" onClick={resetForm}>
@@ -266,7 +229,7 @@ export default function NotesPage() {
                       {formatSessionDate(n.updatedAt)}
                     </td>
                     <td className="border-b border-line px-[22px] py-[13px] text-sm text-mid group-hover:bg-[var(--bg-surface-2)]">
-                      {n.sessionId ? "Video Call Note" : "Manual Note"}
+                      {n.sessionType || (n.sessionId ? "Video Call Note" : "Manual Note")}
                       {(n.status === "draft" || n.status === "DRAFT") && (
                         <span className="ml-2 text-[10px] font-semibold uppercase text-dim">
                           (draft)
@@ -295,7 +258,7 @@ export default function NotesPage() {
             <Select
               options={SESSION_TYPE_OPTIONS}
               value={form.sessionType}
-              disabled={!!selectedNoteId}
+              disabled={!!selectedSessionId}
               onChange={(v) =>
                 setForm((prev) => ({
                   ...prev,

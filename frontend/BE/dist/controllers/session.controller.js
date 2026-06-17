@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.rescheduleSession = exports.cancelSession = exports.getMemberSessions = exports.bookSession = exports.getCoachSessions = exports.saveCoachAvailability = exports.getCoachAvailability = void 0;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const member_org_coach_service_1 = require("../services/member-org-coach.service");
+const sessionAutoCompleter_1 = require("../services/sessionAutoCompleter");
 const notificationEmail_service_1 = require("../services/notificationEmail.service");
 /** Member / org / self-coach may read availability; others forbidden. */
 async function assertCanViewCoachAvailability(user, coachId) {
@@ -32,6 +33,7 @@ async function assertCanViewCoachAvailability(user, coachId) {
 // Auth required. Returns the coach's saved availability slots and duration.
 const getCoachAvailability = async (req, res) => {
     try {
+        await (0, sessionAutoCompleter_1.checkAndCompleteActiveSessions)();
         const { coachId } = req.params;
         const { date } = req.query;
         const user = req.user;
@@ -120,6 +122,7 @@ exports.saveCoachAvailability = saveCoachAvailability;
 // Coach only. Returns all sessions for the logged-in coach with member names.
 const getCoachSessions = async (req, res) => {
     try {
+        await (0, sessionAutoCompleter_1.checkAndCompleteActiveSessions)();
         const coachId = req.user.id;
         const sessions = await prisma_1.default.session.findMany({
             where: { coachId },
@@ -160,7 +163,7 @@ const bookSession = async (req, res) => {
             return res.status(403).json({ message: "Forbidden" });
         }
         const memberId = req.user.id;
-        const { coachId, date } = req.body;
+        const { coachId, date, type } = req.body;
         if (!coachId || !date) {
             return res.status(400).json({ message: "coachId and date are required" });
         }
@@ -262,7 +265,7 @@ const bookSession = async (req, res) => {
                 memberId,
                 scheduledAt: requestedDate,
                 duration: dur,
-                type: "Weekly Check-in",
+                type: type || "Weekly Check-in",
                 status: "upcoming",
             },
         });
@@ -279,6 +282,7 @@ exports.bookSession = bookSession;
 // Auth required. Returns all sessions for the logged-in member.
 const getMemberSessions = async (req, res) => {
     try {
+        await (0, sessionAutoCompleter_1.checkAndCompleteActiveSessions)();
         const memberId = req.user.id;
         const sessions = await prisma_1.default.session.findMany({
             where: { memberId },

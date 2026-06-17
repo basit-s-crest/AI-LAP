@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma";
 import { LiveKitService } from "../services/livekit.service";
+import { checkAndCompleteActiveSessions } from "../services/sessionAutoCompleter";
 
 /**
  * Helper to fetch a session and assert permission
@@ -58,6 +59,10 @@ export const startVideoSession = async (
 
     if (session.status === "cancelled") {
       return res.status(409).json({ message: "Conflict: Cannot start a cancelled session" });
+    }
+
+    if (session.status === "completed" || session.livekitEndedAt) {
+      return res.status(409).json({ message: "This session has already ended." });
     }
 
     // Generate room name if it doesn't exist
@@ -152,6 +157,10 @@ export const getVideoToken = async (
 
     if (session.status === "cancelled") {
       return res.status(409).json({ message: "Conflict: Session is cancelled" });
+    }
+
+    if (session.status === "completed" || session.livekitEndedAt) {
+      return res.status(409).json({ message: "This session has already ended." });
     }
 
     if (!session.livekitStartedAt || !session.livekitRoomName) {
@@ -249,6 +258,7 @@ export const getVideoStatus = async (
   res: Response
 ): Promise<Response | void> => {
   try {
+    await checkAndCompleteActiveSessions();
     const authContext = await getValidatedSession(req, res);
     if (!authContext) return;
 
@@ -291,6 +301,7 @@ export const endVideoSession = async (
       where: { id: session.id },
       data: {
         livekitEndedAt: new Date(),
+        status: "completed",
       },
     });
 

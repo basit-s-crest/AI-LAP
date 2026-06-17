@@ -225,7 +225,8 @@ function MeetingModal({
         setTokenDetails(details);
       } catch (err: any) {
         console.error("[MeetingModal] API fetch failed:", err);
-        setError(err.message || "Failed to establish a connection to the video room.");
+        const msg = err.response?.data?.message || err.message || "Failed to establish a connection to the video room.";
+        setError(msg);
       } finally {
         setLoading(false);
       }
@@ -345,7 +346,8 @@ export default function CoachingChatPage() {
   const [selSlot, setSelSlot] = useState<string | null>(null);
   const [booked, setBooked] = useState(false);
   const [booking, setBooking] = useState(false);
-  const [currentSession, setCurrentSession] = useState<{ id: string; scheduledAt: string; status: string; livekitStartedAt?: string } | null>(null);
+  const [currentSession, setCurrentSession] = useState<{ id: string; scheduledAt: string; status: string; type?: string; livekitStartedAt?: string; livekitEndedAt?: string } | null>(null);
+  const [sessionType, setSessionType] = useState("Weekly Check-in");
 
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState("");
@@ -404,22 +406,18 @@ export default function CoachingChatPage() {
 
   const syncMyBookingState = useCallback(
     async (generated: TimeSlot[], targetYmd: string) => {
-      const mine = generated.find((x) => x.isMySession);
-      if (mine) {
-        setBooked(true);
-        setSelSlot(mine.t);
-      }
       const [y, mo, d] = targetYmd.split("-").map(Number);
       const targetDate = new Date(y, mo - 1, d, 12, 0, 0, 0);
       try {
         const res = await api.get<
-          { id: string; coachId: string; scheduledAt: string; status: string; livekitStartedAt?: string }[]
+          { id: string; coachId: string; scheduledAt: string; status: string; type?: string; livekitStartedAt?: string; livekitEndedAt?: string }[]
         >("/api/sessions/member");
         const sess = res.data.find(
           (s) =>
             s.coachId === coachIdStr &&
             s.status !== "cancelled" &&
             s.status !== "completed" &&
+            !s.livekitEndedAt &&
             isScheduledAtLocalCalendarToday(s.scheduledAt, targetDate)
         );
         if (sess) {
@@ -518,7 +516,7 @@ export default function CoachingChatPage() {
 
   useEffect(() => {
     loadSlots();
-    const interval = setInterval(loadSlots, 30_000);
+    const interval = setInterval(loadSlots, 5_000);
     return () => clearInterval(interval);
   }, [loadSlots]);
 
@@ -530,6 +528,7 @@ export default function CoachingChatPage() {
       await api.post("/api/sessions/book", {
         coachId: coachIdStr,
         date: dateTimeOnCalendarDay(selectedDate, selSlot).toISOString(),
+        type: sessionType,
       });
       await loadSlots();
       setBooked(true);
@@ -883,6 +882,23 @@ useEffect(() => {
         </div>
       </div>
       <div className="my-4 h-px bg-line" />
+      {!showOnlyMyBookedSlot && (
+        <div className="mb-4">
+          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-dim">
+            Select Session Type
+          </label>
+          <select
+            value={sessionType}
+            onChange={(e) => setSessionType(e.target.value)}
+            className="w-full rounded-[9px] border-[1.5px] border-[rgba(60,50,40,0.12)] bg-card px-3 py-2 text-[13.5px] text-ink outline-none focus:border-sage"
+          >
+            <option value="Weekly Check-in">Weekly Check-in</option>
+            <option value="Initial Session">Initial Session</option>
+            <option value="Follow-up">Follow-up</option>
+            <option value="Crisis">Crisis</option>
+          </select>
+        </div>
+      )}
       <div className="mb-4">
         <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-dim">
           Select Date
@@ -960,13 +976,13 @@ useEffect(() => {
           <div className="flex items-center gap-2.5 rounded-[10px] bg-sage-tint px-4 py-3">
             <span className="text-lg text-sage">✓</span>
             <div>
-              <div className="font-semibold">Session confirmed!</div>
+              <div className="font-semibold">{currentSession?.type || "Session"} confirmed!</div>
               <div className="text-sm text-mid">
                 {coach.name} · {myBookedTimeLabel ?? selSlot}
               </div>
             </div>
           </div>
-          {currentSession && (
+          {currentSession && !currentSession.livekitEndedAt && (
             <Button
               className="mt-3 animate-pulse"
               fullWidth
@@ -1050,6 +1066,7 @@ useEffect(() => {
             onClose={() => {
               setMeetingOpen(false);
               setMeetingSessionId(null);
+              loadSlots();
             }}
           />
         )}
@@ -1098,14 +1115,16 @@ useEffect(() => {
           </div>
         </div>
 
-        {booked && currentSession && (
+        {booked && currentSession && currentSession.status !== "completed" && !currentSession.livekitEndedAt && (
           <div className="mb-6 flex items-center justify-between gap-4 rounded-xl bg-sage-soft border border-[var(--sage)] p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="text-xl">🤝</span>
               <div>
-                <h4 className="font-semibold text-ink">Your call is ready!</h4>
+                <h4 className="font-semibold text-ink">
+                  {currentSession.type ? `${currentSession.type} Call` : "Your call"} is ready!
+                </h4>
                 <p className="text-xs text-mid">
-                  You have a scheduled session with {coach.name} today.
+                  You have a scheduled {currentSession.type ? `${currentSession.type.toLowerCase()} ` : ""}session with {coach.name} today.
                 </p>
               </div>
             </div>
@@ -1229,6 +1248,7 @@ useEffect(() => {
           onClose={() => {
             setMeetingOpen(false);
             setMeetingSessionId(null);
+            loadSlots();
           }}
         />
       )}

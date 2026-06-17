@@ -1,3 +1,4 @@
+
 # Short-Term Transcription Security and Session Lifecycle Management
 
 This plan establishes a secure authentication flow for the Python STT WebSocket proxy and implements proper lifecycle management for LiveKit sessions (updating `livekitEndedAt`).

@@ -281,6 +281,7 @@ model SessionNote {
   memberId        String
   aiSessionNoteId String?
   status          SessionNoteStatus  @default(DRAFT)
+  sessionType     String?            @default("Weekly Check-in")
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 

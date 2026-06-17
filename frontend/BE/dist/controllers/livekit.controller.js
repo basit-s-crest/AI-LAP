@@ -7,6 +7,7 @@ exports.endVideoSession = exports.getVideoStatus = exports.getVideoToken = expor
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const livekit_service_1 = require("../services/livekit.service");
+const sessionAutoCompleter_1 = require("../services/sessionAutoCompleter");
 /**
  * Helper to fetch a session and assert permission
  */
@@ -47,6 +48,9 @@ const startVideoSession = async (req, res) => {
         }
         if (session.status === "cancelled") {
             return res.status(409).json({ message: "Conflict: Cannot start a cancelled session" });
+        }
+        if (session.status === "completed" || session.livekitEndedAt) {
+            return res.status(409).json({ message: "This session has already ended." });
         }
         // Generate room name if it doesn't exist
         const roomName = session.livekitRoomName || `safecircle-session-${session.id}`;
@@ -121,6 +125,9 @@ const getVideoToken = async (req, res) => {
         const { session, isCoach, isMember } = authContext;
         if (session.status === "cancelled") {
             return res.status(409).json({ message: "Conflict: Session is cancelled" });
+        }
+        if (session.status === "completed" || session.livekitEndedAt) {
+            return res.status(409).json({ message: "This session has already ended." });
         }
         if (!session.livekitStartedAt || !session.livekitRoomName) {
             return res.status(409).json({ message: "Conflict: Meeting has not been started by the coach yet" });
@@ -200,6 +207,7 @@ exports.getVideoToken = getVideoToken;
  */
 const getVideoStatus = async (req, res) => {
     try {
+        await (0, sessionAutoCompleter_1.checkAndCompleteActiveSessions)();
         const authContext = await getValidatedSession(req, res);
         if (!authContext)
             return;
@@ -237,6 +245,7 @@ const endVideoSession = async (req, res) => {
             where: { id: session.id },
             data: {
                 livekitEndedAt: new Date(),
+                status: "completed",
             },
         });
         return res.status(200).json({

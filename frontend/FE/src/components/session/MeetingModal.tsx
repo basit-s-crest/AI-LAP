@@ -19,8 +19,10 @@ interface MeetingModalProps {
   memberId: string;
   clientName: string;
   sessionTime: string;
+  sessionType?: string;
   onClose: () => void;
   onMemberTranscription?: (text: string) => void;
+  onSessionEnded?: () => void;
 }
 
 export default function MeetingModal({
@@ -28,8 +30,10 @@ export default function MeetingModal({
   memberId,
   clientName,
   sessionTime,
+  sessionType = "Weekly Check-in",
   onClose,
   onMemberTranscription,
+  onSessionEnded,
 }: MeetingModalProps) {
   const [tokenDetails, setTokenDetails] = useState<LiveKitTokenResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,7 +83,8 @@ export default function MeetingModal({
         setTokenDetails(details);
       } catch (err: any) {
         console.error("[MeetingModal] API fetch failed:", err);
-        setError(err.message || "Failed to establish a connection to the video room.");
+        const msg = err.response?.data?.message || err.message || "Failed to establish a connection to the video room.";
+        setError(msg);
       } finally {
         setLoading(false);
       }
@@ -106,6 +111,7 @@ export default function MeetingModal({
       // Explicitly mark session call as ended
       try {
         await LiveKitApiService.endSession(sessionId);
+        onSessionEnded?.();
       } catch (endErr) {
         console.warn("[MeetingModal] Failed to mark session call as ended:", endErr);
       }
@@ -251,7 +257,7 @@ export default function MeetingModal({
                   sessionId={sessionId}
                   memberId={memberId}
                   clientName={clientName}
-                  sessionType="Weekly Check-in"
+                  sessionType={sessionType}
                   initialNotes={aiNote ? `• Summary: ${aiNote.summary || ""}\n• Sentiment: ${aiNote.memberSentiment || ""}\n• Observations: ${aiNote.coachObservations || ""}\n• Themes: ${(aiNote.keyThemes || []).join(", ")}` : ""}
                   initialNextSessionGoal={aiNote?.recommendedFollowUp || ""}
                   aiSessionNoteId={aiNote?.id || null}
