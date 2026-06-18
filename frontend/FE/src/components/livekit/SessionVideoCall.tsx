@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   LiveKitRoom,
@@ -14,7 +14,7 @@ import {
   TrackReference,
   TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
-import { Track } from "livekit-client";
+import { Track, Room } from "livekit-client";
 
 function isTrackReference(
   track: TrackReferenceOrPlaceholder | undefined
@@ -35,6 +35,7 @@ interface SessionVideoCallProps {
   onTimerUpdate?: (timer: string) => void;
   onParticipantUpdate?: (name: string, quality: string) => void;
   onRemoteStream?: (stream: MediaStream | null) => void;
+  onRemoteVideoTrack?: (track: MediaStreamTrack | null) => void;
 }
 
 const backgroundStyle = {
@@ -75,6 +76,7 @@ function VideoCallInterface({
   onTimerUpdate,
   onParticipantUpdate,
   onRemoteStream,
+  onRemoteVideoTrack,
 }: {
   role: string;
   onLeave: () => void;
@@ -82,6 +84,7 @@ function VideoCallInterface({
   onTimerUpdate?: (timer: string) => void;
   onParticipantUpdate?: (name: string, quality: string) => void;
   onRemoteStream?: (stream: MediaStream | null) => void;
+  onRemoteVideoTrack?: (track: MediaStreamTrack | null) => void;
 }) {
   const room = useRoomContext();
   const connectionState = useConnectionState();
@@ -90,6 +93,10 @@ function VideoCallInterface({
   const cameraTracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const audioTracks = useTracks([{ source: Track.Source.Microphone, withPlaceholder: false }]);
 
+  const remoteParticipant = remoteParticipants[0];
+  const remoteVideoTrack = cameraTracks.find(
+    (t) => t.participant.identity === remoteParticipant?.identity
+  );
   const remoteAudioTrack = audioTracks.find(t => t.participant.identity !== localParticipant.identity);
   const lastStreamIdRef = useRef<string | null>(null);
 
@@ -97,21 +104,6 @@ function VideoCallInterface({
   useEffect(() => {
     const trackObj = remoteAudioTrack?.publication?.track;
     const stream = trackObj?.mediaStream;
-    const nativeTrack = (trackObj as any)?.mediaStreamTrack;
-
-    console.log("[DEBUG] SessionVideoCall: remote audio track check:", {
-      hasRemoteAudioTrack: !!remoteAudioTrack,
-      hasPublication: !!remoteAudioTrack?.publication,
-      hasTrackObject: !!trackObj,
-      trackSid: remoteAudioTrack?.publication?.trackSid,
-      trackKind: trackObj?.kind,
-      trackReadyState: nativeTrack?.readyState,
-      trackEnabled: nativeTrack?.enabled || trackObj?.isEnabled,
-      hasMediaStream: !!stream,
-      streamActive: stream?.active,
-      streamTracksCount: stream?.getAudioTracks().length,
-      hasNativeTrack: !!nativeTrack
-    });
 
     const streamId = stream ? stream.id : null;
     if (lastStreamIdRef.current !== streamId) {
@@ -123,6 +115,44 @@ function VideoCallInterface({
       }
     }
   }, [remoteAudioTrack, remoteAudioTrack?.publication?.track?.mediaStream, onRemoteStream]);
+
+  const hasLoggedVideoTrackFoundRef = useRef(false);
+
+  // Extract remote participant's video track and notify parent
+  useEffect(() => {
+    const trackObj = remoteVideoTrack?.publication?.track;
+    const nativeTrack = (trackObj as any)?.mediaStreamTrack;
+    const isMuted = remoteVideoTrack?.publication?.isMuted;
+    const isSubscribed = remoteVideoTrack?.publication?.isSubscribed;
+
+    const isTrackActive = 
+      !!nativeTrack && 
+      nativeTrack.readyState === "live" && 
+      !nativeTrack.muted && 
+      nativeTrack.enabled &&
+      !isMuted &&
+      isSubscribed !== false;
+
+    if (isTrackActive) {
+      if (!hasLoggedVideoTrackFoundRef.current) {
+        hasLoggedVideoTrackFoundRef.current = true;
+        console.log("[SessionVideoCall] Remote video track found successfully.");
+      }
+      onRemoteVideoTrack?.(nativeTrack);
+    } else {
+      if (hasLoggedVideoTrackFoundRef.current) {
+        hasLoggedVideoTrackFoundRef.current = false;
+        console.log("[SessionVideoCall] Remote video track removed/stopped.");
+      }
+      onRemoteVideoTrack?.(null);
+    }
+  }, [
+    remoteVideoTrack, 
+    remoteVideoTrack?.publication?.track, 
+    remoteVideoTrack?.publication?.isMuted, 
+    remoteVideoTrack?.publication?.isSubscribed, 
+    onRemoteVideoTrack
+  ]);
 
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [showControls, setShowControls] = useState(true);
@@ -215,9 +245,25 @@ function VideoCallInterface({
     }
   };
 
+  const hasCleanedUpRef = useRef(false);
+
   const handleEndCall = () => {
-    console.log("[VideoCallInterface] Ending call...");
-    room.disconnect();
+    if (hasCleanedUpRef.current) {
+      console.log("[VideoCallInterface] Already ended call. Skipping duplicate disconnect.");
+      return;
+    }
+    hasCleanedUpRef.current = true;
+
+    console.log("[VideoCallInterface] Ending call. Current state:", connectionState);
+    if (connectionState === "connected" || connectionState === "reconnecting") {
+      try {
+        room.disconnect();
+      } catch (err) {
+        console.warn("[VideoCallInterface] Disconnect failed safely:", err);
+      }
+    } else {
+      console.log("[VideoCallInterface] Room already disconnected or connecting (skip disconnect). Doing nothing.");
+    }
   };
 
   // Render RoomAudioRenderer to ensure we hear remote participants
@@ -264,10 +310,6 @@ function VideoCallInterface({
   }
 
   // 3. Connected State
-  const remoteParticipant = remoteParticipants[0];
-  const remoteVideoTrack = cameraTracks.find(
-    (t) => t.participant.identity === remoteParticipant?.identity
-  );
   const localVideoTrack = cameraTracks.find(
     (t) => t.participant.identity === localParticipant.identity
   );
@@ -354,7 +396,7 @@ function VideoCallInterface({
             style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.35)" }}
           >
             {isCameraEnabled && localVideoTrack ? (
-              <VideoTrack trackRef={localVideoTrack} className="w-full h-full object-cover" />
+              <VideoTrack trackRef={localVideoTrack as any} className="w-full h-full object-cover" />
             ) : (
               <div className="flex flex-col items-center justify-center w-full h-full bg-[#E6EFF5]">
                 <div className="w-10 h-10 rounded-full bg-[#53A4D0] text-white flex items-center justify-center text-sm font-bold font-outfit uppercase serif">
@@ -426,11 +468,23 @@ export default function SessionVideoCall({
   onTimerUpdate,
   onParticipantUpdate,
   onRemoteStream,
+  onRemoteVideoTrack,
 }: SessionVideoCallProps) {
   const router = useRouter();
   const [errorState, setErrorState] = useState<string | null>(null);
+  const hasCleanedUpRef = useRef(false);
 
-  const handleLeave = () => {
+  const customRoom = useMemo(() => {
+    if (typeof window === "undefined") return undefined;
+    return new Room();
+  }, []);
+
+  const handleLeave = useCallback(() => {
+    if (hasCleanedUpRef.current) {
+      console.log("[SessionVideoCall] Already left/cleaned up. Ignoring duplicate leave.");
+      return;
+    }
+    hasCleanedUpRef.current = true;
     console.log("[SessionVideoCall] handleLeave triggered. role:", role);
     if (onLeave) {
       onLeave();
@@ -439,16 +493,20 @@ export default function SessionVideoCall({
     } else {
       router.push(`/coaching/${coachId}`);
     }
-  };
+  }, [onLeave, role, coachId, router]);
 
-  const handleError = (err: Error) => {
+  const handleError = useCallback((err: Error) => {
     if (err.message && (err.message.includes("Client initiated disconnect") || err.message.includes("client initiated disconnect"))) {
       console.log("[SessionVideoCall] Client initiated disconnect (normal cleanup).");
       return;
     }
     console.error("[SessionVideoCall] LiveKit connection error:", err);
     setErrorState(err.message || "Failed to establish a connection to the video room.");
-  };
+  }, []);
+
+  const handleConnected = useCallback(() => {
+    console.log("[SessionVideoCall] Connected to LiveKit successfully");
+  }, []);
 
   if (errorState) {
     const errorOverlayClass = mode === "modal"
@@ -475,14 +533,17 @@ export default function SessionVideoCall({
     );
   }
 
+  const shouldConnect = !!token && !!serverUrl && !!roomName;
+
   return (
     <LiveKitRoom
+      room={customRoom}
       token={token}
       serverUrl={serverUrl}
-      connect={true}
+      connect={shouldConnect}
       video={true}
       audio={true}
-      onConnected={() => console.log("[SessionVideoCall] Connected to LiveKit successfully")}
+      onConnected={handleConnected}
       onError={handleError}
       onDisconnected={handleLeave}
       className="w-full h-full"
@@ -494,6 +555,7 @@ export default function SessionVideoCall({
         onTimerUpdate={onTimerUpdate}
         onParticipantUpdate={onParticipantUpdate}
         onRemoteStream={onRemoteStream}
+        onRemoteVideoTrack={onRemoteVideoTrack}
       />
     </LiveKitRoom>
   );

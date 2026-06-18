@@ -4,6 +4,7 @@ import { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import { useLiveTranscription } from "@/hooks/useLiveTranscription";
 import type { TranscriptLine } from "@/types/sessionNote";
 import { Mic, MicOff, AlertTriangle, Play, Sparkles, Activity, Clock, Brain } from "lucide-react";
+import { LiveVideoAnalysisApiService, type SessionAggregationResponse } from "@/services/liveVideoAnalysis.service";
 
 interface LiveSessionTranscriptProps {
   sessionId: string;
@@ -14,6 +15,7 @@ interface LiveSessionTranscriptProps {
   remoteStream?: MediaStream | null;
   onMemberTranscription?: (text: string) => void;
   transcriptionToken?: string;
+  latestEmotion?: any;
 }
 
 const formatTime = (isoString: string) => {
@@ -56,9 +58,36 @@ export default function LiveSessionTranscript({
   remoteStream,
   onMemberTranscription,
   transcriptionToken,
+  latestEmotion,
 }: LiveSessionTranscriptProps) {
   const [activeSubTab, setActiveSubTab] = useState<"transcript" | "insights">("transcript");
   const [insightsLog, setInsightsLog] = useState<{ text: string; timestamp: string }[]>([]);
+  const [aggregation, setAggregation] = useState<SessionAggregationResponse | null>(null);
+
+  const isDev = process.env.NODE_ENV === "development";
+
+  // Poll aggregation from python backend when on insights tab in development mode
+  useEffect(() => {
+    if (!isDev || activeSubTab !== "insights" || !isCallActive) {
+      return;
+    }
+
+    const fetchAggregation = async () => {
+      try {
+        const data = await LiveVideoAnalysisApiService.getSessionAggregation(sessionId);
+        setAggregation(data);
+      } catch (err) {
+        console.warn("[LiveSessionTranscript] Failed to fetch session aggregation:", err);
+      }
+    };
+
+    // Fetch immediately
+    fetchAggregation();
+
+    // Poll every 5 seconds
+    const interval = setInterval(fetchAggregation, 5000);
+    return () => clearInterval(interval);
+  }, [activeSubTab, sessionId, isCallActive, isDev]);
 
   const handleLiveAnalysis = useCallback((text: string) => {
     setInsightsLog((prev) => [
@@ -80,7 +109,8 @@ export default function LiveSessionTranscript({
     onMemberTranscription,
     sessionId,
     transcriptionToken,
-    handleLiveAnalysis
+    handleLiveAnalysis,
+    latestEmotion
   );
 
   // Coach audio transcription is disabled right now (scope restriction)
@@ -278,6 +308,81 @@ export default function LiveSessionTranscript({
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Emotional Climate Panel (Dev/Debug Flag Gated) */}
+            {isDev && (
+              <div className="bg-white border border-[#D2DBE3] rounded-2xl p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-[#D2DBE3]/50 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-outfit font-bold text-[#3A6E99]">
+                    <Activity size={14} className="text-[#3A6E99]" />
+                    <span>EMOTIONAL CLIMATE (DEBUG)</span>
+                  </div>
+                  {aggregation?.lastUpdatedAt && (
+                    <span className="text-[10px] text-soft font-mono font-semibold">
+                      Updated: {formatTime(aggregation.lastUpdatedAt)}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="bg-[#F8FAFC] border border-[#D2DBE3]/50 rounded-xl p-2.5 space-y-1">
+                    <span className="text-[10px] font-sans font-semibold text-soft block uppercase tracking-wider">
+                      Current State
+                    </span>
+                    <div className="font-outfit font-bold text-ink flex items-center gap-1.5">
+                      {aggregation?.dominantEmotion === "Calm" && "🟢 Calm"}
+                      {aggregation?.dominantEmotion === "Neutral" && "🟡 Neutral"}
+                      {aggregation?.dominantEmotion === "Anxious" && "🟠 Anxious"}
+                      {aggregation?.dominantEmotion === "No Face" && "⚪ No Face"}
+                      {aggregation?.dominantEmotion === "Camera Off" && "⚫ Camera Off"}
+                      {!aggregation?.dominantEmotion && "—"}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-[#F8FAFC] border border-[#D2DBE3]/50 rounded-xl p-2.5 space-y-1">
+                    <span className="text-[10px] font-sans font-semibold text-[#5C6B73] block uppercase tracking-wider">
+                      Latest Emotion
+                    </span>
+                    <div className="font-outfit font-bold text-ink flex items-center gap-1.5">
+                      {aggregation?.latestEmotion === "Calm" && "🟢 Calm"}
+                      {aggregation?.latestEmotion === "Neutral" && "🟡 Neutral"}
+                      {aggregation?.latestEmotion === "Anxious" && "🟠 Anxious"}
+                      {aggregation?.latestEmotion === "No Face" && "⚪ No Face"}
+                      {aggregation?.latestEmotion === "Camera Off" && "⚫ Camera Off"}
+                      {!aggregation?.latestEmotion && "—"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Counts Summary */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-sans font-semibold text-soft block uppercase tracking-wider">
+                    Emotion Distribution
+                  </span>
+                  {aggregation?.emotionCounts && Object.keys(aggregation.emotionCounts).length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(aggregation.emotionCounts).map(([emotion, count]) => {
+                        let colorClass = "bg-gray-100 text-gray-700";
+                        if (emotion === "Calm") colorClass = "bg-[#EBF7EE] text-[#2E7D32]";
+                        if (emotion === "Neutral") colorClass = "bg-[#FFFDE7] text-[#F57F17]";
+                        if (emotion === "Anxious") colorClass = "bg-[#FFF3E0] text-[#E65100]";
+                        
+                        return (
+                          <span
+                            key={emotion}
+                            className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${colorClass}`}
+                          >
+                            {emotion}: {count}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-soft italic block">No signals buffered yet.</span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {insightsLog.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-[280px] text-center p-8 space-y-4">
                 <div className="w-16 h-16 bg-white border border-[#D2DBE3] rounded-2xl flex items-center justify-center text-dim shadow-sm">

@@ -6,6 +6,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import websockets
 import jwt
 from app.modules.live_analysis import LiveMeetingAnalysisEngine
+from app.modules.live_video_analysis import handle_emotion_signal, clear_session_buffer, clear_participant_buffer
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,9 @@ async def websocket_endpoint(websocket: WebSocket):
     # Lock to serialize writes to this WebSocket from different concurrent tasks
     websocket_write_lock = asyncio.Lock()
 
+    # Track the participant ID dynamically from the incoming emotion signals
+    connected_participant_id = None
+
     api_key = os.getenv("DEEPGRAM_API_KEY")
     if not api_key:
         logger.error("[STT Proxy] DEEPGRAM_API_KEY is not set on the server")
@@ -88,13 +92,35 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # Concurrently forward data back and forth
             async def client_to_dg():
+                nonlocal connected_participant_id
                 try:
                     while True:
                         message = await websocket.receive()
                         if "bytes" in message:
                             await dg_socket.send(message["bytes"])
                         elif "text" in message:
-                            await dg_socket.send(message["text"])
+                            text_data = message["text"]
+                            try:
+                                data = json.loads(text_data)
+                                if isinstance(data, dict):
+                                    if data.get("type") == "emotion_signal":
+                                        # Capture participant ID if available
+                                        pid = data.get("participantId")
+                                        if pid:
+                                            connected_participant_id = pid
+                                        # Delegate emotion validation and handling to the live_video_analysis service
+                                        ack_msg = handle_emotion_signal(data)
+                                        async with websocket_write_lock:
+                                            await websocket.send_text(ack_msg.model_dump_json())
+                                    else:
+                                        # Unknown JSON types ignored safely
+                                        pass
+                                else:
+                                    # Non-dict JSON ignored safely
+                                    pass
+                            except json.JSONDecodeError:
+                                # Invalid JSON ignored safely
+                                pass
                 except WebSocketDisconnect:
                     logger.info("[STT Proxy] Client connection closed (normal disconnect)")
                 except Exception as e:
@@ -143,6 +169,8 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.info("[STT Proxy] Connection finalized")
         if session_id:
             await live_analysis_engine.clear_session(session_id)
+            if connected_participant_id:
+                clear_participant_buffer(session_id, connected_participant_id)
         try:
             await websocket.close()
         except Exception:

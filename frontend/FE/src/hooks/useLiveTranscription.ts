@@ -7,7 +7,8 @@ export function useLiveTranscription(
   onFinalTranscript?: (text: string) => void,
   sessionId?: string,
   transcriptionToken?: string,
-  onLiveAnalysis?: (text: string) => void
+  onLiveAnalysis?: (text: string) => void,
+  latestEmotion?: any
 ) {
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [isListening, setIsListening] = useState(false);
@@ -272,6 +273,11 @@ export function useLiveTranscription(
             return;
           }
 
+          if (data?.type === "emotion_signal_ack") {
+            console.log('[useLiveTranscription] Received emotion signal acknowledgment:', data);
+            return;
+          }
+
           const alt = data?.channel?.alternatives?.[0];
           if (!alt?.transcript?.trim()) return;
           const text = alt.transcript.trim();
@@ -341,6 +347,22 @@ export function useLiveTranscription(
   const clearTranscript = useCallback(() => {
     setTranscript([]);
   }, []);
+
+  // Send latestEmotion signal over WebSocket if available and connection is open
+  useEffect(() => {
+    if (
+      latestEmotion &&
+      socketRef.current &&
+      socketRef.current.readyState === WebSocket.OPEN
+    ) {
+      console.log("[useLiveTranscription] Multiplexing emotion signal over STT WebSocket:", latestEmotion);
+      try {
+        socketRef.current.send(JSON.stringify(latestEmotion));
+      } catch (err) {
+        console.warn("[useLiveTranscription] Failed to send emotion signal:", err);
+      }
+    }
+  }, [latestEmotion]);
 
   // Cleanup on unmount
   useEffect(() => {
