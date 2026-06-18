@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { LiveKitApiService } from "@/services/livekit.service";
 import type { LiveKitTokenResponse } from "@/types/livekit";
 import SessionVideoCall from "@/components/livekit/SessionVideoCall";
+import { useLiveVideoAnalysis } from "@/hooks/useLiveVideoAnalysis";
 import LiveSessionTranscript from "@/components/session/LiveSessionTranscript";
 import AiSessionNoteView from "@/components/session/AiSessionNoteView";
 import SessionNoteEditor from "@/components/session/SessionNoteEditor";
@@ -59,6 +60,25 @@ export default function MeetingModal({
     });
   }, []);
 
+  const [remoteVideoTrack, setRemoteVideoTrack] = useState<MediaStreamTrack | null>(null);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [callEnded, setCallEnded] = useState(false);
+  const [callInstanceKey, setCallInstanceKey] = useState(0);
+  const [isJoining, setIsJoining] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
+
+  const handleRemoteVideoTrack = useCallback((track: MediaStreamTrack | null) => {
+    setRemoteVideoTrack(track);
+  }, []);
+
+  // Hook up video analysis sampler (Phase 1 & 2)
+  const { isSampling, latestEmotion, startAnalysis, stopAnalysis, mediaPipeReady, usingFallback } = useLiveVideoAnalysis({
+    videoTrack: remoteVideoTrack,
+    isEnabled: consentChecked && !callEnded && !!participantInfo,
+    sessionId,
+    participantId: memberId,
+  });
+
   // AI & Transcript integration states
   const [accumulatedTranscript, setAccumulatedTranscript] = useState<TranscriptLine[]>([]);
   const [aiNote, setAiNote] = useState<AiSessionNoteDTO | null>(null);
@@ -71,27 +91,50 @@ export default function MeetingModal({
     return "bg-[#FF7894]";
   };
 
+  const joinSessionCall = useCallback(async () => {
+    if (isJoining) {
+      console.log("[MeetingModal] Join already in progress. Ignoring duplicate request.");
+      return;
+    }
+    setIsJoining(true);
+    setLoading(true);
+    setError(null);
+    
+    // 1. set callEnded = true (to unmount old room UI first)
+    setCallEnded(true);
+    
+    // 2. clear token/session video config / tracks / stream / consent / participant info
+    setTokenDetails(null);
+    setRemoteVideoTrack(null);
+    setRemoteStream(null);
+    setParticipantInfo(null);
+    setConsentChecked(false);
+
+    try {
+      // 3. Request fresh token
+      const details = await LiveKitApiService.startSession(sessionId);
+      
+      // 5. Increment callInstanceKey
+      setCallInstanceKey((prev) => prev + 1);
+      
+      // 6. Set token details (mount SessionVideoCall)
+      setTokenDetails(details);
+      setCallEnded(false);
+    } catch (err: any) {
+      console.error("[MeetingModal] API fetch failed during join:", err);
+      const msg = err.response?.data?.message || err.message || "Failed to establish a connection to the video room.";
+      setError(msg);
+    } finally {
+      setIsJoining(false);
+      setLoading(false);
+    }
+  }, [sessionId, isJoining]);
+
   useEffect(() => {
     if (fetchStarted.current) return;
     fetchStarted.current = true;
-
-    const fetchToken = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const details = await LiveKitApiService.startSession(sessionId);
-        setTokenDetails(details);
-      } catch (err: any) {
-        console.error("[MeetingModal] API fetch failed:", err);
-        const msg = err.response?.data?.message || err.message || "Failed to establish a connection to the video room.";
-        setError(msg);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchToken();
-  }, [sessionId]);
+    joinSessionCall();
+  }, [joinSessionCall]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -104,9 +147,22 @@ export default function MeetingModal({
   }, [onClose]);
 
   const handleSessionEndAndAnalyze = async (finalTranscript: TranscriptLine[]) => {
+    if (isEnding) {
+      console.log("[MeetingModal] End call already in progress. Ignoring duplicate click.");
+      return;
+    }
+    setIsEnding(true);
     try {
       setIsAnalyzing(true);
       setPanelView("ai");
+      setCallEnded(true);
+      
+      // Stop sampler & clear tracks, streams, token state
+      setConsentChecked(false);
+      setRemoteVideoTrack(null);
+      setRemoteStream(null);
+      setParticipantInfo(null);
+      setTokenDetails(null);
 
       // Explicitly mark session call as ended
       try {
@@ -128,6 +184,7 @@ export default function MeetingModal({
       toast.error(err.message || "Failed to analyze transcript.");
     } finally {
       setIsAnalyzing(false);
+      setIsEnding(false);
     }
   };
 
@@ -149,19 +206,69 @@ export default function MeetingModal({
           </div>
           <div className="flex items-center gap-3">
             {participantInfo && (
-              <div
-                className="flex items-center gap-2 border border-[#D2DBE3]"
-                style={{ borderRadius: "20px", padding: "4px 10px", backgroundColor: "rgba(0, 0, 0, 0.05)" }}
-              >
-                <span
-                  className={`w-2 h-2 rounded-full ${getQualityColor(
-                    participantInfo.quality
-                  )} animate-pulse`}
-                />
-                <span className="font-outfit text-sm font-semibold text-[#1E252B]">
-                  {participantInfo.name}
-                </span>
-              </div>
+              <>
+                {process.env.NODE_ENV === "development" && latestEmotion && (
+                  <div
+                    className="flex items-center gap-1.5 border border-[#D2DBE3] bg-[#F8FAFC]"
+                    style={{ borderRadius: "20px", padding: "4px 12px" }}
+                  >
+                    <span className="text-xs">
+                      {latestEmotion.dominantEmotion === "Calm"
+                        ? "🟢"
+                        : latestEmotion.dominantEmotion === "Anxious"
+                        ? "🟠"
+                        : latestEmotion.dominantEmotion === "No Face"
+                        ? "👤"
+                        : latestEmotion.dominantEmotion === "Camera Off"
+                        ? "📷"
+                        : "🟡"}
+                    </span>
+                    <span className="font-outfit text-xs font-semibold text-[#1E252B] capitalize">
+                      {latestEmotion.dominantEmotion} ({(latestEmotion.confidence * 100).toFixed(0)}%)
+                    </span>
+                  </div>
+                )}
+
+                {process.env.NODE_ENV === "development" && (
+                  <div
+                    className="flex flex-col gap-0.5 border border-amber/20 bg-amber-50 text-amber-900 font-mono text-[9px] shadow-sm leading-tight"
+                    style={{ borderRadius: "10px", padding: "4px 10px" }}
+                  >
+                    <div>mediaPipeReady: {mediaPipeReady ? "true" : "false"}</div>
+                    <div>usingFallback: {usingFallback ? "true" : "false"}</div>
+                    <div>consent: {consentChecked ? "enabled" : "disabled"}</div>
+                    {latestEmotion && (
+                      <div>latestEmotion: {latestEmotion.dominantEmotion}</div>
+                    )}
+                  </div>
+                )}
+
+                <label className="flex items-center gap-2 border border-[#D2DBE3] bg-[#F1F6FC] cursor-pointer select-none hover:bg-[#E2ECF5] transition-colors" style={{ borderRadius: "20px", padding: "4px 12px" }}>
+                  <input
+                    type="checkbox"
+                    checked={consentChecked}
+                    onChange={(e) => setConsentChecked(e.target.checked)}
+                    className="rounded border-[#D2DBE3] text-[#4E8C58] focus:ring-[#4E8C58] h-3.5 w-3.5 cursor-pointer"
+                  />
+                  <span className="font-outfit text-xs font-semibold text-[#1E252B]">
+                    Video Analysis Consent
+                  </span>
+                </label>
+
+                <div
+                  className="flex items-center gap-2 border border-[#D2DBE3]"
+                  style={{ borderRadius: "20px", padding: "4px 10px", backgroundColor: "rgba(0, 0, 0, 0.05)" }}
+                >
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full ${getQualityColor(
+                      participantInfo.quality
+                    )} animate-pulse`}
+                  />
+                  <span className="font-outfit text-sm font-semibold text-[#1E252B]">
+                    {participantInfo.name}
+                  </span>
+                </div>
+              </>
             )}
             <button
               onClick={onClose}
@@ -194,8 +301,17 @@ export default function MeetingModal({
                   Close
                 </Button>
               </div>
+            ) : callEnded ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white bg-[#0F172A]">
+                <div className="w-16 h-16 rounded-full bg-[#EBF7EE]/10 flex items-center justify-center text-[#68A688] mb-4 text-2xl font-bold">
+                  ✓
+                </div>
+                <h3 className="font-outfit font-bold text-lg text-white mb-2">Video Call Closed</h3>
+                <p className="text-sm text-[#5C6B73]">This session has been completed successfully.</p>
+              </div>
             ) : tokenDetails ? (
               <SessionVideoCall
+                key={callInstanceKey}
                 token={tokenDetails.token}
                 serverUrl={tokenDetails.serverUrl}
                 roomName={tokenDetails.roomName}
@@ -207,6 +323,7 @@ export default function MeetingModal({
                 onTimerUpdate={setCallTimer}
                 onParticipantUpdate={handleParticipantUpdate}
                 onRemoteStream={handleRemoteStream}
+                onRemoteVideoTrack={handleRemoteVideoTrack}
               />
             ) : null}
           </div>
@@ -251,6 +368,7 @@ export default function MeetingModal({
                   remoteStream={remoteStream}
                   onMemberTranscription={onMemberTranscription}
                   transcriptionToken={tokenDetails?.transcriptionToken}
+                  latestEmotion={latestEmotion}
                 />
               ) : panelView === "editor" ? (
                 <SessionNoteEditor

@@ -64,7 +64,12 @@ export default function VideoCallPage() {
         setTokenDetails(details);
       } catch (err: any) {
         console.error("[VideoCallPage] API fetch failed:", err);
-        setError(err.message || "Failed to establish a connection to the video room.");
+        const errMsg = err.response?.data?.message || err.message || "Failed to establish a connection to the video room.";
+        if (errMsg.includes("has not been started by the coach yet")) {
+          setError("Waiting for coach to start the meeting.");
+        } else {
+          setError(errMsg);
+        }
       } finally {
         setLoading(false);
       }
@@ -101,13 +106,20 @@ export default function VideoCallPage() {
 
   // 2. Initial Error State (API token retrieval failed)
   if (error) {
+    const isWaitingForCoach = error === "Waiting for coach to start the meeting.";
     return (
       <div className="fixed inset-0 flex items-center justify-center z-[9999]" style={backgroundStyle}>
         <div className="flex flex-col items-center justify-center p-8 max-w-md w-full mx-4 text-center bg-white border border-[#D2DBE3] rounded-[28px] shadow-[0_24px_50px_rgba(92,107,115,0.08)]">
-          <div className="text-4xl mb-4 text-[#FF8D69] flex justify-center">
-            <AlertTriangle size={48} className="text-[#FF8D69]" />
+          <div className="text-4xl mb-4 flex justify-center">
+            {isWaitingForCoach ? (
+              <div className="w-12 h-12 border-4 border-[#68A688]/20 border-t-[#68A688] rounded-full animate-spin" />
+            ) : (
+              <AlertTriangle size={48} className="text-[#FF8D69]" />
+            )}
           </div>
-          <h3 className="font-outfit font-bold text-xl text-[#1E252B] mb-2 serif">Unable to Join Call</h3>
+          <h3 className="font-outfit font-bold text-xl text-[#1E252B] mb-2 serif">
+            {isWaitingForCoach ? "Meeting Not Started Yet" : "Unable to Join Call"}
+          </h3>
           <p className="text-sm font-sans text-[#5C6B73] leading-relaxed mb-6 font-sans">
             {error}
           </p>
