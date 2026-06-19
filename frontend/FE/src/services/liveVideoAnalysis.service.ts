@@ -32,4 +32,20 @@ export const LiveVideoAnalysisApiService = {
     );
     return data;
   },
+
+  /**
+   * Detects facial emotion from base64 frame.
+   */
+  detectEmotion: async (
+    base64Frame: string
+  ): Promise<{ emotion: string; confidence: number; all_scores?: Record<string, number> }> => {
+    const backendUrl = getPythonBackendUrl();
+    const { data } = await axios.post<{ emotion: string; confidence: number; all_scores?: Record<string, number> }>(
+      `${backendUrl}/api/emotion/detect`,
+      { frame: base64Frame },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return data;
+  },
 };
+

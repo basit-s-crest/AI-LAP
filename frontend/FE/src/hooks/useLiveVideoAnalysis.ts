@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { VideoFrameSampler } from "@/utils/videoFrameSampler";
 import { FacePresenceAnalyzer } from "@/utils/facePresenceAnalyzer";
 import { mapBehaviorSignal, BehaviorSample } from "@/utils/behaviorSignalMapper";
+import { LiveVideoAnalysisApiService } from "@/services/liveVideoAnalysis.service";
 
 export type EmotionType = 
   | "Calm" 
@@ -11,7 +12,9 @@ export type EmotionType =
   | "Camera Off"
   | "Intermittent Presence"
   | "Unstable Presence"
-  | "Distracted";
+  | "Distracted"
+  | "Happy"
+  | "Sad";
 
 export interface EmotionSignal {
   type: "emotion_signal";
@@ -32,6 +35,8 @@ const CONFIDENCE_MAP: Record<EmotionType, number> = {
   "Intermittent Presence": 0.85,
   "Unstable Presence": 0.80,
   "Distracted": 0.88,
+  "Happy": 0.92,
+  "Sad": 0.84,
 };
 
 interface UseLiveVideoAnalysisProps {
@@ -55,6 +60,8 @@ export function useLiveVideoAnalysis({
   const [mediaPipeReady, setMediaPipeReady] = useState(false);
   const [usingFallback, setUsingFallback] = useState(false);
   const [isTrackActive, setIsTrackActive] = useState(false);
+  const [rawScores, setRawScores] = useState<Record<string, number> | null>(null);
+  const [baselineReady] = useState(true);
   
   const samplerRef = useRef<VideoFrameSampler | null>(null);
   const historyRef = useRef<BehaviorSample[]>([]);
@@ -80,9 +87,10 @@ export function useLiveVideoAnalysis({
     
     // Clear history on camera off to prevent carrying over stale movements
     historyRef.current = [];
+    setRawScores(null);
 
     const history = pushHistorySample({ cameraOff: true, facePresent: false });
-    const emotion = mapBehaviorSignal(history);
+    const emotion = mapBehaviorSignal(history, null);
 
     setLatestEmotion({
       type: "emotion_signal",
@@ -204,23 +212,94 @@ export function useLiveVideoAnalysis({
           if (isMediaPipeAvailable) {
             const result = await FacePresenceAnalyzer.isFacePresent(img);
             
-            // Push sample and map behavior
-            const history = pushHistorySample({
-              cameraOff: false,
-              facePresent: result.facePresent,
-              boundingBox: result.boundingBox,
-            });
-            const emotion = mapBehaviorSignal(history);
+            let currentEmotion: EmotionType = "Neutral";
 
-            setLatestEmotion({
-              type: "emotion_signal",
-              sessionId,
-              participantId,
-              timestamp: new Date().toISOString(),
-              dominantEmotion: emotion,
-              confidence: CONFIDENCE_MAP[emotion],
-              source: "local_mock",
-            });
+            if (result.facePresent) {
+              // Crop face using canvas
+              let frameToSend = base64Frame;
+              if (result.boundingBox) {
+                try {
+                  const cropCanvas = document.createElement("canvas");
+                  cropCanvas.width = result.boundingBox.width;
+                  cropCanvas.height = result.boundingBox.height;
+                  const cropCtx = cropCanvas.getContext("2d");
+                  if (cropCtx) {
+                    cropCtx.drawImage(
+                      img,
+                      result.boundingBox.x,
+                      result.boundingBox.y,
+                      result.boundingBox.width,
+                      result.boundingBox.height,
+                      0,
+                      0,
+                      result.boundingBox.width,
+                      result.boundingBox.height
+                    );
+                    frameToSend = cropCanvas.toDataURL("image/jpeg", 0.85);
+                  }
+                } catch (cropErr) {
+                  console.warn("[useLiveVideoAnalysis] Failed to crop face, falling back to full frame:", cropErr);
+                }
+              }
+
+              // Call FastAPI HSEmotion endpoint
+              let hseEmotion = "neutral";
+              let hseConfidence = 0.0;
+              let hseScores: Record<string, number> = {};
+
+              try {
+                const response = await LiveVideoAnalysisApiService.detectEmotion(frameToSend);
+                hseEmotion = response.emotion;
+                hseConfidence = response.confidence;
+                hseScores = response.all_scores || {};
+              } catch (apiErr) {
+                console.warn("[useLiveVideoAnalysis] HSEmotion detection API failed, skipping frame silently:", apiErr);
+                return; // skip silently, do not break the session
+              }
+
+              setRawScores(hseScores);
+
+              const history = pushHistorySample({
+                cameraOff: false,
+                facePresent: true,
+                boundingBox: result.boundingBox,
+                hseEmotion,
+                hseConfidence,
+                hseScores
+              });
+
+              currentEmotion = mapBehaviorSignal(history, null);
+
+              setLatestEmotion({
+                type: "emotion_signal",
+                sessionId,
+                participantId,
+                timestamp: new Date().toISOString(),
+                dominantEmotion: currentEmotion,
+                confidence: hseConfidence,
+                source: "mediapipe",
+              });
+            } else {
+              // Face not present
+              setRawScores(null);
+
+              const history = pushHistorySample({
+                cameraOff: false,
+                facePresent: false,
+              });
+
+              currentEmotion = mapBehaviorSignal(history, null);
+
+              setLatestEmotion({
+                type: "emotion_signal",
+                sessionId,
+                participantId,
+                timestamp: new Date().toISOString(),
+                dominantEmotion: currentEmotion,
+                confidence: CONFIDENCE_MAP[currentEmotion] || 0.75,
+                source: "mediapipe",
+              });
+            }
           } else {
             // MediaPipe not available, trigger mock fallback
             triggerMockFallback();
@@ -291,5 +370,7 @@ export function useLiveVideoAnalysis({
     stopAnalysis,
     mediaPipeReady,
     usingFallback,
+    rawScores,
+    baselineReady,
   };
 }

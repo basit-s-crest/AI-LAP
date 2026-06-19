@@ -10,19 +10,31 @@ export interface BehaviorSample {
     width: number;
     height: number;
   };
+  blendshapes?: Record<string, number>;
+  hseEmotion?: string;
+  hseConfidence?: number;
+  hseScores?: Record<string, number>;
 }
 
 /**
- * Maps a sliding history of client-side face presence/position samples to behavioral presence signals.
+ * Maps a sliding history of client-side face presence/position and HSEmotion scores
+ * to behavioral presence signals and facial expressions.
  * Priority order:
  * 1. Camera Off
  * 2. No Face
  * 3. Intermittent Presence
  * 4. Unstable Presence
  * 5. Distracted
- * 6. Neutral
+ * 6. Happy
+ * 7. Sad
+ * 8. Anxious
+ * 9. Calm
+ * 10. Neutral
  */
-export function mapBehaviorSignal(history: BehaviorSample[]): EmotionType {
+export function mapBehaviorSignal(
+  history: BehaviorSample[],
+  baseline: Record<string, number> | null
+): EmotionType {
   if (history.length === 0) {
     return "Camera Off";
   }
@@ -35,7 +47,6 @@ export function mapBehaviorSignal(history: BehaviorSample[]): EmotionType {
   }
 
   // 2. No Face: If no face detected for 2+ consecutive samples
-  // If there's only 1 sample and it has no face, map to "No Face" as default.
   if (!currentSample.facePresent) {
     if (history.length === 1 || !history[history.length - 2].facePresent) {
       return "No Face";
@@ -55,7 +66,6 @@ export function mapBehaviorSignal(history: BehaviorSample[]): EmotionType {
   }
 
   // 4. Unstable Presence: movement > 60px between face centers in at least 2 of the last 3 face-present samples
-  // This requires 3 face-present samples to have 2 movement segments.
   const faceSamples = history.filter(s => s.facePresent && s.boundingBox).slice(-3);
   if (faceSamples.length >= 3) {
     const box0 = faceSamples[0].boundingBox!;
@@ -96,6 +106,53 @@ export function mapBehaviorSignal(history: BehaviorSample[]): EmotionType {
     return "Distracted";
   }
 
-  // 6. Otherwise: Neutral
+  // HSEmotion-based Emotion Mapping
+  if (currentSample.facePresent && currentSample.hseEmotion) {
+    const lowerEmotion = currentSample.hseEmotion.toLowerCase();
+    const confidence = currentSample.hseConfidence || 0.0;
+
+    // 1. High Confidence (>= 0.50): trust the HSEmotion result directly and skip movement check
+    if (confidence >= 0.50) {
+      if (lowerEmotion === "happy" || lowerEmotion === "happiness") {
+        return "Happy";
+      }
+      if (lowerEmotion === "sad" || lowerEmotion === "sadness") {
+        return "Sad";
+      }
+      if (
+        lowerEmotion === "fear" ||
+        lowerEmotion === "angry" ||
+        lowerEmotion === "anger" ||
+        lowerEmotion === "surprise" ||
+        lowerEmotion === "disgust" ||
+        lowerEmotion === "contempt"
+      ) {
+        return "Anxious";
+      }
+      if (lowerEmotion === "neutral") {
+        return "Neutral";
+      }
+    } else {
+      // 2. Low Confidence (< 0.50): fall back to movement variance Calm/Neutral
+      const lastTwoFaceSamples = history.filter(s => s.facePresent && s.boundingBox).slice(-2);
+      let movement = 0;
+      if (lastTwoFaceSamples.length >= 2) {
+        const boxA = lastTwoFaceSamples[0].boundingBox!;
+        const boxB = lastTwoFaceSamples[1].boundingBox!;
+        const centerA = { x: boxA.x + boxA.width / 2, y: boxA.y + boxA.height / 2 };
+        const centerB = { x: boxB.x + boxB.width / 2, y: boxB.y + boxB.height / 2 };
+        movement = Math.sqrt(Math.pow(centerA.x - centerB.x, 2) + Math.pow(centerA.y - centerB.y, 2));
+      }
+
+      const isStable = movement < 20; // stable face position
+      if (isStable) {
+        return "Calm";
+      }
+      return "Neutral";
+    }
+  }
+
+  // 10. Neutral: Fallback baseline
   return "Neutral";
 }
+

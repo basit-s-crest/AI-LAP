@@ -1,4 +1,4 @@
-import type { FaceDetector as FaceDetectorType } from "@mediapipe/tasks-vision";
+import type { FaceLandmarker as FaceLandmarkerType } from "@mediapipe/tasks-vision";
 
 export interface FaceDetectionResult {
   facePresent: boolean;
@@ -8,25 +8,57 @@ export interface FaceDetectionResult {
     width: number;
     height: number;
   };
+  blendshapes?: Record<string, number>;
+}
+
+// Suppress benign internal TensorFlow Lite WASM C++ stdout/stderr log spam that displays error overlays in Next.js
+const originalConsoleError = console.error;
+const originalConsoleInfo = console.info;
+const originalConsoleLog = console.log;
+const originalConsoleWarn = console.warn;
+
+function suppressTFLiteLogs() {
+  const filterFn = (original: (...args: any[]) => void) => {
+    return (...args: any[]) => {
+      const msg = args.join(" ");
+      if (
+        msg.includes("Created TensorFlow Lite XNNPACK delegate") ||
+        msg.includes("TensorFlow Lite XNNPACK delegate") ||
+        msg.includes("Created TensorFlow Lite")
+      ) {
+        return;
+      }
+      original(...args);
+    };
+  };
+
+  console.error = filterFn(originalConsoleError);
+  console.info = filterFn(originalConsoleInfo);
+  console.log = filterFn(originalConsoleLog);
+  console.warn = filterFn(originalConsoleWarn);
+}
+
+if (typeof window !== "undefined") {
+  suppressTFLiteLogs();
 }
 
 /**
  * FacePresenceAnalyzer
  * 
- * A utility class to lazy-load Google's MediaPipe Tasks-Vision FaceDetector
+ * A utility class to lazy-load Google's MediaPipe Tasks-Vision FaceLandmarker
  * from npm packages at runtime, preventing Next.js SSR build issues.
  */
 export class FacePresenceAnalyzer {
-  private static faceDetector: FaceDetectorType | null = null;
+  private static faceLandmarker: FaceLandmarkerType | null = null;
   private static isLoading = false;
   private static hasFailed = false;
 
   /**
-   * Initializes the FaceDetector by lazy-loading the MediaPipe library from the npm package,
+   * Initializes the FaceLandmarker by lazy-loading the MediaPipe library from the npm package,
    * which prevents SSR issues in Next.js.
    */
   public static async init(): Promise<boolean> {
-    if (this.faceDetector) return true;
+    if (this.faceLandmarker) return true;
     if (this.isLoading) return false;
     if (this.hasFailed) return false;
 
@@ -40,20 +72,22 @@ export class FacePresenceAnalyzer {
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
       );
 
-      console.log("[FacePresenceAnalyzer] Creating FaceDetector instance...");
-      this.faceDetector = await mp.FaceDetector.createFromOptions(filesetResolver, {
+      console.log("[FacePresenceAnalyzer] Creating FaceLandmarker instance...");
+      this.faceLandmarker = await mp.FaceLandmarker.createFromOptions(filesetResolver, {
         baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
           delegate: "GPU"
         },
-        runningMode: "IMAGE"
+        outputFaceBlendshapes: true,
+        runningMode: "IMAGE",
+        numFaces: 1
       });
 
-      console.log("[FacePresenceAnalyzer] MediaPipe FaceDetector initialized successfully.");
+      console.log("[FacePresenceAnalyzer] MediaPipe FaceLandmarker initialized successfully.");
       this.isLoading = false;
       return true;
     } catch (err) {
-      console.error("[FacePresenceAnalyzer] Failed to initialize MediaPipe FaceDetector:", err);
+      console.error("[FacePresenceAnalyzer] Failed to initialize MediaPipe FaceLandmarker:", err);
       this.hasFailed = true;
       this.isLoading = false;
       return false;
@@ -61,32 +95,71 @@ export class FacePresenceAnalyzer {
   }
 
   /**
-   * Analyzes an HTML element (image, video, canvas) for face presence and returns the bounding box.
+   * Analyzes an HTML element (image, video, canvas) for face presence and returns the bounding box and blendshapes.
    */
   public static async isFacePresent(
     source: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement
   ): Promise<FaceDetectionResult> {
-    if (!this.faceDetector) {
+    if (!this.faceLandmarker) {
       const initialized = await this.init();
       if (!initialized) {
-        throw new Error("FaceDetector could not be initialized");
+        throw new Error("FaceLandmarker could not be initialized");
       }
     }
 
-    const detector = this.faceDetector!;
-    const results = detector.detect(source);
-    const hasFace = !!(results && results.detections && results.detections.length > 0);
+    const landmarker = this.faceLandmarker!;
+    const results = landmarker.detect(source);
+    
+    const hasFace = !!(results && results.faceLandmarks && results.faceLandmarks.length > 0);
 
     if (hasFace) {
-      const box = results.detections[0].boundingBox;
+      // 1. Calculate bounding box from face landmarks (normalized coordinates between 0 and 1)
+      const landmarks = results.faceLandmarks[0];
+      let minX = 1;
+      let maxX = 0;
+      let minY = 1;
+      let maxY = 0;
+      for (const lm of landmarks) {
+        if (lm.x < minX) minX = lm.x;
+        if (lm.x > maxX) maxX = lm.x;
+        if (lm.y < minY) minY = lm.y;
+        if (lm.y > maxY) maxY = lm.y;
+      }
+
+      // Resolve source dimensions
+      let srcWidth = 320;
+      let srcHeight = 240;
+      if (source instanceof HTMLImageElement) {
+        srcWidth = source.naturalWidth || source.width || 320;
+        srcHeight = source.naturalHeight || source.height || 240;
+      } else if (source instanceof HTMLVideoElement) {
+        srcWidth = source.videoWidth || 320;
+        srcHeight = source.videoHeight || 240;
+      } else if (source instanceof HTMLCanvasElement) {
+        srcWidth = source.width || 320;
+        srcHeight = source.height || 240;
+      }
+
+      const boundingBox = {
+        x: minX * srcWidth,
+        y: minY * srcHeight,
+        width: (maxX - minX) * srcWidth,
+        height: (maxY - minY) * srcHeight
+      };
+
+      // 2. Extract blendshapes into a record map
+      const blendshapes: Record<string, number> = {};
+      if (results.faceBlendshapes && results.faceBlendshapes.length > 0) {
+        const categories = results.faceBlendshapes[0].categories;
+        for (const cat of categories) {
+          blendshapes[cat.categoryName] = cat.score;
+        }
+      }
+
       return {
         facePresent: true,
-        boundingBox: box ? {
-          x: box.originX,
-          y: box.originY,
-          width: box.width,
-          height: box.height
-        } : undefined
+        boundingBox,
+        blendshapes
       };
     }
 
@@ -99,7 +172,7 @@ export class FacePresenceAnalyzer {
    * Helper to inspect current state.
    */
   public static isReady(): boolean {
-    return !!this.faceDetector;
+    return !!this.faceLandmarker;
   }
 
   /**

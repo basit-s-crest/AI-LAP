@@ -72,7 +72,7 @@ export default function MeetingModal({
   }, []);
 
   // Hook up video analysis sampler (Phase 1 & 2)
-  const { isSampling, latestEmotion, startAnalysis, stopAnalysis, mediaPipeReady, usingFallback } = useLiveVideoAnalysis({
+  const { isSampling, latestEmotion, startAnalysis, stopAnalysis, mediaPipeReady, usingFallback, rawScores, baselineReady } = useLiveVideoAnalysis({
     videoTrack: remoteVideoTrack,
     isEnabled: consentChecked && !callEnded && !!participantInfo,
     sessionId,
@@ -221,6 +221,16 @@ export default function MeetingModal({
                         ? "👤"
                         : latestEmotion.dominantEmotion === "Camera Off"
                         ? "📷"
+                        : latestEmotion.dominantEmotion === "Happy"
+                        ? "😊"
+                        : latestEmotion.dominantEmotion === "Sad"
+                        ? "😢"
+                        : latestEmotion.dominantEmotion === "Intermittent Presence"
+                        ? "🔄"
+                        : latestEmotion.dominantEmotion === "Unstable Presence"
+                        ? "🫨"
+                        : latestEmotion.dominantEmotion === "Distracted"
+                        ? "👀"
                         : "🟡"}
                     </span>
                     <span className="font-outfit text-xs font-semibold text-[#1E252B] capitalize">
@@ -369,6 +379,8 @@ export default function MeetingModal({
                   onMemberTranscription={onMemberTranscription}
                   transcriptionToken={tokenDetails?.transcriptionToken}
                   latestEmotion={latestEmotion}
+                  rawScores={rawScores}
+                  baselineReady={baselineReady}
                 />
               ) : panelView === "editor" ? (
                 <SessionNoteEditor
