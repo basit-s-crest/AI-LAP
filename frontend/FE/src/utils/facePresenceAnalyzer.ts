@@ -140,11 +140,23 @@ export class FacePresenceAnalyzer {
         srcHeight = source.height || 240;
       }
 
+      const rawWidth = (maxX - minX) * srcWidth;
+      const rawHeight = (maxY - minY) * srcHeight;
+
+      // Expand crop to include forehead/chin/sides (matching AffectNet/HSEmotion training format)
+      const padX = rawWidth * 0.15;
+      const padY = rawHeight * 0.20;
+
+      const startX = Math.max(0, Math.floor(minX * srcWidth - padX));
+      const startY = Math.max(0, Math.floor(minY * srcHeight - padY));
+      const endX = Math.min(srcWidth, Math.ceil(maxX * srcWidth + padX));
+      const endY = Math.min(srcHeight, Math.ceil(maxY * srcHeight + padY));
+
       const boundingBox = {
-        x: minX * srcWidth,
-        y: minY * srcHeight,
-        width: (maxX - minX) * srcWidth,
-        height: (maxY - minY) * srcHeight
+        x: startX,
+        y: startY,
+        width: Math.max(1, endX - startX),
+        height: Math.max(1, endY - startY)
       };
 
       // 2. Extract blendshapes into a record map

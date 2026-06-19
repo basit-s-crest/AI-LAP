@@ -248,10 +248,21 @@ export function useLiveVideoAnalysis({
               let hseScores: Record<string, number> = {};
 
               try {
+                if (process.env.NODE_ENV === "development") {
+                  console.log(
+                    `[useLiveVideoAnalysis] Sending face crop to backend. Crop size: ${frameToSend.length} chars. BoundingBox:`,
+                    result.boundingBox
+                  );
+                }
                 const response = await LiveVideoAnalysisApiService.detectEmotion(frameToSend);
                 hseEmotion = response.emotion;
                 hseConfidence = response.confidence;
                 hseScores = response.all_scores || {};
+                if (process.env.NODE_ENV === "development") {
+                  console.log(
+                    `[useLiveVideoAnalysis] HSEmotion response: emotion="${hseEmotion}", confidence=${hseConfidence.toFixed(3)}`
+                  );
+                }
               } catch (apiErr) {
                 console.warn("[useLiveVideoAnalysis] HSEmotion detection API failed, skipping frame silently:", apiErr);
                 return; // skip silently, do not break the session
