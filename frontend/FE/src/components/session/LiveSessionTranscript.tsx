@@ -4,6 +4,7 @@ import { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import { useLiveTranscription } from "@/hooks/useLiveTranscription";
 import type { TranscriptLine } from "@/types/sessionNote";
 import { Mic, MicOff, AlertTriangle, Play, Sparkles, Activity, Clock, Brain } from "lucide-react";
+import { LiveVideoAnalysisApiService, type SessionAggregationResponse } from "@/services/liveVideoAnalysis.service";
 
 interface LiveSessionTranscriptProps {
   sessionId: string;
@@ -14,6 +15,9 @@ interface LiveSessionTranscriptProps {
   remoteStream?: MediaStream | null;
   onMemberTranscription?: (text: string) => void;
   transcriptionToken?: string;
+  latestEmotion?: any;
+  rawScores?: Record<string, number> | null;
+  baselineReady?: boolean;
 }
 
 const formatTime = (isoString: string) => {
@@ -56,9 +60,38 @@ export default function LiveSessionTranscript({
   remoteStream,
   onMemberTranscription,
   transcriptionToken,
+  latestEmotion,
+  rawScores,
+  baselineReady,
 }: LiveSessionTranscriptProps) {
   const [activeSubTab, setActiveSubTab] = useState<"transcript" | "insights">("transcript");
   const [insightsLog, setInsightsLog] = useState<{ text: string; timestamp: string }[]>([]);
+  const [aggregation, setAggregation] = useState<SessionAggregationResponse | null>(null);
+
+  const isDev = process.env.NODE_ENV === "development";
+
+  // Poll aggregation from python backend when on insights tab in development mode
+  useEffect(() => {
+    if (!isDev || activeSubTab !== "insights" || !isCallActive) {
+      return;
+    }
+
+    const fetchAggregation = async () => {
+      try {
+        const data = await LiveVideoAnalysisApiService.getSessionAggregation(sessionId);
+        setAggregation(data);
+      } catch (err) {
+        console.warn("[LiveSessionTranscript] Failed to fetch session aggregation:", err);
+      }
+    };
+
+    // Fetch immediately
+    fetchAggregation();
+
+    // Poll every 5 seconds
+    const interval = setInterval(fetchAggregation, 5000);
+    return () => clearInterval(interval);
+  }, [activeSubTab, sessionId, isCallActive, isDev]);
 
   const handleLiveAnalysis = useCallback((text: string) => {
     setInsightsLog((prev) => [
@@ -80,7 +113,8 @@ export default function LiveSessionTranscript({
     onMemberTranscription,
     sessionId,
     transcriptionToken,
-    handleLiveAnalysis
+    handleLiveAnalysis,
+    latestEmotion
   );
 
   // Coach audio transcription is disabled right now (scope restriction)
@@ -278,6 +312,182 @@ export default function LiveSessionTranscript({
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Emotional Climate Panel (Dev/Debug Flag Gated) */}
+            {isDev && (
+              <div className="bg-white border border-[#D2DBE3] rounded-2xl p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-[#D2DBE3]/50 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-outfit font-bold text-[#3A6E99]">
+                    <Activity size={14} className="text-[#3A6E99]" />
+                    <span>EMOTION & PRESENCE SIGNALS (DEBUG)</span>
+                  </div>
+                  {aggregation?.lastUpdatedAt && (
+                    <span className="text-[10px] text-soft font-mono font-semibold">
+                      Updated: {formatTime(aggregation.lastUpdatedAt)}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="bg-[#F8FAFC] border border-[#D2DBE3]/50 rounded-xl p-2.5 space-y-1">
+                    <span className="text-[10px] font-sans font-semibold text-soft block uppercase tracking-wider">
+                      Current State
+                    </span>
+                    <div className="font-outfit font-bold text-ink flex items-center gap-1.5">
+                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Calm" && "🟢 Calm"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Neutral" && "🟡 Neutral"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Happy" && "😊 Happy"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Sad" && "😢 Sad"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Anxious" && "🟠 Anxious"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "No Face" && "⚪ No Face"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Camera Off" && "⚫ Camera Off"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Intermittent Presence" && "🔄 Intermittent Presence"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Unstable Presence" && "🫨 Unstable Presence"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Distracted" && "👀 Distracted"}
+                      {!(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) && "—"}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-[#F8FAFC] border border-[#D2DBE3]/50 rounded-xl p-2.5 space-y-1">
+                    <span className="text-[10px] font-sans font-semibold text-[#5C6B73] block uppercase tracking-wider">
+                      Latest Emotion
+                    </span>
+                    <div className="font-outfit font-bold text-ink flex items-center gap-1.5">
+                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Calm" && "🟢 Calm"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Neutral" && "🟡 Neutral"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Happy" && "😊 Happy"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Sad" && "😢 Sad"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Anxious" && "🟠 Anxious"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "No Face" && "⚪ No Face"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Camera Off" && "⚫ Camera Off"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Intermittent Presence" && "🔄 Intermittent Presence"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Unstable Presence" && "🫨 Unstable Presence"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Distracted" && "👀 Distracted"}
+                      {!(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) && "—"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Counts Summary */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-sans font-semibold text-soft block uppercase tracking-wider">
+                    Signal Distribution
+                  </span>
+                  {aggregation?.emotionCounts && Object.keys(aggregation.emotionCounts).length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(aggregation.emotionCounts).map(([emotion, count]) => {
+                        let colorClass = "bg-gray-100 text-gray-700";
+                        if (emotion === "Calm") colorClass = "bg-[#EBF7EE] text-[#2E7D32]";
+                        if (emotion === "Neutral") colorClass = "bg-[#FFFDE7] text-[#F57F17]";
+                        if (emotion === "Happy") colorClass = "bg-[#E8F5E9] text-[#1B5E20]";
+                        if (emotion === "Sad") colorClass = "bg-[#E1F5FE] text-[#01579B]";
+                        if (emotion === "Anxious") colorClass = "bg-[#FFF3E0] text-[#E65100]";
+                        if (emotion === "Intermittent Presence") colorClass = "bg-[#EDE7F6] text-[#4A148C]";
+                        if (emotion === "Unstable Presence") colorClass = "bg-[#F3E5F5] text-[#7B1FA2]";
+                        if (emotion === "Distracted") colorClass = "bg-[#ECEFF1] text-[#37474F]";
+                        
+                        return (
+                          <span
+                            key={emotion}
+                            className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${colorClass}`}
+                          >
+                            {emotion}: {count}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-soft italic block">No signals buffered yet.</span>
+                  )}
+                </div>
+
+                {/* Developer HUD Section */}
+                <div className="border-t border-[#D2DBE3]/50 pt-3 mt-3 space-y-2">
+                  <div className="text-[10px] font-sans font-bold text-[#3A6E99] uppercase tracking-wider">
+                    🔧 Developer HUD
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-xs bg-[#F8FAFC] border border-[#D2DBE3]/50 rounded-xl p-3">
+                    {/* Monitored HSEmotion Scores (Left Column) */}
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-sans font-semibold text-soft block uppercase tracking-wider">
+                        HSEmotion Probabilities
+                      </span>
+                      <div className="font-mono text-[11px] space-y-0.5">
+                        <div className="flex justify-between">
+                          <span className="text-soft">Happy:</span>
+                          <span className="font-bold text-ink">{rawScores && rawScores["happy"] !== undefined ? rawScores["happy"].toFixed(3) : "0.000"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-soft">Sad:</span>
+                          <span className="font-bold text-ink">{rawScores && rawScores["sad"] !== undefined ? rawScores["sad"].toFixed(3) : "0.000"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-soft">Angry:</span>
+                          <span className="font-bold text-ink">{rawScores && rawScores["angry"] !== undefined ? rawScores["angry"].toFixed(3) : "0.000"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-soft">Fear:</span>
+                          <span className="font-bold text-ink">{rawScores && rawScores["fear"] !== undefined ? rawScores["fear"].toFixed(3) : "0.000"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-soft">Surprise:</span>
+                          <span className="font-bold text-ink">{rawScores && rawScores["surprise"] !== undefined ? rawScores["surprise"].toFixed(3) : "0.000"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-soft">Neutral:</span>
+                          <span className="font-bold text-ink">{rawScores && rawScores["neutral"] !== undefined ? rawScores["neutral"].toFixed(3) : "0.000"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-soft">Disgust:</span>
+                          <span className="font-bold text-ink">{rawScores && rawScores["disgust"] !== undefined ? rawScores["disgust"].toFixed(3) : "0.000"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-soft">Contempt:</span>
+                          <span className="font-bold text-ink">{rawScores && rawScores["contempt"] !== undefined ? rawScores["contempt"].toFixed(3) : "0.000"}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* State & Metadata (Right Column) */}
+                    <div className="space-y-2 pl-3 border-l border-[#D2DBE3]/50 flex flex-col justify-center">
+                      <span className="text-[9px] font-sans font-semibold text-soft block uppercase tracking-wider">
+                        Model Inference Status
+                      </span>
+                      
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-soft">Dominant:</span>
+                          <span className="text-[10.5px] font-bold text-ink">
+                            {latestEmotion?.dominantEmotion || "—"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-soft">Confidence:</span>
+                          <span className="text-[10.5px] font-bold text-ink">
+                            {latestEmotion && latestEmotion.confidence !== undefined ? `${(latestEmotion.confidence * 100).toFixed(0)}%` : "0%"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-soft">Baseline Ready:</span>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                            baselineReady ? "bg-[#EBF7EE] text-[#2E7D32]" : "bg-gray-100 text-gray-700"
+                          }`}>
+                            {baselineReady ? "Yes" : "No"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-[9px] text-[#5C6B73] italic border-t border-[#D2DBE3]/50 pt-1.5">
+                  Disclaimer: Signals represent lightweight, non-clinical behavioral markers.
+                </div>
+              </div>
+            )}
+
             {insightsLog.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-[280px] text-center p-8 space-y-4">
                 <div className="w-16 h-16 bg-white border border-[#D2DBE3] rounded-2xl flex items-center justify-center text-dim shadow-sm">

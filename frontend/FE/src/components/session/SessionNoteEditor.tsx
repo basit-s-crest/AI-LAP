@@ -61,6 +61,7 @@ export default function SessionNoteEditor({
         recommendedFollowUp: nextSessionGoal,
         status: status === "draft" ? "DRAFT" : "FINAL",
         aiSessionNoteId: aiSessionNoteId || undefined,
+        sessionType: sessionType as any,
       });
 
       toast.success(status === "draft" ? "Draft saved successfully!" : "Note saved & finalized!");

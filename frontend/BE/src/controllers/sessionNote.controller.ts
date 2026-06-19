@@ -17,6 +17,7 @@ export const getCoachSessionNotes = async (
           take: 1,
         },
         member: { select: { id: true, name: true } },
+        session: { select: { type: true } },
       },
       orderBy: { updatedAt: "desc" },
     });
@@ -31,6 +32,7 @@ export const getCoachSessionNotes = async (
         clientName: note.member.name,
         aiSessionNoteId: note.aiSessionNoteId,
         status: note.status,
+        sessionType: note.session?.type || note.sessionType || "Weekly Check-in",
         createdAt: note.createdAt.toISOString(),
         updatedAt: note.updatedAt.toISOString(),
         version: latest ? latest.version : null,
@@ -79,6 +81,7 @@ export const getSessionNote = async (
           take: 1,
         },
         member: { select: { id: true, name: true } },
+        session: { select: { type: true } },
       },
     });
 
@@ -94,6 +97,7 @@ export const getSessionNote = async (
           clientName: note.member.name,
           aiSessionNoteId: note.aiSessionNoteId,
           status: note.status,
+          sessionType: note.session?.type || note.sessionType || "Weekly Check-in",
           createdAt: note.createdAt.toISOString(),
           updatedAt: note.updatedAt.toISOString(),
           version: latest ? latest.version : null,
@@ -160,6 +164,7 @@ export const saveSessionNote = async (
       recommendedFollowUp,
       status,
       aiSessionNoteId,
+      sessionType,
     } = req.body as {
       summary?: string;
       keyThemes?: any;
@@ -170,6 +175,7 @@ export const saveSessionNote = async (
       recommendedFollowUp?: string;
       status?: "DRAFT" | "FINAL";
       aiSessionNoteId?: string;
+      sessionType?: string;
     };
 
     if (!status || (status !== "DRAFT" && status !== "FINAL")) {
@@ -195,6 +201,13 @@ export const saveSessionNote = async (
 
       let newVersionNumber = 1;
 
+      if (sessionType) {
+        await tx.session.update({
+          where: { id: sessionId },
+          data: { type: sessionType },
+        });
+      }
+
       if (!note) {
         note = await tx.sessionNote.create({
           data: {
@@ -203,6 +216,7 @@ export const saveSessionNote = async (
             memberId: session.memberId,
             aiSessionNoteId: aiSessionNoteId || null,
             status,
+            sessionType: sessionType || "Weekly Check-in",
           },
         });
       } else {
@@ -218,6 +232,7 @@ export const saveSessionNote = async (
           where: { id: note.id },
           data: {
             status,
+            sessionType: sessionType || undefined,
             updatedAt: new Date(),
           },
         });
@@ -256,6 +271,7 @@ export const saveSessionNote = async (
         clientName: member?.name || "",
         aiSessionNoteId: result.note.aiSessionNoteId,
         status: result.note.status,
+        sessionType: sessionType || result.note.sessionType || "Weekly Check-in",
         createdAt: result.note.createdAt.toISOString(),
         updatedAt: result.note.updatedAt.toISOString(),
         version: result.version.version,
@@ -323,11 +339,12 @@ export const createManualSessionNote = async (
     const coachId = req.user?.id;
     if (!coachId) return res.status(401).json({ message: "Unauthorized" });
 
-    const { memberId, notes, nextSessionGoal, status } = req.body as {
+    const { memberId, notes, nextSessionGoal, status, sessionType } = req.body as {
       memberId?: string;
       notes?: string;
       nextSessionGoal?: string;
       status?: "draft" | "saved" | "DRAFT" | "FINAL";
+      sessionType?: string;
     };
 
     if (!memberId) {
@@ -353,6 +370,7 @@ export const createManualSessionNote = async (
           memberId,
           sessionId: null,
           status: noteStatus,
+          sessionType: sessionType || "Weekly Check-in",
         },
       });
 
@@ -388,6 +406,7 @@ export const createManualSessionNote = async (
         clientName: member?.name || "",
         aiSessionNoteId: null,
         status: result.note.status,
+        sessionType: result.note.sessionType || "Weekly Check-in",
         createdAt: result.note.createdAt.toISOString(),
         updatedAt: result.note.updatedAt.toISOString(),
         version: 1,
@@ -415,10 +434,11 @@ export const updateManualSessionNote = async (
     if (!coachId) return res.status(401).json({ message: "Unauthorized" });
 
     const noteId = req.params.id;
-    const { notes, nextSessionGoal, status } = req.body as {
+    const { notes, nextSessionGoal, status, sessionType } = req.body as {
       notes?: string;
       nextSessionGoal?: string;
       status?: "draft" | "saved" | "DRAFT" | "FINAL";
+      sessionType?: string;
     };
 
     const existing = await prisma.sessionNote.findUnique({
@@ -449,6 +469,7 @@ export const updateManualSessionNote = async (
         where: { id: noteId },
         data: {
           status: noteStatus,
+          sessionType: sessionType || undefined,
           updatedAt: new Date(),
         },
       });
@@ -485,6 +506,7 @@ export const updateManualSessionNote = async (
         clientName: member?.name || "",
         aiSessionNoteId: result.note.aiSessionNoteId,
         status: result.note.status,
+        sessionType: result.note.sessionType || "Weekly Check-in",
         createdAt: result.note.createdAt.toISOString(),
         updatedAt: result.note.updatedAt.toISOString(),
         version: result.version.version,

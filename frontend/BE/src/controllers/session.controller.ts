@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { memberOrganizationHasActiveCoach } from "../services/member-org-coach.service";
+import { checkAndCompleteActiveSessions } from "../services/sessionAutoCompleter";
 import {
   emailCoachSessionUpdate,
   emailMemberSessionUpdate,
@@ -47,6 +48,7 @@ export const getCoachAvailability = async (
   res: Response
 ): Promise<Response> => {
   try {
+    await checkAndCompleteActiveSessions();
     const { coachId } = req.params;
     const { date } = req.query;
     const user = req.user!;
@@ -149,6 +151,7 @@ export const getCoachSessions = async (
   res: Response
 ): Promise<Response> => {
   try {
+    await checkAndCompleteActiveSessions();
     const coachId = req.user!.id;
 
     const sessions = await prisma.session.findMany({
@@ -198,7 +201,7 @@ export const bookSession = async (
     }
 
     const memberId = req.user!.id;
-    const { coachId, date } = req.body as { coachId: string; date: string };
+    const { coachId, date, type } = req.body as { coachId: string; date: string; type?: string };
 
     if (!coachId || !date) {
       return res.status(400).json({ message: "coachId and date are required" });
@@ -316,7 +319,7 @@ export const bookSession = async (
         memberId,
         scheduledAt: requestedDate,
         duration: dur,
-        type: "Weekly Check-in",
+        type: type || "Weekly Check-in",
         status: "upcoming",
       },
     });
@@ -338,6 +341,7 @@ export const getMemberSessions = async (
   res: Response
 ): Promise<Response> => {
   try {
+    await checkAndCompleteActiveSessions();
     const memberId = req.user!.id;
 
     const sessions = await prisma.session.findMany({

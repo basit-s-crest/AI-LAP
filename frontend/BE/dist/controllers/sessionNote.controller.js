@@ -18,6 +18,7 @@ const getCoachSessionNotes = async (req, res) => {
                     take: 1,
                 },
                 member: { select: { id: true, name: true } },
+                session: { select: { type: true } },
             },
             orderBy: { updatedAt: "desc" },
         });
@@ -31,6 +32,7 @@ const getCoachSessionNotes = async (req, res) => {
                 clientName: note.member.name,
                 aiSessionNoteId: note.aiSessionNoteId,
                 status: note.status,
+                sessionType: note.session?.type || note.sessionType || "Weekly Check-in",
                 createdAt: note.createdAt.toISOString(),
                 updatedAt: note.updatedAt.toISOString(),
                 version: latest ? latest.version : null,
@@ -74,6 +76,7 @@ const getSessionNote = async (req, res) => {
                     take: 1,
                 },
                 member: { select: { id: true, name: true } },
+                session: { select: { type: true } },
             },
         });
         if (note) {
@@ -88,6 +91,7 @@ const getSessionNote = async (req, res) => {
                     clientName: note.member.name,
                     aiSessionNoteId: note.aiSessionNoteId,
                     status: note.status,
+                    sessionType: note.session?.type || note.sessionType || "Weekly Check-in",
                     createdAt: note.createdAt.toISOString(),
                     updatedAt: note.updatedAt.toISOString(),
                     version: latest ? latest.version : null,
@@ -139,7 +143,7 @@ const saveSessionNote = async (req, res) => {
         if (!coachId)
             return res.status(401).json({ message: "Unauthorized" });
         const { sessionId } = req.params;
-        const { summary, keyThemes, memberSentiment, coachObservations, riskFlag, riskNotes, recommendedFollowUp, status, aiSessionNoteId, } = req.body;
+        const { summary, keyThemes, memberSentiment, coachObservations, riskFlag, riskNotes, recommendedFollowUp, status, aiSessionNoteId, sessionType, } = req.body;
         if (!status || (status !== "DRAFT" && status !== "FINAL")) {
             return res.status(400).json({ message: "Invalid status. Must be DRAFT or FINAL" });
         }
@@ -158,6 +162,12 @@ const saveSessionNote = async (req, res) => {
                 where: { sessionId },
             });
             let newVersionNumber = 1;
+            if (sessionType) {
+                await tx.session.update({
+                    where: { id: sessionId },
+                    data: { type: sessionType },
+                });
+            }
             if (!note) {
                 note = await tx.sessionNote.create({
                     data: {
@@ -166,6 +176,7 @@ const saveSessionNote = async (req, res) => {
                         memberId: session.memberId,
                         aiSessionNoteId: aiSessionNoteId || null,
                         status,
+                        sessionType: sessionType || "Weekly Check-in",
                     },
                 });
             }
@@ -181,6 +192,7 @@ const saveSessionNote = async (req, res) => {
                     where: { id: note.id },
                     data: {
                         status,
+                        sessionType: sessionType || undefined,
                         updatedAt: new Date(),
                     },
                 });
@@ -215,6 +227,7 @@ const saveSessionNote = async (req, res) => {
                 clientName: member?.name || "",
                 aiSessionNoteId: result.note.aiSessionNoteId,
                 status: result.note.status,
+                sessionType: sessionType || result.note.sessionType || "Weekly Check-in",
                 createdAt: result.note.createdAt.toISOString(),
                 updatedAt: result.note.updatedAt.toISOString(),
                 version: result.version.version,
@@ -274,7 +287,7 @@ const createManualSessionNote = async (req, res) => {
         const coachId = req.user?.id;
         if (!coachId)
             return res.status(401).json({ message: "Unauthorized" });
-        const { memberId, notes, nextSessionGoal, status } = req.body;
+        const { memberId, notes, nextSessionGoal, status, sessionType } = req.body;
         if (!memberId) {
             return res.status(400).json({ message: "memberId is required" });
         }
@@ -295,6 +308,7 @@ const createManualSessionNote = async (req, res) => {
                     memberId,
                     sessionId: null,
                     status: noteStatus,
+                    sessionType: sessionType || "Weekly Check-in",
                 },
             });
             const version = await tx.sessionNoteVersion.create({
@@ -326,6 +340,7 @@ const createManualSessionNote = async (req, res) => {
                 clientName: member?.name || "",
                 aiSessionNoteId: null,
                 status: result.note.status,
+                sessionType: result.note.sessionType || "Weekly Check-in",
                 createdAt: result.note.createdAt.toISOString(),
                 updatedAt: result.note.updatedAt.toISOString(),
                 version: 1,
@@ -351,7 +366,7 @@ const updateManualSessionNote = async (req, res) => {
         if (!coachId)
             return res.status(401).json({ message: "Unauthorized" });
         const noteId = req.params.id;
-        const { notes, nextSessionGoal, status } = req.body;
+        const { notes, nextSessionGoal, status, sessionType } = req.body;
         const existing = await prisma_1.default.sessionNote.findUnique({
             where: { id: noteId },
         });
@@ -375,6 +390,7 @@ const updateManualSessionNote = async (req, res) => {
                 where: { id: noteId },
                 data: {
                     status: noteStatus,
+                    sessionType: sessionType || undefined,
                     updatedAt: new Date(),
                 },
             });
@@ -407,6 +423,7 @@ const updateManualSessionNote = async (req, res) => {
                 clientName: member?.name || "",
                 aiSessionNoteId: result.note.aiSessionNoteId,
                 status: result.note.status,
+                sessionType: result.note.sessionType || "Weekly Check-in",
                 createdAt: result.note.createdAt.toISOString(),
                 updatedAt: result.note.updatedAt.toISOString(),
                 version: result.version.version,

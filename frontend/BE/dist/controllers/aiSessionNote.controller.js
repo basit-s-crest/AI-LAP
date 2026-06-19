@@ -279,7 +279,10 @@ Respond with ONLY the JSON object. Do not wrap in markdown \`\`\`json blocks.`
                 if (session && !session.livekitEndedAt) {
                     await prisma_1.default.session.update({
                         where: { id: sessionId },
-                        data: { livekitEndedAt: new Date() },
+                        data: {
+                            livekitEndedAt: new Date(),
+                            status: "completed",
+                        },
                     });
                 }
             }

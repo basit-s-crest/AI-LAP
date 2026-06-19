@@ -1,7 +1,4 @@
-# Implementation Plan: Three-Layer Memory System & HIPAA Safeguards
-
-## Goal Description
-Build a real-time, three-layer clinical memory system (L1 Working Buffer, L2 Session Episodes, L3 Longitudinal Memory) to power clinical question suggestions during live therapy sessions. Concurrently, implement required HIPAA Technical Safeguards (Access Control, Audit Controls, Integrity, Transmission Security, and Consent Gating) to secure all Protected Health Information (PHI) processed by the system.
+# Short-Term Transcription Security and Session Lifecycle Management
 
 ---
 
