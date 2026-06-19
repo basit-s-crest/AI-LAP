@@ -1,11 +1,35 @@
 import os
 import logging
 import asyncio
+import time
+from collections import deque
 from typing import Dict, Any, Optional
 from openai import AsyncOpenAI
 from app.modules.session_analysis.llm import _get_client as get_fallback_client
 
 logger = logging.getLogger(__name__)
+
+class WorkingBuffer:
+    """Rolling window of raw transcribed speech held in application memory (L1)."""
+    def __init__(self, window_seconds: int = 60):
+        self.window_seconds = window_seconds
+        self.chunks: deque[tuple[float, str]] = deque()
+        self.lock = asyncio.Lock()
+
+    async def add(self, text: str):
+        async with self.lock:
+            self.chunks.append((time.time(), text))
+            self._evict_old()
+
+    def _evict_old(self):
+        cutoff = time.time() - self.window_seconds
+        while self.chunks and self.chunks[0][0] < cutoff:
+            self.chunks.popleft()
+
+    async def get_text(self) -> str:
+        async with self.lock:
+            self._evict_old()
+            return " ".join(text for _, text in self.chunks)
 
 SYSTEM_PROMPT = """
 You are an AI psychiatric clinical assistant observing a live mental health coaching session.
@@ -36,7 +60,7 @@ class LiveMeetingAnalysisEngine:
         self._line_threshold = line_threshold
         self._word_threshold = word_threshold
         
-        # Session state: { session_id -> { "lines": [], "words_since_last": int, "lines_since_last": int, "lock": asyncio.Lock } }
+        # Session state: { session_id -> { "lines": [], "words_since_last": int, "lines_since_last": int, "working_buffer": WorkingBuffer, "lock": asyncio.Lock } }
         self._buffers: Dict[str, Dict[str, Any]] = {}
         self._engine_lock = asyncio.Lock()
         self._client: Optional[AsyncOpenAI] = None
@@ -94,11 +118,28 @@ class LiveMeetingAnalysisEngine:
 
         async with self._engine_lock:
             if session_id not in self._buffers:
+                member_id = None
+                try:
+                    from app.core.database import AsyncSessionLocal
+                    from sqlalchemy import text as sqla_text
+                    async with AsyncSessionLocal() as db:
+                        res = await db.execute(
+                            sqla_text('SELECT "memberId" FROM public."Session" WHERE id = :session_id LIMIT 1'),
+                            {"session_id": session_id}
+                        )
+                        row = res.fetchone()
+                        if row:
+                            member_id = row[0]
+                except Exception as e:
+                    logger.error(f"[Live Analysis] Error fetching member_id for session {session_id}: {e}")
+
                 self._buffers[session_id] = {
                     "lines": [],
                     "words_since_last": 0,
                     "lines_since_last": 0,
+                    "working_buffer": WorkingBuffer(60),
                     "lock": asyncio.Lock(),
+                    "member_id": member_id,
                 }
             
             buf = self._buffers[session_id]
@@ -106,6 +147,7 @@ class LiveMeetingAnalysisEngine:
         # Process counts
         words_count = len(text.split())
         buf["lines"].append(text)
+        await buf["working_buffer"].add(text)
         buf["words_since_last"] += words_count
         buf["lines_since_last"] += 1
 
@@ -133,7 +175,7 @@ class LiveMeetingAnalysisEngine:
         websocket: Any,
         write_lock: asyncio.Lock,
     ) -> None:
-        """Perform Groq/LLM request and forward result to WebSocket."""
+        """Perform Groq/LLM request with RAG (L2 summaries, L3 memory, profile) and forward result."""
         client = self._get_api_client()
         if not client:
             logger.warning("[Live Analysis] No active LLM client configured. Skipping live analysis.")
@@ -147,6 +189,7 @@ class LiveMeetingAnalysisEngine:
             # Extract current session context (last 30 lines to prevent context bloat)
             recent_lines = buf["lines"][-30:]
             session_lock = buf["lock"]
+            member_id = buf.get("member_id")
 
         # Prevent concurrent LLM calls for the same session (skip if already analyzing)
         if session_lock.locked():
@@ -154,35 +197,38 @@ class LiveMeetingAnalysisEngine:
             return
 
         async with session_lock:
-            transcript_context = "\n".join(recent_lines)
+            raw_buffer_text = await buf["working_buffer"].get_text()
             
-            logger.info(f"[Live Analysis] Triggering mental status analysis for session {session_id} using {self._model}...")
+            logger.info(f"[Live Analysis] Triggering Strands RAG clinical status analysis for session {session_id}...")
             t_start = asyncio.get_event_loop().time()
             
             try:
-                response = await client.chat.completions.create(
-                    model=self._model,
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": f"Session Transcript:\n{transcript_context}"},
-                    ],
-                    temperature=0.2,
-                    max_tokens=256,
-                )
+                from app.core.database import AsyncSessionLocal
+                from app.modules.rag import run_rag_analysis
                 
-                analysis_text = response.choices[0].message.content.strip()
+                async with AsyncSessionLocal() as db:
+                    analysis_text = await run_rag_analysis(
+                        db=db,
+                        session_id=session_id,
+                        member_id=member_id,
+                        recent_lines=recent_lines,
+                        working_buffer_text=raw_buffer_text
+                    )
+                    await db.commit()
+                
                 duration = int((asyncio.get_event_loop().time() - t_start) * 1000)
                 logger.info(f"[Live Analysis] Completed in {duration}ms. Result: \"{analysis_text}\"")
                 
                 # Forward to client over WebSocket in a thread-safe manner
                 async with write_lock:
-                    await websocket.send_json({
-                        "type": "live_analysis",
-                        "analysis": analysis_text
-                    })
+                    if websocket:
+                        await websocket.send_json({
+                            "type": "live_analysis",
+                            "analysis": analysis_text
+                        })
                     
             except Exception as e:
-                logger.error(f"[Live Analysis] LLM API execution error for session {session_id}: {e}")
+                logger.error(f"[Live Analysis] RAG Agent execution error for session {session_id}: {e}")
 
     async def clear_session(self, session_id: str) -> None:
         """Clean up buffers on session end/disconnect."""

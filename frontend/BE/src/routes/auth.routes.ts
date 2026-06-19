@@ -4,6 +4,8 @@ import {
   forgotPassword,
   getCoaches,
   getMemberProfile,
+  getMemberConsent,
+  updateMemberConsent,
   login,
   register,
   resendOtp,
@@ -31,5 +33,8 @@ router.get("/coaches", authMiddleware, getCoaches);
 router.get("/profile", authMiddleware, getMemberProfile);
 router.patch("/profile", authMiddleware, updateMemberProfile);
 router.patch("/notifications", authMiddleware, updateMemberNotifications);
+router.get("/consent", authMiddleware, getMemberConsent);
+router.post("/consent", authMiddleware, updateMemberConsent);
 
 export default router;
+

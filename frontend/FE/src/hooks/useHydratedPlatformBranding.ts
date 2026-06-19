@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePublicPlatformSettings } from "@/hooks/usePublicPlatformSettings";
+import { resolveApiUrl } from "@/lib/api";
 
 // Configurable via env so deployments can set their own default without a code change.
 const ENV_DEFAULT_TITLE = process.env.NEXT_PUBLIC_DEFAULT_BRAND_TITLE ?? "Platform";
@@ -10,7 +11,7 @@ const ENV_DEFAULT_TAGLINE = process.env.NEXT_PUBLIC_DEFAULT_BRAND_TAGLINE ?? "Me
 export function getLogoUrl(logoUrl: string | null): string {
   if (!logoUrl) return "/logo.svg";
   if (/^https?:\/\//.test(logoUrl)) return logoUrl;
-  const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+  const base = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
   return `${base}${logoUrl.startsWith("/") ? logoUrl : `/${logoUrl}`}`;
 }
 

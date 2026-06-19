@@ -14,8 +14,12 @@ API docs:
 """
 
 import sys
+import warnings
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Suppress Pydantic namespace conflict warnings from third-party libraries (e.g. Presidio)
+warnings.filterwarnings("ignore", category=UserWarning, message='.*has conflict with protected namespace "model_".*')
 
 # Load env variables from .env file, overriding any pre-existing environment variables
 load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env", override=True)
@@ -45,6 +49,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+import os
+if os.getenv("ENVIRONMENT") == "production":
+    from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+    app.add_middleware(HTTPSRedirectMiddleware)
 
 # ── Request logger — must be added AFTER CORSMiddleware so it wraps
 #    the full request/response cycle (Starlette applies middleware in

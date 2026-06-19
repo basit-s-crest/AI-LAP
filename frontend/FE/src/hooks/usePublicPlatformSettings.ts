@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { resolveApiUrl } from "@/lib/api";
 
 export interface PublicPlatformSettings {
   brandTitle: string;
@@ -15,7 +16,7 @@ export function usePublicPlatformSettings() {
   return useQuery({
     queryKey: ["public-platform-settings"],
     queryFn: async (): Promise<PublicPlatformSettings> => {
-      const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+      const base = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
       const res = await fetch(`${base}/api/auth/platform-settings`, { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to load platform settings");
       return res.json();

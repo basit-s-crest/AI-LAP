@@ -44,6 +44,11 @@ export interface CoachProfileResponse {
   };
 }
 
+export interface MemberConsentResponse {
+  recording: boolean;
+  ai_analysis: boolean;
+}
+
 export const settingsService = {
   getMemberProfile(): Promise<MemberProfileResponse> {
     return api.get<MemberProfileResponse>("/api/auth/profile").then((r) => r.data);
@@ -73,6 +78,17 @@ export const settingsService = {
     return api.patch<MemberProfileResponse["notifications"]>("/api/auth/notifications", payload).then((r) => r.data);
   },
 
+  getMemberConsent(): Promise<MemberConsentResponse> {
+    return api.get<MemberConsentResponse>("/api/auth/consent").then((r) => r.data);
+  },
+
+  updateMemberConsent(payload: {
+    consentType: "recording" | "ai_analysis";
+    granted: boolean;
+  }): Promise<{ message: string; consentType: string; granted: boolean }> {
+    return api.post<{ message: string; consentType: string; granted: boolean }>("/api/auth/consent", payload).then((r) => r.data);
+  },
+
   getCoachProfile(): Promise<CoachProfileResponse> {
     return api.get<CoachProfileResponse>("/api/coach/profile").then((r) => r.data);
   },
@@ -96,3 +112,4 @@ export const settingsService = {
     return api.patch<CoachProfileResponse["notifications"]>("/api/coach/notifications", payload).then((r) => r.data);
   },
 };
+

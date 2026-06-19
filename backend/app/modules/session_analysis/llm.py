@@ -190,11 +190,15 @@ async def run_inference(
         if model:
             model = model.strip().strip("'\"")
         
-    client = _get_client()
-
-    logger.info("LLM inference | event_id=%s | source=%s | model=%s", event_id, source_type, model)
+    # Scrub PII for chat messages before sending to 3rd-party LLM providers
+    llm_input_text = raw_text
+    if source_type == "chat":
+        from app.shared.pii import scrub_pii
+        llm_input_text = scrub_pii(raw_text)
+        logger.info("PII scrubbing applied to chat message for event_id=%s", event_id)
 
     # ── Call LLM (with retry on 429 / 503) ─────────────────────────────
+    client = _get_client()
     last_exc = None
     for attempt in range(3):
         try:
@@ -203,7 +207,7 @@ async def run_inference(
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user",   "content": raw_text},
+                    {"role": "user",   "content": llm_input_text},
                 ],
                 temperature=0.1,
                 max_tokens=2048,

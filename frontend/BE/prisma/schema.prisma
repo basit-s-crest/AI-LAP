@@ -37,6 +37,7 @@ model User {
   organization     Organization?     @relation(fields: [organizationId], references: [id])
   sessionNotes     SessionNote[]
   onboardingAssessments OnboardingAssessment[]
+  patientConsents  PatientConsent[]
   notifyGroupActivity    Boolean @default(true)
   notifySessionReminders Boolean @default(true)
   notifyDailyCheckin     Boolean @default(false)
@@ -255,6 +256,7 @@ model Session {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   sessionNote       SessionNote?
+  liveEpisodes      SessionLiveEpisode[]
 }
 
 // ─── Coach Availability ───────────────────────────────────────────────────────
@@ -381,4 +383,112 @@ model AiSessionNote {
   recommendedFollowUp String
   createdAt           DateTime @default(now())
 }
+
+model PatientConsent {
+  id             String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  patientId      String    @map("patient_id")
+  consentType    String    @map("consent_type")
+  consentVersion String    @map("consent_version")
+  granted        Boolean   @default(false)
+  grantedAt      DateTime? @default(now()) @map("granted_at")
+  revokedAt      DateTime? @map("revoked_at")
+  ipAddress      String?   @map("ip_address")
+  documentUrl    String?   @map("document_url")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user           User      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, consentType, revokedAt])
+  @@map("patient_consent")
+}
+
+model PhiAccessLog {
+  id            BigInt    @id @default(autoincrement())
+  actorId       String    @map("actor_id")
+  actorRole     String    @map("actor_role")
+  action        String
+  resourceTable String    @map("resource_table")
+  resourceId    String    @map("resource_id")
+  patientId     String?   @map("patient_id")
+  ipAddress     String?   @map("ip_address")
+  userAgent     String?   @map("user_agent")
+  accessedAt    DateTime  @default(now()) @map("accessed_at")
+
+  @@index([patientId, accessedAt(sort: Desc)])
+  @@index([actorId, accessedAt(sort: Desc)])
+  @@map("phi_access_log")
+}
+
+model SessionLiveEpisode {
+  id           String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  sessionId    String    @map("session_id")
+  memberId     String    @map("member_id")
+  episodeIndex Int       @map("episode_index")
+  summary      String
+  sentiment    String
+  themes       String[]  @default([])
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  session      Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, episodeIndex])
+  @@map("session_live_episodes")
+}
+
+model MemberMemoryEvent {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  memberId           String    @map("member_id")
+  sessionId          String    @map("session_id")
+  coachId            String    @map("coach_id")
+  sessionNumber      Int       @map("session_number")
+  sessionDate        DateTime  @map("session_date") @db.Date
+  category           String
+  narrativeEncrypted Bytes     @map("narrative_encrypted")
+  rawQuoteEncrypted  Bytes?    @map("raw_quote_encrypted")
+  emotionalValence   String?   @map("emotional_valence")
+  significanceScore  Float     @map("significance_score")
+  themes             String[]  @default([])
+  embedding          Unsupported("vector(384)")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  deletedAt          DateTime? @map("deleted_at")
+
+  @@index([memberId])
+  @@map("member_memory_events")
+}
+
+model MemberLongitudinalProfile {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  memberId              String    @unique @map("member_id")
+  coachId               String    @map("coach_id")
+  presentingConditions  String[]  @default([]) @map("presenting_conditions")
+  coreWounds            String[]  @default([]) @map("core_wounds")
+  recurringThemes       String[]  @default([]) @map("recurring_themes")
+  progressMarkers       String[]  @default([]) @map("progress_markers")
+  riskFlags             String[]  @default([]) @map("risk_flags")
+  unresolvedThreads     String[]  @default([]) @map("unresolved_threads")
+  overallProgressScore  Float     @default(50.0) @map("overall_progress_score")
+  currentRiskTier       String    @default("low") @map("current_risk_tier")
+  riskTrend             String?   @map("risk_trend")
+  totalSessions         Int       @default(0) @map("total_sessions")
+  lastSessionDate       DateTime? @map("last_session_date") @db.Date
+  lastUpdated           DateTime  @default(now()) @map("last_updated")
+
+  @@map("member_longitudinal_profile")
+}
+
+model RetentionPolicy {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  resourceTable       String   @unique @map("resource_table")
+  retentionPeriodDays Int      @map("retention_period_days")
+  autoDeleteEnabled   Boolean  @default(false) @map("auto_delete_enabled")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@map("retention_policy")
+}
+
+
+
+
+
 

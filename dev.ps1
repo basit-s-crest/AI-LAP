@@ -107,7 +107,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", @"
     } else {
         Write-Host '  [!!] No venv found - using system Python' -ForegroundColor Yellow
     }
-    uvicorn main:app --reload --loop asyncio --port 8001
+    uvicorn main:app --host 0.0.0.0 --reload --loop asyncio --port 8001
 "@
 
 # Summary

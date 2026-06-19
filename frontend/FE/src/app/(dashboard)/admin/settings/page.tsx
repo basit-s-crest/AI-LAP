@@ -13,6 +13,7 @@ import {
   useUpdatePlatformSettings,
   useUploadLogo,
 } from "@/hooks/admin/usePlatformSettings";
+import { resolveApiUrl } from "@/lib/api";
 
 function toBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -26,7 +27,7 @@ function toBase64(file: File): Promise<string> {
 function assetUrl(path: string | null): string {
   if (!path) return "";
   if (/^https?:\/\//.test(path)) return path;
-  const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+  const base = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 

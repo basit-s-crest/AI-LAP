@@ -29,3 +29,21 @@ export function useUpdateMemberNotifications() {
     },
   });
 }
+
+export function useMemberConsent() {
+  return useQuery({
+    queryKey: ["member", "consent"],
+    queryFn: () => settingsService.getMemberConsent(),
+  });
+}
+
+export function useUpdateMemberConsent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: settingsService.updateMemberConsent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["member", "consent"] });
+    },
+  });
+}
+

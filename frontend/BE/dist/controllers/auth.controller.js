@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateMemberNotifications = exports.updateMemberProfile = exports.getMemberProfile = exports.getCoaches = exports.forgotPassword = exports.login = exports.resendOtp = exports.verifyOtp = exports.register = void 0;
+exports.updateMemberConsent = exports.getMemberConsent = exports.updateMemberNotifications = exports.updateMemberProfile = exports.getMemberProfile = exports.getCoaches = exports.forgotPassword = exports.login = exports.resendOtp = exports.verifyOtp = exports.register = void 0;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const member_org_coach_service_1 = require("../services/member-org-coach.service");
 const auth_service_1 = require("../services/auth.service");
@@ -410,3 +410,103 @@ const updateMemberNotifications = async (req, res) => {
     }
 };
 exports.updateMemberNotifications = updateMemberNotifications;
+/** GET /api/auth/consent — retrieves active consents for the member. */
+const getMemberConsent = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId || req.user?.role !== "member") {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+        const consents = await prisma_1.default.patientConsent.findMany({
+            where: {
+                patientId: userId,
+                granted: true,
+                revokedAt: null,
+            },
+            select: {
+                consentType: true,
+            },
+        });
+        const activeTypes = consents.map((c) => c.consentType);
+        return res.status(200).json({
+            recording: activeTypes.includes("recording"),
+            ai_analysis: activeTypes.includes("ai_analysis"),
+        });
+    }
+    catch (error) {
+        console.error("[getMemberConsent]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getMemberConsent = getMemberConsent;
+/** POST /api/auth/consent — update (grant/revoke) consent for a specific type. */
+const updateMemberConsent = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId || req.user?.role !== "member") {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+        const { consentType, granted } = req.body;
+        if (consentType !== "recording" && consentType !== "ai_analysis") {
+            return res.status(400).json({ message: "Invalid consent type" });
+        }
+        const ipAddress = req.ip || null;
+        if (granted) {
+            const existing = await prisma_1.default.patientConsent.findFirst({
+                where: {
+                    patientId: userId,
+                    consentType,
+                    granted: true,
+                    revokedAt: null,
+                },
+            });
+            if (!existing) {
+                await prisma_1.default.patientConsent.create({
+                    data: {
+                        patientId: userId,
+                        consentType,
+                        consentVersion: "1.0",
+                        granted: true,
+                        ipAddress,
+                    },
+                });
+            }
+        }
+        else {
+            await prisma_1.default.patientConsent.updateMany({
+                where: {
+                    patientId: userId,
+                    consentType,
+                    granted: true,
+                    revokedAt: null,
+                },
+                data: {
+                    revokedAt: new Date(),
+                },
+            });
+        }
+        // Log to PHI Access Log
+        await prisma_1.default.phiAccessLog.create({
+            data: {
+                actorId: userId,
+                actorRole: "member",
+                action: granted ? "GRANT_CONSENT" : "REVOKE_CONSENT",
+                resourceTable: "patient_consent",
+                resourceId: consentType,
+                patientId: userId,
+                ipAddress,
+                userAgent: req.headers["user-agent"] || "",
+            },
+        });
+        return res.status(200).json({
+            message: `Consent for ${consentType} updated successfully`,
+            consentType,
+            granted,
+        });
+    }
+    catch (error) {
+        console.error("[updateMemberConsent]", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.updateMemberConsent = updateMemberConsent;

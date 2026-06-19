@@ -16,9 +16,12 @@ import {
   useMemberProfile,
   useUpdateMemberProfile,
   useUpdateMemberNotifications,
+  useMemberConsent,
+  useUpdateMemberConsent,
 } from "@/hooks/settings/useMemberSettings";
 import { cn } from "@/lib/cn";
 import { useRouter } from "next/navigation";
+import { BaseModal } from "@/components/modals/BaseModal";
 
 const AVATAR_EMOJIS = ["🌿", "😊", "🌸", "💚", "🦋", "☀️", "🌊", "⭐", "🌙", "🍀"];
 import { useQuery } from "@tanstack/react-query";
@@ -57,7 +60,10 @@ export default function ProfilePage() {
   const { data, isPending, isError, error } = useMemberProfile();
   const updateProfile = useUpdateMemberProfile();
   const updateNotifications = useUpdateMemberNotifications();
+  const { data: consentData, isLoading: isConsentLoading } = useMemberConsent();
+  const updateConsent = useUpdateMemberConsent();
   const [editing, setEditing] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [avatar, setAvatar] = useState("🌿");
@@ -197,7 +203,7 @@ export default function ProfilePage() {
               <>
                 {[
                   { e: "👤", bg: "#D4EDD7", l: "Edit Profile", action: () => setEditing(true) },
-                  { e: "🔒", bg: "#D4EDD7", l: "Privacy & Data", action: () => { } },
+                  { e: "🔒", bg: "#D4EDD7", l: "Privacy & Data", action: () => setShowConsentModal(true) },
                   { e: "❓", bg: "#F5E6C8", l: "Help & Support", action: () => { } },
                   { e: "🚪", bg: "#FAE0DC", l: "Sign Out", action: logout },
                 ].map((it) => (
@@ -357,6 +363,84 @@ export default function ProfilePage() {
           </Card>
         </div>
       </div>
+
+      <BaseModal
+        open={showConsentModal}
+        onClose={() => setShowConsentModal(false)}
+        title="Privacy & Data Consent"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-mid leading-relaxed">
+            SafeCircle values your privacy and security. In compliance with HIPAA safeguards,
+            you have full control over what data is collected and processed by our AI analysis tools.
+            You can grant or revoke consent at any time.
+          </p>
+
+          {isConsentLoading ? (
+            <div className="py-4 text-center text-xs text-dim">Loading consent preferences...</div>
+          ) : (
+            <div className="space-y-4 pt-2">
+              <div className="flex items-start gap-4 rounded-lg bg-canvas p-4 border border-line">
+                <div className="flex-1">
+                  <h4 className="text-[13px] font-semibold text-ink">Audio Recording Consent</h4>
+                  <p className="mt-1 text-xs text-dim leading-normal">
+                    Allows streaming your speech audio to Deepgram to generate real-time transcriptions during active coaching sessions.
+                  </p>
+                </div>
+                <Toggle
+                  on={!!consentData?.recording}
+                  onToggle={() => {
+                    const isGranted = !consentData?.recording;
+                    updateConsent.mutate(
+                      { consentType: "recording", granted: isGranted },
+                      {
+                        onSuccess: () => {
+                          toast.success(`Audio recording consent ${isGranted ? 'granted' : 'revoked'}`);
+                        },
+                        onError: (err: any) => {
+                          toast.error(err.message || "Failed to update consent");
+                        }
+                      }
+                    );
+                  }}
+                />
+              </div>
+
+              <div className="flex items-start gap-4 rounded-lg bg-canvas p-4 border border-line">
+                <div className="flex-1">
+                  <h4 className="text-[13px] font-semibold text-ink">AI Clinical Analysis Consent</h4>
+                  <p className="mt-1 text-xs text-dim leading-normal">
+                    Allows our AI system to analyze session transcripts, generate clinical memory events, and synthesize your longitudinal treatment profile.
+                  </p>
+                </div>
+                <Toggle
+                  on={!!consentData?.ai_analysis}
+                  onToggle={() => {
+                    const isGranted = !consentData?.ai_analysis;
+                    updateConsent.mutate(
+                      { consentType: "ai_analysis", granted: isGranted },
+                      {
+                        onSuccess: () => {
+                          toast.success(`AI analysis consent ${isGranted ? 'granted' : 'revoked'}`);
+                        },
+                        onError: (err: any) => {
+                          toast.error(err.message || "Failed to update consent");
+                        }
+                      }
+                    );
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <Button type="button" onClick={() => setShowConsentModal(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </BaseModal>
     </DashboardLayout>
   );
 }

@@ -18,4 +18,6 @@ router.get("/coaches", auth_middleware_1.authMiddleware, auth_controller_1.getCo
 router.get("/profile", auth_middleware_1.authMiddleware, auth_controller_1.getMemberProfile);
 router.patch("/profile", auth_middleware_1.authMiddleware, auth_controller_1.updateMemberProfile);
 router.patch("/notifications", auth_middleware_1.authMiddleware, auth_controller_1.updateMemberNotifications);
+router.get("/consent", auth_middleware_1.authMiddleware, auth_controller_1.getMemberConsent);
+router.post("/consent", auth_middleware_1.authMiddleware, auth_controller_1.updateMemberConsent);
 exports.default = router;

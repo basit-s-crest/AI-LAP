@@ -525,3 +525,120 @@ export const updateMemberNotifications = async (
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+/** GET /api/auth/consent — retrieves active consents for the member. */
+export const getMemberConsent = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId || req.user?.role !== "member") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const consents = await prisma.patientConsent.findMany({
+      where: {
+        patientId: userId,
+        granted: true,
+        revokedAt: null,
+      },
+      select: {
+        consentType: true,
+      },
+    });
+
+    const activeTypes = consents.map((c) => c.consentType);
+
+    return res.status(200).json({
+      recording: activeTypes.includes("recording"),
+      ai_analysis: activeTypes.includes("ai_analysis"),
+    });
+  } catch (error) {
+    console.error("[getMemberConsent]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/** POST /api/auth/consent — update (grant/revoke) consent for a specific type. */
+export const updateMemberConsent = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId || req.user?.role !== "member") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const { consentType, granted } = req.body as {
+      consentType: "recording" | "ai_analysis";
+      granted: boolean;
+    };
+
+    if (consentType !== "recording" && consentType !== "ai_analysis") {
+      return res.status(400).json({ message: "Invalid consent type" });
+    }
+
+    const ipAddress = req.ip || null;
+
+    if (granted) {
+      const existing = await prisma.patientConsent.findFirst({
+        where: {
+          patientId: userId,
+          consentType,
+          granted: true,
+          revokedAt: null,
+        },
+      });
+
+      if (!existing) {
+        await prisma.patientConsent.create({
+          data: {
+            patientId: userId,
+            consentType,
+            consentVersion: "1.0",
+            granted: true,
+            ipAddress,
+          },
+        });
+      }
+    } else {
+      await prisma.patientConsent.updateMany({
+        where: {
+          patientId: userId,
+          consentType,
+          granted: true,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      });
+    }
+
+    // Log to PHI Access Log
+    await prisma.phiAccessLog.create({
+      data: {
+        actorId: userId,
+        actorRole: "member",
+        action: granted ? "GRANT_CONSENT" : "REVOKE_CONSENT",
+        resourceTable: "patient_consent",
+        resourceId: consentType,
+        patientId: userId,
+        ipAddress,
+        userAgent: req.headers["user-agent"] || "",
+      },
+    });
+
+    return res.status(200).json({
+      message: `Consent for ${consentType} updated successfully`,
+      consentType,
+      granted,
+    });
+  } catch (error) {
+    console.error("[updateMemberConsent]", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+

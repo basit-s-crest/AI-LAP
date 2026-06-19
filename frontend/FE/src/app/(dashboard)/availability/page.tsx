@@ -9,7 +9,7 @@ import { Select } from "@/components/ui/Select";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
 import { setOnDemand } from "@/store/slices/coachSlice";
 import { cn } from "@/lib/cn";
-import api from "@/lib/api";
+import api, { resolveApiUrl } from "@/lib/api";
 import { AUTH_USER_JSON_KEY } from "@/constants/storage";
 import { toast } from "sonner";
 
@@ -98,7 +98,7 @@ export default function AvailabilityPage() {
 
   // Fetch platform limits from the public endpoint (no auth required)
   useEffect(() => {
-    const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+    const base = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
     fetch(`${base}/api/auth/platform-settings`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data: { sessionDurationMax?: number; sessionDurationMin?: number }) => {

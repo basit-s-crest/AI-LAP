@@ -66,8 +66,43 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.close(code=1008, reason="Invalid or missing transcription token")
         return
 
+    # Check patient consent gating
+    try:
+        from app.core.database import AsyncSessionLocal
+        from app.middleware.consent_gate import require_active_consent, ConsentRequiredError
+        from sqlalchemy import text
+        
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                text('SELECT "memberId" FROM public."Session" WHERE id = :session_id LIMIT 1'),
+                {"session_id": session_id}
+            )
+            row = result.fetchone()
+            if not row:
+                logger.warning(f"[STT Proxy] Session {session_id} not found in database")
+                await websocket.accept()
+                await websocket.close(code=1008, reason="Session not found")
+                return
+            member_id = row[0]
+            
+            await require_active_consent(db, member_id, ["recording", "ai_analysis"])
+    except ConsentRequiredError as e:
+        logger.warning(f"[STT Proxy] Consent validation failed for sessionId={session_id}: {e}")
+        await websocket.accept()
+        await websocket.close(code=1008, reason=str(e))
+        return
+    except Exception as e:
+        logger.error(f"[STT Proxy] Unexpected error checking consent for sessionId={session_id}: {e}")
+        await websocket.accept()
+        await websocket.close(code=1011, reason="Internal server error checking consent")
+        return
+
     await websocket.accept()
     logger.info("[STT Proxy] Client WebSocket connected and authorized")
+
+    # Start L2 Summarizer background task loop
+    from app.modules.live_analysis.memory_tasks import summarize_episode_loop
+    asyncio.create_task(summarize_episode_loop(live_analysis_engine, session_id, member_id))
 
     # Lock to serialize writes to this WebSocket from different concurrent tasks
     websocket_write_lock = asyncio.Lock()

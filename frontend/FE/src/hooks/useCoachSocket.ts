@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { io, Socket } from "socket.io-client"
 import type { CoachMessageDTO } from "../types/coachMessage"
 import { AUTH_TOKEN_KEY } from "@/constants/storage"
+import { resolveApiUrl } from "@/lib/api"
 
 interface UseCoachSocketOptions {
   onNewMessage?: (msg: CoachMessageDTO) => void
@@ -47,7 +48,7 @@ export function useCoachSocket(
     // Never read from localStorage; the app only uses cookies for auth.
     const token = readCookie(AUTH_TOKEN_KEY)
 
-    const socket = io(`${BACKEND_URL}/coach-chat`, {
+    const socket = io(`${resolveApiUrl(BACKEND_URL)}/coach-chat`, {
       auth: { token },
       reconnection: true,
       reconnectionDelay: 1000,

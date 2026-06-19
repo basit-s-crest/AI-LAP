@@ -1,8 +1,18 @@
 import axios from "axios";
 import { AUTH_TOKEN_KEY, AUTH_ROLE_KEY, AUTH_USER_JSON_KEY, AUTH_USER_NAME_KEY } from "@/constants/storage";
 
+export function resolveApiUrl(url: string): string {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
+      return url.replace(/(localhost|127\.0\.0\.1)/g, hostname);
+    }
+  }
+  return url;
+}
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000",
+  baseURL: resolveApiUrl(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"),
   headers: { "Content-Type": "application/json" },
   timeout: 30_000,
 });
@@ -34,6 +44,9 @@ function clearAuthCookies() {
 // ── Request: attach JWT from the safecircle_token cookie ──────────────────────────
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
+    if (config.baseURL) {
+      config.baseURL = resolveApiUrl(config.baseURL);
+    }
     const token = getCookie(AUTH_TOKEN_KEY);
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }

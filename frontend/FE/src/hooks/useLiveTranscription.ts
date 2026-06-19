@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { TranscriptLine } from "@/types/sessionNote";
+import { resolveApiUrl } from "@/lib/api";
 
 export function useLiveTranscription(
   speaker: 'member' | 'coach', 
@@ -183,7 +184,7 @@ export function useLiveTranscription(
       }
 
       // Point WebSocket connection to our Python STT WebSocket proxy
-      const pythonBackendUrl = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || "http://localhost:8001";
+      const pythonBackendUrl = resolveApiUrl(process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || "http://localhost:8001");
       let wsUrl = pythonBackendUrl.replace(/^http/, 'ws') + '/v1/stt';
       if (transcriptionToken && sessionId) {
         wsUrl += `?token=${encodeURIComponent(transcriptionToken)}&sessionId=${encodeURIComponent(sessionId)}`;
