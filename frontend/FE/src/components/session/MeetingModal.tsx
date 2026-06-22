@@ -85,6 +85,53 @@ export default function MeetingModal({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [panelView, setPanelView] = useState<"transcript" | "ai" | "editor">("transcript");
 
+  // Emotion history state and helper map
+  const [emotionHistory, setEmotionHistory] = useState<
+    Array<{ emotion: string; timestamp: number }>
+  >([]);
+
+  const getEmotionEmoji = (emotion: string): string => {
+    const map: Record<string, string> = {
+      Happy: "😊",
+      Sad: "😢",
+      Angry: "😠",
+      Fear: "😨",
+      Neutral: "😐",
+      Calm: "😌",
+      Anxious: "😰",
+      Surprise: "😲",
+      Disgust: "🤢",
+      Distracted: "👀",
+      "Unstable Presence": "⚠️",
+      "No Face": "👤",
+      "Camera Off": "📷",
+      "Intermittent Presence": "🔄",
+    };
+    return map[emotion] || "🟡";
+  };
+
+  useEffect(() => {
+    if (
+      latestEmotion &&
+      latestEmotion.dominantEmotion &&
+      latestEmotion.dominantEmotion !== "No Face" &&
+      latestEmotion.dominantEmotion !== "Camera Off"
+    ) {
+      const newEmotion = latestEmotion.dominantEmotion;
+      setEmotionHistory((prev) => {
+        const lastEntry = prev[prev.length - 1];
+        if (lastEntry && lastEntry.emotion === newEmotion) {
+          return prev;
+        }
+        const updated = [...prev, { emotion: newEmotion, timestamp: Date.now() }];
+        if (updated.length > 8) {
+          return updated.slice(updated.length - 8);
+        }
+        return updated;
+      });
+    }
+  }, [latestEmotion]);
+
   const getQualityColor = (quality: string) => {
     if (quality === "excellent" || quality === "good") return "bg-[#68A688]";
     if (quality === "poor") return "bg-[#FF8D69]";
@@ -225,6 +272,10 @@ export default function MeetingModal({
                         ? "😊"
                         : latestEmotion.dominantEmotion === "Sad"
                         ? "😢"
+                        : latestEmotion.dominantEmotion === "Surprise"
+                        ? "😲"
+                        : latestEmotion.dominantEmotion === "Angry"
+                        ? "😠"
                         : latestEmotion.dominantEmotion === "Intermittent Presence"
                         ? "🔄"
                         : latestEmotion.dominantEmotion === "Unstable Presence"
@@ -384,6 +435,7 @@ export default function MeetingModal({
                   latestEmotion={latestEmotion}
                   rawScores={rawScores}
                   baselineReady={baselineReady}
+                  emotionHistory={emotionHistory}
                 />
               ) : panelView === "editor" ? (
                 <SessionNoteEditor

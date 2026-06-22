@@ -18,6 +18,7 @@ interface LiveSessionTranscriptProps {
   latestEmotion?: any;
   rawScores?: Record<string, number> | null;
   baselineReady?: boolean;
+  emotionHistory?: Array<{ emotion: string; timestamp: number }>;
 }
 
 const formatTime = (isoString: string) => {
@@ -98,10 +99,42 @@ export default function LiveSessionTranscript({
   latestEmotion,
   rawScores,
   baselineReady,
+  emotionHistory = [],
 }: LiveSessionTranscriptProps) {
   const [activeSubTab, setActiveSubTab] = useState<"transcript" | "insights">("transcript");
   const [insightsLog, setInsightsLog] = useState<{ text: string; timestamp: string }[]>([]);
   const [aggregation, setAggregation] = useState<SessionAggregationResponse | null>(null);
+
+  const getEmotionEmoji = (emotion: string): string => {
+    const map: Record<string, string> = {
+      Happy: "😊",
+      Sad: "😢",
+      Angry: "😠",
+      Fear: "😨",
+      Neutral: "😐",
+      Calm: "😌",
+      Anxious: "😰",
+      Surprise: "😲",
+      Disgust: "🤢",
+      Distracted: "👀",
+      "Unstable Presence": "⚠️",
+      "No Face": "👤",
+      "Camera Off": "📷",
+      "Intermittent Presence": "🔄",
+    };
+    return map[emotion] || "🟡";
+  };
+
+  // Merge backend aggregation counts and client-side history counts
+  const displayEmotionCounts = useMemo(() => {
+    const counts: Record<string, number> = { ...(aggregation?.emotionCounts || {}) };
+    if (emotionHistory) {
+      emotionHistory.forEach((item) => {
+        counts[item.emotion] = (counts[item.emotion] || 0) + 1;
+      });
+    }
+    return counts;
+  }, [aggregation?.emotionCounts, emotionHistory]);
 
   const isDev = process.env.NODE_ENV === "development";
 
@@ -373,6 +406,8 @@ export default function LiveSessionTranscript({
                       {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Happy" && "😊 Happy"}
                       {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Sad" && "😢 Sad"}
                       {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Anxious" && "🟠 Anxious"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Surprise" && "😲 Surprise"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Angry" && "😠 Angry"}
                       {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "No Face" && "⚪ No Face"}
                       {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Camera Off" && "⚫ Camera Off"}
                       {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Intermittent Presence" && "🔄 Intermittent Presence"}
@@ -392,6 +427,8 @@ export default function LiveSessionTranscript({
                       {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Happy" && "😊 Happy"}
                       {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Sad" && "😢 Sad"}
                       {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Anxious" && "🟠 Anxious"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Surprise" && "😲 Surprise"}
+                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Angry" && "😠 Angry"}
                       {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "No Face" && "⚪ No Face"}
                       {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Camera Off" && "⚫ Camera Off"}
                       {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Intermittent Presence" && "🔄 Intermittent Presence"}
@@ -407,15 +444,17 @@ export default function LiveSessionTranscript({
                   <span className="text-[10px] font-sans font-semibold text-soft block uppercase tracking-wider">
                     Signal Distribution
                   </span>
-                  {aggregation?.emotionCounts && Object.keys(aggregation.emotionCounts).length > 0 ? (
+                  {Object.keys(displayEmotionCounts).length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {Object.entries(aggregation.emotionCounts).map(([emotion, count]) => {
+                      {Object.entries(displayEmotionCounts).map(([emotion, count]) => {
                         let colorClass = "bg-gray-100 text-gray-700";
                         if (emotion === "Calm") colorClass = "bg-[#EBF7EE] text-[#2E7D32]";
                         if (emotion === "Neutral") colorClass = "bg-[#FFFDE7] text-[#F57F17]";
                         if (emotion === "Happy") colorClass = "bg-[#E8F5E9] text-[#1B5E20]";
                         if (emotion === "Sad") colorClass = "bg-[#E1F5FE] text-[#01579B]";
                         if (emotion === "Anxious") colorClass = "bg-[#FFF3E0] text-[#E65100]";
+                        if (emotion === "Surprise") colorClass = "bg-[#E0F7FA] text-[#006064]";
+                        if (emotion === "Angry") colorClass = "bg-[#FFEBEE] text-[#C62828]";
                         if (emotion === "Intermittent Presence") colorClass = "bg-[#EDE7F6] text-[#4A148C]";
                         if (emotion === "Unstable Presence") colorClass = "bg-[#F3E5F5] text-[#7B1FA2]";
                         if (emotion === "Distracted") colorClass = "bg-[#ECEFF1] text-[#37474F]";
@@ -434,6 +473,40 @@ export default function LiveSessionTranscript({
                     <span className="text-[10px] text-soft italic block">No signals buffered yet.</span>
                   )}
                 </div>
+
+                {/* History Trail */}
+                {emotionHistory.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[10px] font-sans font-semibold text-soft block uppercase tracking-wider">
+                      Recent History (Time Trail)
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {emotionHistory.slice(0, -1).slice(-4).map((item, idx) => {
+                        let colorClass = "bg-gray-100 text-gray-700";
+                        if (item.emotion === "Calm") colorClass = "bg-[#EBF7EE] text-[#2E7D32]";
+                        if (item.emotion === "Neutral") colorClass = "bg-[#FFFDE7] text-[#F57F17]";
+                        if (item.emotion === "Happy") colorClass = "bg-[#E8F5E9] text-[#1B5E20]";
+                        if (item.emotion === "Sad") colorClass = "bg-[#E1F5FE] text-[#01579B]";
+                        if (item.emotion === "Anxious") colorClass = "bg-[#FFF3E0] text-[#E65100]";
+                        if (item.emotion === "Surprise") colorClass = "bg-[#E0F7FA] text-[#006064]";
+                        if (item.emotion === "Angry") colorClass = "bg-[#FFEBEE] text-[#C62828]";
+                        if (item.emotion === "Intermittent Presence") colorClass = "bg-[#EDE7F6] text-[#4A148C]";
+                        if (item.emotion === "Unstable Presence") colorClass = "bg-[#F3E5F5] text-[#7B1FA2]";
+                        if (item.emotion === "Distracted") colorClass = "bg-[#ECEFF1] text-[#37474F]";
+                        
+                        return (
+                          <span
+                            key={`${item.timestamp}-${idx}`}
+                            className={`text-[10px] font-sans font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition-all duration-300 ${colorClass}`}
+                          >
+                            <span>{getEmotionEmoji(item.emotion)}</span>
+                            <span>{item.emotion}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Developer HUD Section */}
                 <div className="border-t border-[#D2DBE3]/50 pt-3 mt-3 space-y-2">

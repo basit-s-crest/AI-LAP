@@ -81,7 +81,7 @@ describe("behaviorSignalMapper", () => {
     expect(result).toBe("Distracted");
   });
 
-  describe("HSEmotion mappings with High Confidence (>= 0.50)", () => {
+  describe("HSEmotion mappings with High Confidence (>= 0.20)", () => {
     it("should trust Happy/Happiness directly", () => {
       const history: BehaviorSample[] = [
         {
@@ -116,8 +116,8 @@ describe("behaviorSignalMapper", () => {
       expect(mapBehaviorSignal(history, null)).toBe("Sad");
     });
 
-    it("should map fear, angry, anger, surprise, disgust, contempt directly to Anxious", () => {
-      const emotions = ["fear", "angry", "anger", "surprise", "disgust", "contempt"];
+    it("should map fear, disgust, contempt directly to Anxious", () => {
+      const emotions = ["fear", "disgust", "contempt"];
       emotions.forEach((emo) => {
         const history: BehaviorSample[] = [
           {
@@ -130,6 +130,36 @@ describe("behaviorSignalMapper", () => {
           },
         ];
         expect(mapBehaviorSignal(history, null)).toBe("Anxious");
+      });
+    });
+
+    it("should map surprise directly to Surprise", () => {
+      const history: BehaviorSample[] = [
+        {
+          timestamp: Date.now(),
+          cameraOff: false,
+          facePresent: true,
+          boundingBox: { x: 100, y: 100, width: 50, height: 50 },
+          hseEmotion: "surprise",
+          hseConfidence: 0.70,
+        },
+      ];
+      expect(mapBehaviorSignal(history, null)).toBe("Surprise");
+    });
+
+    it("should map angry, anger directly to Angry", () => {
+      ["angry", "anger"].forEach((emo) => {
+        const history: BehaviorSample[] = [
+          {
+            timestamp: Date.now(),
+            cameraOff: false,
+            facePresent: true,
+            boundingBox: { x: 100, y: 100, width: 50, height: 50 },
+            hseEmotion: emo,
+            hseConfidence: 0.70,
+          },
+        ];
+        expect(mapBehaviorSignal(history, null)).toBe("Angry");
       });
     });
 
@@ -148,7 +178,7 @@ describe("behaviorSignalMapper", () => {
     });
   });
 
-  describe("HSEmotion mappings with Low Confidence (< 0.50)", () => {
+  describe("HSEmotion mappings with Low Confidence (< 0.20)", () => {
     it("should map to Calm if movement between last two face center frames is stable (< 20px)", () => {
       const history: BehaviorSample[] = [
         {
@@ -163,7 +193,7 @@ describe("behaviorSignalMapper", () => {
           facePresent: true,
           boundingBox: { x: 105, y: 105, width: 50, height: 50 }, // center (130, 130), movement = sqrt(50) = 7.07px
           hseEmotion: "happy",
-          hseConfidence: 0.35,
+          hseConfidence: 0.10,
         },
       ];
       expect(mapBehaviorSignal(history, null)).toBe("Calm");
@@ -183,7 +213,7 @@ describe("behaviorSignalMapper", () => {
           facePresent: true,
           boundingBox: { x: 120, y: 120, width: 50, height: 50 }, // center (145, 145), movement = sqrt(800) = 28.28px
           hseEmotion: "happy",
-          hseConfidence: 0.35,
+          hseConfidence: 0.10,
         },
       ];
       expect(mapBehaviorSignal(history, null)).toBe("Neutral");

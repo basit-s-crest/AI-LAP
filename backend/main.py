@@ -61,6 +61,7 @@ if os.getenv("ENVIRONMENT") == "production":
 app.add_middleware(RequestLoggerMiddleware)
 
 # ── API routers ───────────────────────────────────────────────────────────────
+# Reload trigger comment
 app.include_router(api_router)
 
 
