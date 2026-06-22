@@ -203,18 +203,14 @@ class LiveMeetingAnalysisEngine:
             t_start = asyncio.get_event_loop().time()
             
             try:
-                from app.core.database import AsyncSessionLocal
                 from app.modules.rag import run_rag_analysis
                 
-                async with AsyncSessionLocal() as db:
-                    analysis_text = await run_rag_analysis(
-                        db=db,
-                        session_id=session_id,
-                        member_id=member_id,
-                        recent_lines=recent_lines,
-                        working_buffer_text=raw_buffer_text
-                    )
-                    await db.commit()
+                analysis_text = await run_rag_analysis(
+                    session_id=session_id,
+                    member_id=member_id,
+                    recent_lines=recent_lines,
+                    working_buffer_text=raw_buffer_text
+                )
                 
                 duration = int((asyncio.get_event_loop().time() - t_start) * 1000)
                 logger.info(f"[Live Analysis] Completed in {duration}ms. Result: \"{analysis_text}\"")
@@ -222,10 +218,14 @@ class LiveMeetingAnalysisEngine:
                 # Forward to client over WebSocket in a thread-safe manner
                 async with write_lock:
                     if websocket:
-                        await websocket.send_json({
-                            "type": "live_analysis",
-                            "analysis": analysis_text
-                        })
+                        try:
+                            await websocket.send_json({
+                                "type": "live_analysis",
+                                "analysis": analysis_text
+                            })
+                        except Exception as ws_err:
+                            # WebSocket may have been closed while RAG was running — that's fine
+                            logger.debug(f"[Live Analysis] Could not send result for session {session_id} (WS closed?): {ws_err}")
                     
             except Exception as e:
                 logger.error(f"[Live Analysis] RAG Agent execution error for session {session_id}: {e}")

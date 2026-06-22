@@ -158,10 +158,10 @@ async def websocket_endpoint(websocket: WebSocket):
                                 pass
                 except WebSocketDisconnect:
                     logger.info("[STT Proxy] Client connection closed (normal disconnect)")
+                except asyncio.CancelledError:
+                    raise
                 except Exception as e:
                     logger.warning(f"[STT Proxy] Exception in client_to_dg loop: {e}")
-                finally:
-                    raise asyncio.CancelledError()
 
             async def dg_to_client():
                 try:
@@ -188,15 +188,33 @@ async def websocket_endpoint(websocket: WebSocket):
                                     )
                             except Exception as e:
                                 logger.debug(f"[STT Proxy] Live analysis parsing skipped/failed: {e}")
+                except asyncio.CancelledError:
+                    raise
                 except Exception as e:
                     logger.warning(f"[STT Proxy] Exception in dg_to_client loop: {e}")
-                finally:
-                    raise asyncio.CancelledError()
 
+            # Run both loops; cancel the sibling when either one finishes
+            c2d_task = asyncio.create_task(client_to_dg())
+            d2c_task = asyncio.create_task(dg_to_client())
             try:
-                await asyncio.gather(client_to_dg(), dg_to_client())
+                done, pending = await asyncio.wait(
+                    [c2d_task, d2c_task],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                for task in pending:
+                    task.cancel()
+                    try:
+                        await task
+                    except (asyncio.CancelledError, Exception):
+                        pass
             except asyncio.CancelledError:
-                logger.info("[STT Proxy] Concurrent forwarding tasks cancelled")
+                for task in [c2d_task, d2c_task]:
+                    task.cancel()
+                    try:
+                        await task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+                raise
 
     except Exception as err:
         logger.error(f"[STT Proxy] Connection to Deepgram failed: {err}")

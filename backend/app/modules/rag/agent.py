@@ -3,8 +3,7 @@ import logging
 from strands import Agent
 from strands.models.litellm import LiteLLMModel
 from app.modules.rag.retriever import get_patient_profile, get_relevant_memory_events, get_recent_episodes
-from app.modules.rag.embedder import get_embedding
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.modules.rag.embedder import get_embedding, get_embedding_async
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,6 @@ def get_litellm_model() -> LiteLLMModel:
     )
 
 async def run_rag_analysis(
-    db: AsyncSession,
     session_id: str,
     member_id: str,
     recent_lines: list[str],
@@ -54,14 +52,25 @@ async def run_rag_analysis(
 ) -> str:
     """
     RAG-based clinical status analysis orchestrated within Strands Agent.
+    Each retriever call uses its own isolated DB session so that a dropped
+    Supabase connection on one call cannot poison the transaction state for
+    the others (prevents the 'invalid transaction is rolled back' cascade).
     """
+    from app.core.database import AsyncSessionLocal
+
     # 1. Fetch RAG Context (L2 summaries, L3a memory events, L3b profile)
     profile_str = ""
     history_str = ""
     episodes_str = ""
-    
-    # 1a. Profile (L3b)
-    profile = await get_patient_profile(db, member_id)
+
+    # 1a. Profile (L3b) — isolated session
+    profile: dict = {}
+    try:
+        async with AsyncSessionLocal() as profile_db:
+            profile = await get_patient_profile(profile_db, member_id)
+    except Exception as e:
+        logger.error(f"[RAG Agent] Failed to open session for profile fetch: {e}")
+
     if profile:
         profile_str = (
             f"- Presenting Conditions: {', '.join(profile.get('presenting_conditions', []))}\n"
@@ -75,8 +84,8 @@ async def run_rag_analysis(
         )
     else:
         profile_str = "- No historical longitudinal profile found for this member.\n"
-        
-    # 1b. Vector search for relevant memory events (L3a)
+
+    # 1b. Vector search for relevant memory events (L3a) — isolated session
     if working_buffer_text.strip():
         model = get_litellm_model()
         topic_agent = Agent(
@@ -87,15 +96,20 @@ async def run_rag_analysis(
                 "Output exactly a single sentence or keyword phrase describing this topic to be used for semantic search (RAG)."
             )
         )
-        search_query = topic_agent(f"TRANSCRIPT SNIPPET:\n{working_buffer_text}")
-        search_query = str(search_query).strip()
-        
+        search_result = await topic_agent.invoke_async(f"TRANSCRIPT SNIPPET:\n{working_buffer_text}")
+        search_query = str(search_result).strip()
+
         logger.info(f"[RAG Agent] Generated search query: {search_query}")
-        
+
         if search_query:
-            query_vector = get_embedding(search_query)
-            matched_events = await get_relevant_memory_events(db, member_id, query_vector)
-            
+            query_vector = await get_embedding_async(search_query)
+            matched_events: list[dict] = []
+            try:
+                async with AsyncSessionLocal() as events_db:
+                    matched_events = await get_relevant_memory_events(events_db, member_id, query_vector)
+            except Exception as e:
+                logger.error(f"[RAG Agent] Failed to open session for memory events fetch: {e}")
+
             if matched_events:
                 for idx, ev in enumerate(matched_events):
                     history_str += f"- [{ev['category']}] (Similarity: {ev['similarity']:.2f}): {ev['narrative']}\n"
@@ -103,12 +117,18 @@ async def run_rag_analysis(
                         history_str += f"  Quote: \"{ev['raw_quote']}\"\n"
             else:
                 history_str += "- No relevant historical events matched.\n"
-    
+
     if not history_str:
         history_str = "- No relevant historical events matched.\n"
-        
-    # 1c. Live session episodes (L2)
-    episodes = await get_recent_episodes(db, session_id)
+
+    # 1c. Live session episodes (L2) — isolated session
+    episodes: list[dict] = []
+    try:
+        async with AsyncSessionLocal() as episodes_db:
+            episodes = await get_recent_episodes(episodes_db, session_id)
+    except Exception as e:
+        logger.error(f"[RAG Agent] Failed to open session for episodes fetch: {e}")
+
     if episodes:
         for ep in reversed(episodes):
             episodes_str += f"- Summary: {ep['summary']} (Sentiment: {ep['sentiment']})\n"
@@ -141,5 +161,5 @@ async def run_rag_analysis(
         system_prompt="You are a clinical psychiatric assistant."
     )
     
-    response = analysis_agent(prompt)
+    response = await analysis_agent.invoke_async(prompt)
     return str(response).strip()

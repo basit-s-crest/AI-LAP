@@ -31,6 +31,41 @@ const formatTime = (isoString: string) => {
   }
 };
 
+// ── RAG insight parser ────────────────────────────────────────────────────────
+type RiskTier = "LOW" | "MODERATE" | "HIGH" | "CRISIS";
+
+interface ParsedInsight {
+  tier: RiskTier | null;
+  questions: string[];
+}
+
+const TIER_STYLES: Record<RiskTier, { bg: string; text: string; border: string; label: string }> = {
+  LOW:      { bg: "bg-[#EBF7EE]", text: "text-[#2E7D32]", border: "border-[#C8E6C9]", label: "LOW RISK" },
+  MODERATE: { bg: "bg-[#FFF8E1]", text: "text-[#F57F17]", border: "border-[#FFE082]", label: "MODERATE RISK" },
+  HIGH:     { bg: "bg-[#FFF3E0]", text: "text-[#E65100]", border: "border-[#FFCC80]", label: "HIGH RISK" },
+  CRISIS:   { bg: "bg-[#FFEBEE]", text: "text-[#B71C1C]", border: "border-[#EF9A9A]", label: "CRISIS" },
+};
+
+function parseInsight(text: string): ParsedInsight {
+  const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+  let tier: RiskTier | null = null;
+  const questions: string[] = [];
+
+  for (const line of lines) {
+    // Match tier tag — handles [LOW], [MODERATE], [HIGH], [CRISIS] anywhere in the line
+    const tierMatch = line.match(/\[(LOW|MODERATE|HIGH|CRISIS)\]/i);
+    if (tierMatch && !tier) {
+      tier = tierMatch[1].toUpperCase() as RiskTier;
+      continue;
+    }
+    // Strip leading bullet characters (•, -, *, digits+dot) then add non-empty lines
+    const cleaned = line.replace(/^[\u2022\-\*]\s*/, "").replace(/^\d+\.\s*/, "").trim();
+    if (cleaned) questions.push(cleaned);
+  }
+
+  return { tier, questions };
+}
+
 const COACH_TRANSCRIPT_STUB: TranscriptLine[] = [];
 const startCoachListeningStub = async () => {};
 const stopCoachListeningStub = () => {};
@@ -518,9 +553,29 @@ export default function LiveSessionTranscript({
                     <Sparkles size={14} />
                     <span>LATEST CLINICAL OBSERVATION</span>
                   </div>
-                  <p className="text-sm font-sans text-ink leading-relaxed font-semibold">
-                    {insightsLog[insightsLog.length - 1].text}
-                  </p>
+                  {(() => {
+                    const { tier, questions } = parseInsight(insightsLog[insightsLog.length - 1].text);
+                    const style = tier ? TIER_STYLES[tier] : null;
+                    return (
+                      <div className="space-y-2.5">
+                        {style && (
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-outfit font-bold uppercase tracking-wider border ${style.bg} ${style.text} ${style.border}`}>
+                            {style.label}
+                          </span>
+                        )}
+                        <ul className="space-y-2">
+                          {questions.map((q, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="mt-[3px] shrink-0 w-4 h-4 rounded-full bg-[#EBF7EE] border border-[#C8E6C9] flex items-center justify-center text-[9px] font-bold text-[#4E8C58]">
+                                {i + 1}
+                              </span>
+                              <span className="text-sm font-sans text-ink leading-relaxed">{q}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center gap-1 text-[10px] text-soft font-mono font-semibold pt-2 border-t border-[#D2DBE3]/50">
                     <Clock size={10} />
                     <span>Updated at {formatTime(insightsLog[insightsLog.length - 1].timestamp)}</span>
@@ -540,10 +595,30 @@ export default function LiveSessionTranscript({
                             <Brain size={14} className="text-[#8D99AE]" />
                           </div>
                           <div className="bg-white border border-[#D2DBE3]/75 rounded-xl p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex-1 space-y-1.5">
-                            <p className="text-xs font-sans text-[#5C6B73] leading-relaxed">
-                              {insight.text}
-                            </p>
-                            <div className="flex items-center gap-1 text-[9px] text-soft font-mono">
+                            {(() => {
+                              const { tier, questions } = parseInsight(insight.text);
+                              const style = tier ? TIER_STYLES[tier] : null;
+                              return (
+                                <div className="space-y-2">
+                                  {style && (
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-outfit font-bold uppercase tracking-wider border ${style.bg} ${style.text} ${style.border}`}>
+                                      {style.label}
+                                    </span>
+                                  )}
+                                  <ul className="space-y-1.5">
+                                    {questions.map((q, qi) => (
+                                      <li key={qi} className="flex items-start gap-1.5">
+                                        <span className="mt-[3px] shrink-0 w-3.5 h-3.5 rounded-full bg-[#F0F4F8] border border-[#D2DBE3] flex items-center justify-center text-[8px] font-bold text-[#5C6B73]">
+                                          {qi + 1}
+                                        </span>
+                                        <span className="text-xs font-sans text-[#5C6B73] leading-relaxed">{q}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              );
+                            })()}
+                            <div className="flex items-center gap-1 text-[9px] text-soft font-mono pt-1">
                               <Clock size={8} />
                               <span>{formatTime(insight.timestamp)}</span>
                             </div>

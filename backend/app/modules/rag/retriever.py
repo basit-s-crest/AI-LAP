@@ -41,6 +41,10 @@ async def get_patient_profile(db: AsyncSession, member_id: str) -> dict:
             }
     except Exception as e:
         logger.error(f"[RAG Retriever] Error fetching patient profile: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
     return {}
 
 async def get_relevant_memory_events(
@@ -98,6 +102,10 @@ async def get_relevant_memory_events(
                 logger.error(f"[RAG Retriever] Decryption error for event {ev_id}: {e}")
     except Exception as e:
         logger.error(f"[RAG Retriever] Error performing vector search: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
     return decrypted_events
 
 async def get_recent_episodes(db: AsyncSession, session_id: str, limit: int = 3) -> list[dict]:
@@ -122,4 +130,8 @@ async def get_recent_episodes(db: AsyncSession, session_id: str, limit: int = 3)
             })
     except Exception as e:
         logger.error(f"[RAG Retriever] Error fetching recent episodes: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
     return episodes
