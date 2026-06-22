@@ -72,7 +72,7 @@ export default function MeetingModal({
   }, []);
 
   // Hook up video analysis sampler (Phase 1 & 2)
-  const { isSampling, latestEmotion, startAnalysis, stopAnalysis, mediaPipeReady, usingFallback, rawScores, baselineReady } = useLiveVideoAnalysis({
+  const { isSampling, latestEmotion, currentBoundingBox, startAnalysis, stopAnalysis, mediaPipeReady, usingFallback, rawScores, baselineReady } = useLiveVideoAnalysis({
     videoTrack: remoteVideoTrack,
     isEnabled: consentChecked && !callEnded && !!participantInfo,
     sessionId,
@@ -334,6 +334,9 @@ export default function MeetingModal({
                 onParticipantUpdate={handleParticipantUpdate}
                 onRemoteStream={handleRemoteStream}
                 onRemoteVideoTrack={handleRemoteVideoTrack}
+                latestEmotion={latestEmotion}
+                currentBoundingBox={currentBoundingBox}
+                enableFaceOverlay={consentChecked && !callEnded}
               />
             ) : null}
           </div>

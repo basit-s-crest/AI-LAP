@@ -56,6 +56,12 @@ export function useLiveVideoAnalysis({
 }: UseLiveVideoAnalysisProps) {
   const [isSampling, setIsSampling] = useState(false);
   const [latestEmotion, setLatestEmotion] = useState<EmotionSignal | null>(null);
+  const [currentBoundingBox, setCurrentBoundingBox] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
   const [isManualActive, setIsManualActive] = useState(true);
   const [mediaPipeReady, setMediaPipeReady] = useState(false);
   const [usingFallback, setUsingFallback] = useState(false);
@@ -88,6 +94,7 @@ export function useLiveVideoAnalysis({
     // Clear history on camera off to prevent carrying over stale movements
     historyRef.current = [];
     setRawScores(null);
+    setCurrentBoundingBox(null);
 
     const history = pushHistorySample({ cameraOff: true, facePresent: false });
     const emotion = mapBehaviorSignal(history, null);
@@ -148,6 +155,7 @@ export function useLiveVideoAnalysis({
 
     if (!isAnalysisActive) {
       setLatestEmotion(null);
+      setCurrentBoundingBox(null);
       return;
     }
 
@@ -155,6 +163,7 @@ export function useLiveVideoAnalysis({
     // before the async React state updates for isTrackActive have been flushed/applied.
     if (!videoTrack || isTrackInactive(videoTrack) || !isTrackActive) {
       setCameraOffSignal("track is inactive");
+      setCurrentBoundingBox(null);
       return;
     }
 
@@ -281,6 +290,16 @@ export function useLiveVideoAnalysis({
 
               currentEmotion = mapBehaviorSignal(history, null);
 
+              if (result.boundingBox) {
+                const left = (result.boundingBox.x / 320) * 100;
+                const top = (result.boundingBox.y / 240) * 100;
+                const width = (result.boundingBox.width / 320) * 100;
+                const height = (result.boundingBox.height / 240) * 100;
+                setCurrentBoundingBox({ left, top, width, height });
+              } else {
+                setCurrentBoundingBox(null);
+              }
+
               setLatestEmotion({
                 type: "emotion_signal",
                 sessionId,
@@ -293,6 +312,7 @@ export function useLiveVideoAnalysis({
             } else {
               // Face not present
               setRawScores(null);
+              setCurrentBoundingBox(null);
 
               const history = pushHistorySample({
                 cameraOff: false,
@@ -347,6 +367,17 @@ export function useLiveVideoAnalysis({
           facePresent: mockEmotion !== "No Face",
         });
 
+        if (mockEmotion !== "No Face") {
+          setCurrentBoundingBox({
+            left: (60 / 320) * 100,
+            top: (40 / 240) * 100,
+            width: (120 / 320) * 100,
+            height: (140 / 240) * 100,
+          });
+        } else {
+          setCurrentBoundingBox(null);
+        }
+
         setLatestEmotion({
           type: "emotion_signal",
           sessionId,
@@ -376,6 +407,7 @@ export function useLiveVideoAnalysis({
 
   return {
     latestEmotion,
+    currentBoundingBox,
     isSampling,
     startAnalysis,
     stopAnalysis,

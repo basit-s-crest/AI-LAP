@@ -59,7 +59,7 @@ coachChat.on("connection", (socket) => {
   registerCoachChatHandlers(io, socket);
 });
 
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, "0.0.0.0", () => {
   startOrgNotificationScheduler();
   startSessionAutoCompleter();
   console.log(`✅ VASL Server running on http://localhost:${PORT}`);

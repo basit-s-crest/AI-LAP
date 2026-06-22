@@ -36,6 +36,9 @@ interface SessionVideoCallProps {
   onParticipantUpdate?: (name: string, quality: string) => void;
   onRemoteStream?: (stream: MediaStream | null) => void;
   onRemoteVideoTrack?: (track: MediaStreamTrack | null) => void;
+  latestEmotion?: { dominantEmotion: string; confidence: number } | null;
+  currentBoundingBox?: { left: number; top: number; width: number; height: number } | null;
+  enableFaceOverlay?: boolean;
 }
 
 const backgroundStyle = {
@@ -77,6 +80,9 @@ function VideoCallInterface({
   onParticipantUpdate,
   onRemoteStream,
   onRemoteVideoTrack,
+  latestEmotion,
+  currentBoundingBox,
+  enableFaceOverlay,
 }: {
   role: string;
   onLeave: () => void;
@@ -85,6 +91,9 @@ function VideoCallInterface({
   onParticipantUpdate?: (name: string, quality: string) => void;
   onRemoteStream?: (stream: MediaStream | null) => void;
   onRemoteVideoTrack?: (track: MediaStreamTrack | null) => void;
+  latestEmotion?: { dominantEmotion: string; confidence: number } | null;
+  currentBoundingBox?: { left: number; top: number; width: number; height: number } | null;
+  enableFaceOverlay?: boolean;
 }) {
   const room = useRoomContext();
   const connectionState = useConnectionState();
@@ -371,7 +380,51 @@ function VideoCallInterface({
 
           {/* Remote Video Track */}
           {remoteVideoTrack && isTrackReference(remoteVideoTrack) ? (
-            <VideoTrack trackRef={remoteVideoTrack} className="w-full h-full object-cover" />
+            <div className="relative w-full h-full">
+              <VideoTrack trackRef={remoteVideoTrack} className="w-full h-full object-cover" />
+              
+              {/* Bounding Box & Emotion Tag Overlay */}
+              {enableFaceOverlay && currentBoundingBox && latestEmotion && (
+                <div
+                  className="absolute border-2 border-[#4E8C58] rounded-[8px] pointer-events-none transition-all duration-150"
+                  style={{
+                    left: `${currentBoundingBox.left}%`,
+                    top: `${currentBoundingBox.top}%`,
+                    width: `${currentBoundingBox.width}%`,
+                    height: `${currentBoundingBox.height}%`,
+                    boxShadow: "0 0 12px rgba(78, 140, 88, 0.4)",
+                  }}
+                >
+                  {/* Floating Emotion Tag Pill */}
+                  <div
+                    className="absolute -top-9 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white font-outfit text-[11px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 whitespace-nowrap"
+                    style={{
+                      border: "1px solid rgba(255, 255, 255, 0.15)",
+                      backdropFilter: "blur(4px)",
+                    }}
+                  >
+                    <span>
+                      {latestEmotion.dominantEmotion === "Calm"
+                        ? "🟢"
+                        : latestEmotion.dominantEmotion === "Neutral"
+                        ? "😐"
+                        : latestEmotion.dominantEmotion === "Happy"
+                        ? "😊"
+                        : latestEmotion.dominantEmotion === "Sad"
+                        ? "😢"
+                        : latestEmotion.dominantEmotion === "Anxious"
+                        ? "🟠"
+                        : latestEmotion.dominantEmotion === "No Face"
+                        ? "⚪"
+                        : latestEmotion.dominantEmotion === "Camera Off"
+                        ? "⚫"
+                        : "🟡"}
+                    </span>
+                    <span>{latestEmotion.dominantEmotion}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center w-full h-full bg-[#0F172A] py-16">
               <div
@@ -469,6 +522,9 @@ export default function SessionVideoCall({
   onParticipantUpdate,
   onRemoteStream,
   onRemoteVideoTrack,
+  latestEmotion,
+  currentBoundingBox,
+  enableFaceOverlay,
 }: SessionVideoCallProps) {
   const router = useRouter();
   const [errorState, setErrorState] = useState<string | null>(null);
@@ -556,6 +612,9 @@ export default function SessionVideoCall({
         onParticipantUpdate={onParticipantUpdate}
         onRemoteStream={onRemoteStream}
         onRemoteVideoTrack={onRemoteVideoTrack}
+        latestEmotion={latestEmotion}
+        currentBoundingBox={currentBoundingBox}
+        enableFaceOverlay={enableFaceOverlay}
       />
     </LiveKitRoom>
   );
