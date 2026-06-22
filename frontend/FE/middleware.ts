@@ -25,7 +25,12 @@ function isPublic(path: string): boolean {
 async function fetchMaintenanceMode(): Promise<boolean> {
   const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
   try {
-    const res = await fetch(`${base}/api/auth/platform-settings`, { cache: "no-store" });
+    const res = await fetch(`${base}/api/auth/platform-settings`, {
+      cache: "no-store",
+      // Prevent a slow/missing backend from hanging navigation in middleware.
+      // 3 s is plenty for a local server; if it's unreachable we bail fast.
+      signal: AbortSignal.timeout(3_000),
+    });
     if (!res.ok) return false;
     const data = (await res.json()) as { maintenanceMode?: boolean };
     return Boolean(data.maintenanceMode);

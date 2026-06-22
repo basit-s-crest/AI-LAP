@@ -3,7 +3,7 @@
 import { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import { useLiveTranscription } from "@/hooks/useLiveTranscription";
 import type { TranscriptLine } from "@/types/sessionNote";
-import { Mic, MicOff, AlertTriangle, Play, Sparkles, Activity, Clock, Brain } from "lucide-react";
+import { Mic, MicOff, AlertTriangle, Play, Sparkles, Activity, Clock, Brain, BarChart3, Waves, Zap, AlertCircle } from "lucide-react";
 import { LiveVideoAnalysisApiService, type SessionAggregationResponse } from "@/services/liveVideoAnalysis.service";
 
 interface LiveSessionTranscriptProps {
@@ -37,6 +37,7 @@ type RiskTier = "LOW" | "MODERATE" | "HIGH" | "CRISIS";
 
 interface ParsedInsight {
   tier: RiskTier | null;
+  sentimentSummary: string | null;
   questions: string[];
 }
 
@@ -50,6 +51,7 @@ const TIER_STYLES: Record<RiskTier, { bg: string; text: string; border: string; 
 function parseInsight(text: string): ParsedInsight {
   const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
   let tier: RiskTier | null = null;
+  let sentimentSummary: string | null = null;
   const questions: string[] = [];
 
   for (const line of lines) {
@@ -61,11 +63,60 @@ function parseInsight(text: string): ParsedInsight {
     }
     // Strip leading bullet characters (•, -, *, digits+dot) then add non-empty lines
     const cleaned = line.replace(/^[\u2022\-\*]\s*/, "").replace(/^\d+\.\s*/, "").trim();
-    if (cleaned) questions.push(cleaned);
+    if (cleaned) {
+      // First non-tier, non-bullet line is the sentiment summary
+      if (!sentimentSummary && !cleaned.endsWith("?")) {
+        sentimentSummary = cleaned;
+      } else {
+        questions.push(cleaned);
+      }
+    }
   }
 
-  return { tier, questions };
+  return { tier, sentimentSummary, questions };
 }
+
+// ── Tone data types ────────────────────────────────────────────────────────────────────────
+interface ToneData {
+  pitch_mean: number;
+  pitch_std: number;
+  energy_mean: number;
+  energy_trend: 'rising' | 'falling' | 'stable';
+  speech_rate_wpm: number;
+  pause_ratio: number;
+  affect_label: string;
+  congruence_score: number;
+  incongruence_flag: boolean;
+  text_sentiment_score: number;
+  vocal_markers: string[];
+}
+
+interface InsightEntry {
+  type: 'analysis';
+  timestamp: string;
+  analysis: string;
+  tone: ToneData | null;
+  // Parsed from analysis text
+  tier: RiskTier | null;
+  sentimentSummary: string | null;
+  questions: string[];
+}
+
+const AFFECT_STYLES: Record<string, { bg: string; text: string; border: string; emoji: string }> = {
+  calm:         { bg: "bg-[#EBF7EE]", text: "text-[#2E7D32]", border: "border-[#C8E6C9]", emoji: "😌" },
+  neutral:      { bg: "bg-[#F1F6FC]", text: "text-[#3A6E99]", border: "border-[#D4E8F5]", emoji: "😐" },
+  elevated:     { bg: "bg-[#FFF8E1]", text: "text-[#F57F17]", border: "border-[#FFE082]", emoji: "😄" },
+  flat:         { bg: "bg-[#ECEFF1]", text: "text-[#455A64]", border: "border-[#B0BEC5]", emoji: "😶" },
+  nervous:      { bg: "bg-[#FFF3E0]", text: "text-[#E65100]", border: "border-[#FFCC80]", emoji: "😰" },
+  distressed:   { bg: "bg-[#FFEBEE]", text: "text-[#B71C1C]", border: "border-[#EF9A9A]", emoji: "😟" },
+  incongruent:  { bg: "bg-[#F3E5F5]", text: "text-[#6A1B9A]", border: "border-[#CE93D8]", emoji: "🎭" },
+};
+
+const VOCAL_MARKER_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  laughter:    { bg: "bg-[#FFF8E1]", text: "text-[#F57F17]", label: "😂 Laughter" },
+  sigh:        { bg: "bg-[#E3F2FD]", text: "text-[#1565C0]", label: "😮‍💨 Sighing" },
+  voice_break: { bg: "bg-[#FBE9E7]", text: "text-[#BF360C]", label: "🗣️ Voice Break" },
+};
 
 const COACH_TRANSCRIPT_STUB: TranscriptLine[] = [];
 const startCoachListeningStub = async () => {};
@@ -102,7 +153,7 @@ export default function LiveSessionTranscript({
   emotionHistory = [],
 }: LiveSessionTranscriptProps) {
   const [activeSubTab, setActiveSubTab] = useState<"transcript" | "insights">("transcript");
-  const [insightsLog, setInsightsLog] = useState<{ text: string; timestamp: string }[]>([]);
+  const [insightsLog, setInsightsLog] = useState<InsightEntry[]>([]);
   const [aggregation, setAggregation] = useState<SessionAggregationResponse | null>(null);
 
   const getEmotionEmoji = (emotion: string): string => {
@@ -161,11 +212,18 @@ export default function LiveSessionTranscript({
     return () => clearInterval(interval);
   }, [activeSubTab, sessionId, isCallActive, isDev]);
 
-  const handleLiveAnalysis = useCallback((text: string) => {
-    setInsightsLog((prev) => [
-      ...prev,
-      { text, timestamp: new Date().toISOString() },
-    ]);
+  const handleLiveAnalysis = useCallback((text: string, tone?: any) => {
+    const parsed = parseInsight(text);
+    const entry: InsightEntry = {
+      type: 'analysis',
+      timestamp: new Date().toISOString(),
+      analysis: text,
+      tone: tone || null,
+      tier: parsed.tier,
+      sentimentSummary: parsed.sentimentSummary,
+      questions: parsed.questions,
+    };
+    setInsightsLog((prev) => [...prev, entry]);
   }, []);
 
   const {
@@ -379,7 +437,7 @@ export default function LiveSessionTranscript({
             )}
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Emotional Climate Panel (Dev/Debug Flag Gated) */}
             {isDev && (
               <div className="bg-white border border-[#D2DBE3] rounded-2xl p-4 shadow-sm space-y-3">
@@ -401,192 +459,19 @@ export default function LiveSessionTranscript({
                       Current State
                     </span>
                     <div className="font-outfit font-bold text-ink flex items-center gap-1.5">
-                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Calm" && "🟢 Calm"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Neutral" && "🟡 Neutral"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Happy" && "😊 Happy"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Sad" && "😢 Sad"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Anxious" && "🟠 Anxious"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Surprise" && "😲 Surprise"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Angry" && "😠 Angry"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "No Face" && "⚪ No Face"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Camera Off" && "⚫ Camera Off"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Intermittent Presence" && "🔄 Intermittent Presence"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Unstable Presence" && "🫨 Unstable Presence"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) === "Distracted" && "👀 Distracted"}
-                      {!(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion) && "—"}
+                      {getEmotionEmoji(latestEmotion?.dominantEmotion || aggregation?.dominantEmotion || "")} {latestEmotion?.dominantEmotion || aggregation?.dominantEmotion || "—"}
                     </div>
                   </div>
                   
                   <div className="bg-[#F8FAFC] border border-[#D2DBE3]/50 rounded-xl p-2.5 space-y-1">
                     <span className="text-[10px] font-sans font-semibold text-[#5C6B73] block uppercase tracking-wider">
-                      Latest Emotion
+                      Baseline Ready
                     </span>
-                    <div className="font-outfit font-bold text-ink flex items-center gap-1.5">
-                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Calm" && "🟢 Calm"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Neutral" && "🟡 Neutral"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Happy" && "😊 Happy"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Sad" && "😢 Sad"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Anxious" && "🟠 Anxious"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Surprise" && "😲 Surprise"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Angry" && "😠 Angry"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "No Face" && "⚪ No Face"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Camera Off" && "⚫ Camera Off"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Intermittent Presence" && "🔄 Intermittent Presence"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Unstable Presence" && "🫨 Unstable Presence"}
-                      {(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) === "Distracted" && "👀 Distracted"}
-                      {!(latestEmotion?.dominantEmotion || aggregation?.latestEmotion) && "—"}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Counts Summary */}
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-sans font-semibold text-soft block uppercase tracking-wider">
-                    Signal Distribution
-                  </span>
-                  {Object.keys(displayEmotionCounts).length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(displayEmotionCounts).map(([emotion, count]) => {
-                        let colorClass = "bg-gray-100 text-gray-700";
-                        if (emotion === "Calm") colorClass = "bg-[#EBF7EE] text-[#2E7D32]";
-                        if (emotion === "Neutral") colorClass = "bg-[#FFFDE7] text-[#F57F17]";
-                        if (emotion === "Happy") colorClass = "bg-[#E8F5E9] text-[#1B5E20]";
-                        if (emotion === "Sad") colorClass = "bg-[#E1F5FE] text-[#01579B]";
-                        if (emotion === "Anxious") colorClass = "bg-[#FFF3E0] text-[#E65100]";
-                        if (emotion === "Surprise") colorClass = "bg-[#E0F7FA] text-[#006064]";
-                        if (emotion === "Angry") colorClass = "bg-[#FFEBEE] text-[#C62828]";
-                        if (emotion === "Intermittent Presence") colorClass = "bg-[#EDE7F6] text-[#4A148C]";
-                        if (emotion === "Unstable Presence") colorClass = "bg-[#F3E5F5] text-[#7B1FA2]";
-                        if (emotion === "Distracted") colorClass = "bg-[#ECEFF1] text-[#37474F]";
-                        
-                        return (
-                          <span
-                            key={emotion}
-                            className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${colorClass}`}
-                          >
-                            {emotion}: {count}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <span className="text-[10px] text-soft italic block">No signals buffered yet.</span>
-                  )}
-                </div>
-
-                {/* History Trail */}
-                {emotionHistory.length > 0 && (
-                  <div className="space-y-1.5 pt-1">
-                    <span className="text-[10px] font-sans font-semibold text-soft block uppercase tracking-wider">
-                      Recent History (Time Trail)
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                      baselineReady ? "bg-[#EBF7EE] text-[#2E7D32]" : "bg-gray-100 text-gray-700"
+                    }`}>
+                      {baselineReady ? "Yes" : "No"}
                     </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {emotionHistory.slice(0, -1).slice(-4).map((item, idx) => {
-                        let colorClass = "bg-gray-100 text-gray-700";
-                        if (item.emotion === "Calm") colorClass = "bg-[#EBF7EE] text-[#2E7D32]";
-                        if (item.emotion === "Neutral") colorClass = "bg-[#FFFDE7] text-[#F57F17]";
-                        if (item.emotion === "Happy") colorClass = "bg-[#E8F5E9] text-[#1B5E20]";
-                        if (item.emotion === "Sad") colorClass = "bg-[#E1F5FE] text-[#01579B]";
-                        if (item.emotion === "Anxious") colorClass = "bg-[#FFF3E0] text-[#E65100]";
-                        if (item.emotion === "Surprise") colorClass = "bg-[#E0F7FA] text-[#006064]";
-                        if (item.emotion === "Angry") colorClass = "bg-[#FFEBEE] text-[#C62828]";
-                        if (item.emotion === "Intermittent Presence") colorClass = "bg-[#EDE7F6] text-[#4A148C]";
-                        if (item.emotion === "Unstable Presence") colorClass = "bg-[#F3E5F5] text-[#7B1FA2]";
-                        if (item.emotion === "Distracted") colorClass = "bg-[#ECEFF1] text-[#37474F]";
-                        
-                        return (
-                          <span
-                            key={`${item.timestamp}-${idx}`}
-                            className={`text-[10px] font-sans font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition-all duration-300 ${colorClass}`}
-                          >
-                            <span>{getEmotionEmoji(item.emotion)}</span>
-                            <span>{item.emotion}</span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Developer HUD Section */}
-                <div className="border-t border-[#D2DBE3]/50 pt-3 mt-3 space-y-2">
-                  <div className="text-[10px] font-sans font-bold text-[#3A6E99] uppercase tracking-wider">
-                    🔧 Developer HUD
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3 text-xs bg-[#F8FAFC] border border-[#D2DBE3]/50 rounded-xl p-3">
-                    {/* Monitored HSEmotion Scores (Left Column) */}
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-sans font-semibold text-soft block uppercase tracking-wider">
-                        HSEmotion Probabilities
-                      </span>
-                      <div className="font-mono text-[11px] space-y-0.5">
-                        <div className="flex justify-between">
-                          <span className="text-soft">Happy:</span>
-                          <span className="font-bold text-ink">{rawScores && rawScores["happy"] !== undefined ? rawScores["happy"].toFixed(3) : "0.000"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-soft">Sad:</span>
-                          <span className="font-bold text-ink">{rawScores && rawScores["sad"] !== undefined ? rawScores["sad"].toFixed(3) : "0.000"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-soft">Angry:</span>
-                          <span className="font-bold text-ink">{rawScores && rawScores["angry"] !== undefined ? rawScores["angry"].toFixed(3) : "0.000"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-soft">Fear:</span>
-                          <span className="font-bold text-ink">{rawScores && rawScores["fear"] !== undefined ? rawScores["fear"].toFixed(3) : "0.000"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-soft">Surprise:</span>
-                          <span className="font-bold text-ink">{rawScores && rawScores["surprise"] !== undefined ? rawScores["surprise"].toFixed(3) : "0.000"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-soft">Neutral:</span>
-                          <span className="font-bold text-ink">{rawScores && rawScores["neutral"] !== undefined ? rawScores["neutral"].toFixed(3) : "0.000"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-soft">Disgust:</span>
-                          <span className="font-bold text-ink">{rawScores && rawScores["disgust"] !== undefined ? rawScores["disgust"].toFixed(3) : "0.000"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-soft">Contempt:</span>
-                          <span className="font-bold text-ink">{rawScores && rawScores["contempt"] !== undefined ? rawScores["contempt"].toFixed(3) : "0.000"}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* State & Metadata (Right Column) */}
-                    <div className="space-y-2 pl-3 border-l border-[#D2DBE3]/50 flex flex-col justify-center">
-                      <span className="text-[9px] font-sans font-semibold text-soft block uppercase tracking-wider">
-                        Model Inference Status
-                      </span>
-                      
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-soft">Dominant:</span>
-                          <span className="text-[10.5px] font-bold text-ink">
-                            {latestEmotion?.dominantEmotion || "—"}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-soft">Confidence:</span>
-                          <span className="text-[10.5px] font-bold text-ink">
-                            {latestEmotion && latestEmotion.confidence !== undefined ? `${(latestEmotion.confidence * 100).toFixed(0)}%` : "0%"}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-soft">Baseline Ready:</span>
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                            baselineReady ? "bg-[#EBF7EE] text-[#2E7D32]" : "bg-gray-100 text-gray-700"
-                          }`}>
-                            {baselineReady ? "Yes" : "No"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -603,7 +488,7 @@ export default function LiveSessionTranscript({
                 </div>
                 <h4 className="font-outfit font-bold text-[#3A4550]">Awaiting Clinical Observations</h4>
                 <p className="text-xs font-sans text-soft max-w-[280px] leading-relaxed">
-                  Real-time clinical insights will populate here automatically every 5 lines or 40 words spoken by the member.
+                  Real-time clinical insights with vocal tone analysis will populate here automatically every 5 lines or 40 words spoken by the member.
                 </p>
               </div>
             ) : (
@@ -619,88 +504,178 @@ export default function LiveSessionTranscript({
                   </span>
                 </div>
 
-                {/* Latest Insight Card */}
-                <div className="bg-gradient-to-br from-white to-[#F8FAFC] border-[1.5px] border-[#D2DBE3] rounded-2xl p-5 shadow-sm space-y-3 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#EBF7EE]/30 rounded-full blur-xl -mr-6 -mt-6 pointer-events-none" />
-                  <div className="flex items-center gap-1.5 text-xs font-outfit font-bold text-[#4E8C58]">
-                    <Sparkles size={14} />
-                    <span>LATEST CLINICAL OBSERVATION</span>
-                  </div>
-                  {(() => {
-                    const { tier, questions } = parseInsight(insightsLog[insightsLog.length - 1].text);
-                    const style = tier ? TIER_STYLES[tier] : null;
-                    return (
-                      <div className="space-y-2.5">
-                        {style && (
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-outfit font-bold uppercase tracking-wider border ${style.bg} ${style.text} ${style.border}`}>
-                            {style.label}
-                          </span>
-                        )}
-                        <ul className="space-y-2">
-                          {questions.map((q, i) => (
-                            <li key={i} className="flex items-start gap-2">
-                              <span className="mt-[3px] shrink-0 w-4 h-4 rounded-full bg-[#EBF7EE] border border-[#C8E6C9] flex items-center justify-center text-[9px] font-bold text-[#4E8C58]">
-                                {i + 1}
-                              </span>
-                              <span className="text-sm font-sans text-ink leading-relaxed">{q}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    );
-                  })()}
-                  <div className="flex items-center gap-1 text-[10px] text-soft font-mono font-semibold pt-2 border-t border-[#D2DBE3]/50">
-                    <Clock size={10} />
-                    <span>Updated at {formatTime(insightsLog[insightsLog.length - 1].timestamp)}</span>
-                  </div>
-                </div>
+                {/* ═══ UNIFIED TIMELINE ═══ */}
+                <div className="space-y-4 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[2px] before:bg-gradient-to-b before:from-[#D2DBE3] before:to-[#D2DBE3]/30">
+                  {[...insightsLog].reverse().map((entry, idx) => {
+                    const isLatest = idx === 0;
+                    const affectStyle = entry.tone ? (AFFECT_STYLES[entry.tone.affect_label] || AFFECT_STYLES.neutral) : null;
+                    const tierStyle = entry.tier ? TIER_STYLES[entry.tier] : null;
 
-                {/* History Timeline */}
-                {insightsLog.length > 1 && (
-                  <div className="space-y-4 pt-2">
-                    <h5 className="font-outfit font-bold text-[#3A4550] text-[10.5px] uppercase tracking-wider">
-                      Observation History
-                    </h5>
-                    <div className="space-y-3 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[2px] before:bg-[#D2DBE3]/70">
-                      {insightsLog.slice(0, -1).reverse().map((insight, idx) => (
-                        <div key={idx} className="flex gap-4 relative">
-                          <div className="w-9 h-9 rounded-full bg-white border-2 border-[#D2DBE3] flex items-center justify-center shrink-0 z-10 shadow-sm text-dim">
-                            <Brain size={14} className="text-[#8D99AE]" />
-                          </div>
-                          <div className="bg-white border border-[#D2DBE3]/75 rounded-xl p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex-1 space-y-1.5">
-                            {(() => {
-                              const { tier, questions } = parseInsight(insight.text);
-                              const style = tier ? TIER_STYLES[tier] : null;
-                              return (
-                                <div className="space-y-2">
-                                  {style && (
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-outfit font-bold uppercase tracking-wider border ${style.bg} ${style.text} ${style.border}`}>
-                                      {style.label}
-                                    </span>
-                                  )}
-                                  <ul className="space-y-1.5">
-                                    {questions.map((q, qi) => (
-                                      <li key={qi} className="flex items-start gap-1.5">
-                                        <span className="mt-[3px] shrink-0 w-3.5 h-3.5 rounded-full bg-[#F0F4F8] border border-[#D2DBE3] flex items-center justify-center text-[8px] font-bold text-[#5C6B73]">
-                                          {qi + 1}
-                                        </span>
-                                        <span className="text-xs font-sans text-[#5C6B73] leading-relaxed">{q}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              );
-                            })()}
-                            <div className="flex items-center gap-1 text-[9px] text-soft font-mono pt-1">
-                              <Clock size={8} />
-                              <span>{formatTime(insight.timestamp)}</span>
+                    return (
+                      <div
+                        key={`${entry.timestamp}-${idx}`}
+                        className={`flex gap-4 relative transition-all duration-500 ${
+                          isLatest ? "animate-[slideIn_0.4s_ease-out]" : ""
+                        }`}
+                      >
+                        {/* Timeline Node */}
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 z-10 shadow-sm border-2 ${
+                          isLatest
+                            ? "bg-gradient-to-br from-[#4E8C58] to-[#68A688] border-white text-white"
+                            : "bg-white border-[#D2DBE3] text-[#8D99AE]"
+                        }`}>
+                          {entry.tone ? <Waves size={14} /> : <Brain size={14} />}
+                        </div>
+
+                        {/* Card */}
+                        <div className={`flex-1 rounded-2xl border shadow-[0_2px_8px_rgba(0,0,0,0.03)] overflow-hidden ${
+                          isLatest
+                            ? "bg-gradient-to-br from-white to-[#F8FAFC] border-[1.5px] border-[#D2DBE3]"
+                            : "bg-white border-[#D2DBE3]/75"
+                        }`}>
+                          {/* Card Header */}
+                          <div className={`px-4 py-2.5 flex items-center justify-between border-b border-[#D2DBE3]/50 ${
+                            isLatest ? "bg-[#F8FAFC]" : ""
+                          }`}>
+                            <div className="flex items-center gap-2">
+                              {isLatest && (
+                                <span className="text-[9px] font-outfit font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#4E8C58] text-white">
+                                  Latest
+                                </span>
+                              )}
+                              {tierStyle && (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[9px] font-outfit font-bold uppercase tracking-wider border ${tierStyle.bg} ${tierStyle.text} ${tierStyle.border}`}>
+                                  {tierStyle.label}
+                                </span>
+                              )}
+                              {affectStyle && (
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-outfit font-bold uppercase tracking-wider border ${affectStyle.bg} ${affectStyle.text} ${affectStyle.border}`}>
+                                  <span>{affectStyle.emoji}</span>
+                                  <span>{entry.tone?.affect_label}</span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 text-[9px] text-soft font-mono font-semibold">
+                              <Clock size={9} />
+                              <span>{formatTime(entry.timestamp)}</span>
                             </div>
                           </div>
+
+                          {/* Incongruence Alert */}
+                          {entry.tone?.incongruence_flag && (
+                            <div className="mx-3 mt-3 flex items-start gap-2 bg-[#F3E5F5] border border-[#CE93D8] rounded-xl px-3 py-2.5">
+                              <AlertCircle size={16} className="text-[#6A1B9A] shrink-0 mt-0.5" />
+                              <div className="space-y-1">
+                                <span className="text-[10px] font-outfit font-bold text-[#6A1B9A] uppercase tracking-wider block">
+                                  ⚠️ Affect Incongruence Detected
+                                </span>
+                                <span className="text-[11px] font-sans text-[#4A148C] leading-relaxed block">
+                                  Words and vocal tone don&apos;t align — possible deflection, masking, or emotional suppression.
+                                  {entry.tone.text_sentiment_score < -0.3 && entry.tone.vocal_markers.includes('laughter') &&
+                                    " Negative verbal content paired with laughter may indicate coping through humor."
+                                  }
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tone Metrics Row */}
+                          {entry.tone && (
+                            <div className="px-4 pt-3">
+                              <div className="grid grid-cols-4 gap-2">
+                                {/* Speech Rate */}
+                                <div className="bg-[#F8FAFC] border border-[#D2DBE3]/50 rounded-lg p-2 text-center">
+                                  <div className="text-[8px] font-sans font-semibold text-soft uppercase tracking-wider">Rate</div>
+                                  <div className="text-[12px] font-outfit font-bold text-ink">{entry.tone.speech_rate_wpm}<span className="text-[8px] text-soft"> wpm</span></div>
+                                </div>
+                                {/* Energy */}
+                                <div className="bg-[#F8FAFC] border border-[#D2DBE3]/50 rounded-lg p-2 text-center">
+                                  <div className="text-[8px] font-sans font-semibold text-soft uppercase tracking-wider">Energy</div>
+                                  <div className="text-[12px] font-outfit font-bold text-ink flex items-center justify-center gap-1">
+                                    {entry.tone.energy_trend === 'rising' ? '↑' : entry.tone.energy_trend === 'falling' ? '↓' : '→'}
+                                    <span className="text-[9px] text-soft capitalize">{entry.tone.energy_trend}</span>
+                                  </div>
+                                </div>
+                                {/* Pause Ratio */}
+                                <div className="bg-[#F8FAFC] border border-[#D2DBE3]/50 rounded-lg p-2 text-center">
+                                  <div className="text-[8px] font-sans font-semibold text-soft uppercase tracking-wider">Pauses</div>
+                                  <div className="text-[12px] font-outfit font-bold text-ink">{Math.round(entry.tone.pause_ratio * 100)}%</div>
+                                </div>
+                                {/* Congruence */}
+                                <div className={`rounded-lg p-2 text-center border ${
+                                  entry.tone.congruence_score < 0.4
+                                    ? "bg-[#F3E5F5] border-[#CE93D8]"
+                                    : entry.tone.congruence_score < 0.7
+                                    ? "bg-[#FFF8E1] border-[#FFE082]"
+                                    : "bg-[#EBF7EE] border-[#C8E6C9]"
+                                }`}>
+                                  <div className="text-[8px] font-sans font-semibold text-soft uppercase tracking-wider">Match</div>
+                                  <div className={`text-[12px] font-outfit font-bold ${
+                                    entry.tone.congruence_score < 0.4 ? "text-[#6A1B9A]" :
+                                    entry.tone.congruence_score < 0.7 ? "text-[#F57F17]" : "text-[#2E7D32]"
+                                  }`}>
+                                    {Math.round(entry.tone.congruence_score * 100)}%
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Vocal Markers */}
+                              {entry.tone.vocal_markers.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                  {entry.tone.vocal_markers.map((marker) => {
+                                    const style = VOCAL_MARKER_STYLES[marker];
+                                    return style ? (
+                                      <span key={marker} className={`text-[9px] font-sans font-bold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>
+                                        {style.label}
+                                      </span>
+                                    ) : null;
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Sentiment Summary */}
+                          {entry.sentimentSummary && (
+                            <div className="px-4 pt-2.5">
+                              <p className={`text-[11.5px] font-sans leading-relaxed italic ${
+                                entry.tone?.incongruence_flag ? "text-[#6A1B9A]" : "text-[#37474F]"
+                              }`}>
+                                &ldquo;{entry.sentimentSummary}&rdquo;
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Suggested Questions */}
+                          {entry.questions.length > 0 && (
+                            <div className="px-4 pt-2.5 pb-3.5">
+                              <div className="flex items-center gap-1.5 text-[10px] font-outfit font-bold text-[#4E8C58] mb-2 uppercase tracking-wider">
+                                <Sparkles size={11} />
+                                <span>Suggested Questions</span>
+                              </div>
+                              <ul className="space-y-1.5">
+                                {entry.questions.map((q, i) => (
+                                  <li key={i} className="flex items-start gap-2">
+                                    <span className={`mt-[2px] shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${
+                                      isLatest
+                                        ? "bg-[#EBF7EE] border border-[#C8E6C9] text-[#4E8C58]"
+                                        : "bg-[#F0F4F8] border border-[#D2DBE3] text-[#5C6B73]"
+                                    }`}>
+                                      {i + 1}
+                                    </span>
+                                    <span className={`text-[12px] font-sans leading-relaxed ${
+                                      isLatest ? "text-ink" : "text-[#5C6B73]"
+                                    }`}>{q}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                      </div>
+                    );
+                  })}
+                </div>
               </>
             )}
           </div>

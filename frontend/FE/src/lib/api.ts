@@ -1,14 +1,37 @@
 import axios from "axios";
 import { AUTH_TOKEN_KEY, AUTH_ROLE_KEY, AUTH_USER_JSON_KEY, AUTH_USER_NAME_KEY } from "@/constants/storage";
 
+/**
+ * Resolves the API URL for cross-device access (e.g. mobile accessing PC's backend over hotspot).
+ *
+ * ONLY replaces `localhost`/`127.0.0.1` in the URL when ALL of these are true:
+ *   1. We're running in the browser (not SSR).
+ *   2. The browser's hostname is not a loopback address (user is on a different device or network).
+ *   3. The env URL itself still points to localhost (i.e. not already configured with a real IP/host).
+ *
+ * This prevents the common bug where opening the Next.js dev server via its LAN IP
+ * (e.g. http://192.168.x.x:3000) on the same machine caused localhost:4000 to get
+ * rewritten to 192.168.x.x:4000 unnecessarily, breaking navigation.
+ */
 export function resolveApiUrl(url: string): string {
-  if (typeof window !== "undefined") {
-    const hostname = window.location.hostname;
-    if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
-      return url.replace(/(localhost|127\.0\.0\.1)/g, hostname);
-    }
-  }
-  return url;
+  if (typeof window === "undefined") return url;
+
+  const browserHost = window.location.hostname;
+  const isLocalBrowser =
+    browserHost === "localhost" ||
+    browserHost === "127.0.0.1" ||
+    browserHost === "" ;
+
+  // If the browser is on a loopback address, no rewrite needed.
+  if (isLocalBrowser) return url;
+
+  // If the configured API URL already points to a non-localhost host, respect it — don't touch it.
+  const urlHasLocalhost = /localhost|127\.0\.0\.1/.test(url);
+  if (!urlHasLocalhost) return url;
+
+  // Only rewrite if the env URL is localhost-based AND we're on a non-loopback hostname.
+  // This means: user is on a genuinely different device (mobile, another laptop) connecting to this PC.
+  return url.replace(/(localhost|127\.0\.0\.1)/g, browserHost);
 }
 
 const api = axios.create({

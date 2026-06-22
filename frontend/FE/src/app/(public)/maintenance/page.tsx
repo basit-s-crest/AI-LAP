@@ -8,7 +8,10 @@ export const metadata: Metadata = {
 async function getBranding(): Promise<{ brandTitle: string; brandTagline: string }> {
   const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
   try {
-    const res = await fetch(`${base}/api/auth/platform-settings`, { cache: "no-store" });
+    const res = await fetch(`${base}/api/auth/platform-settings`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(3_000),
+    });
     if (!res.ok) throw new Error("Failed");
     const data = (await res.json()) as { brandTitle?: string; brandTagline?: string };
     return {

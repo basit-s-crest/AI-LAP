@@ -5,15 +5,16 @@ import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import websockets
 import jwt
-from app.modules.live_analysis import LiveMeetingAnalysisEngine
+from app.modules.live_analysis import LiveMeetingAnalysisEngine, ToneAnalyzer
 from app.modules.live_video_analysis import handle_emotion_signal, clear_session_buffer, clear_participant_buffer
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/stt", tags=["STT"])
 
-# Instantiate the live meeting analysis engine
+# Instantiate the live meeting analysis engine and tone analyzer
 live_analysis_engine = LiveMeetingAnalysisEngine()
+tone_analyzer = ToneAnalyzer()
 
 # Deepgram live streaming endpoint
 DEEPGRAM_URL = (
@@ -132,7 +133,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     while True:
                         message = await websocket.receive()
                         if "bytes" in message:
-                            await dg_socket.send(message["bytes"])
+                            audio_bytes = message["bytes"]
+                            await dg_socket.send(audio_bytes)
+                            # Also buffer audio for tone analysis
+                            await tone_analyzer.buffer_audio(session_id, audio_bytes)
                         elif "text" in message:
                             text_data = message["text"]
                             try:
@@ -181,9 +185,14 @@ async def websocket_endpoint(websocket: WebSocket):
                                 transcript = alt.get("transcript", "").strip()
                                 is_final = data.get("is_final") or data.get("speech_final")
                                 if is_final and transcript:
+                                    # Run tone analysis on the buffered audio
+                                    tone_snapshot = await tone_analyzer.analyze(
+                                        session_id, transcript
+                                    )
                                     asyncio.create_task(
                                         live_analysis_engine.add_transcript(
-                                            session_id, transcript, websocket, websocket_write_lock
+                                            session_id, transcript, websocket, websocket_write_lock,
+                                            tone_snapshot=tone_snapshot
                                         )
                                     )
                             except Exception as e:
@@ -222,6 +231,7 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.info("[STT Proxy] Connection finalized")
         if session_id:
             await live_analysis_engine.clear_session(session_id)
+            await tone_analyzer.clear_session(session_id)
             if connected_participant_id:
                 clear_participant_buffer(session_id, connected_participant_id)
         try:

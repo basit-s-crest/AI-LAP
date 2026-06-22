@@ -37,6 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
   try {
     const res = await fetch(`${base}/api/auth/platform-settings`, {
       next: { revalidate: 60 },
+      signal: AbortSignal.timeout(3_000),
     });
     if (res.ok) {
       const data = (await res.json()) as { brandTitle?: string; brandTagline?: string };

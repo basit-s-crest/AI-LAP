@@ -6,6 +6,7 @@ from collections import deque
 from typing import Dict, Any, Optional
 from openai import AsyncOpenAI
 from app.modules.session_analysis.llm import _get_client as get_fallback_client
+from app.modules.live_analysis.tone_analyzer import ToneSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -108,10 +109,12 @@ class LiveMeetingAnalysisEngine:
         text: str,
         websocket: Any,
         write_lock: asyncio.Lock,
+        tone_snapshot: Optional[ToneSnapshot] = None,
     ) -> None:
         """
         Add a transcript line to the buffer for session_id.
         Triggers background analysis if threshold conditions are met.
+        Optionally accepts a ToneSnapshot for vocal tone context.
         """
         if not text.strip():
             return
@@ -140,6 +143,8 @@ class LiveMeetingAnalysisEngine:
                     "working_buffer": WorkingBuffer(60),
                     "lock": asyncio.Lock(),
                     "member_id": member_id,
+                    "tone_snapshots": [],  # Accumulate tone snapshots for context
+                    "latest_tone": None,   # Most recent ToneSnapshot
                 }
             
             buf = self._buffers[session_id]
@@ -150,6 +155,14 @@ class LiveMeetingAnalysisEngine:
         await buf["working_buffer"].add(text)
         buf["words_since_last"] += words_count
         buf["lines_since_last"] += 1
+
+        # Accumulate tone snapshot if available
+        if tone_snapshot:
+            buf["tone_snapshots"].append(tone_snapshot)
+            buf["latest_tone"] = tone_snapshot
+            # Keep only last 10 snapshots to prevent memory bloat
+            if len(buf["tone_snapshots"]) > 10:
+                buf["tone_snapshots"] = buf["tone_snapshots"][-10:]
 
         # Check if thresholds are met
         if (buf["lines_since_last"] >= self._line_threshold or 
@@ -190,6 +203,8 @@ class LiveMeetingAnalysisEngine:
             recent_lines = buf["lines"][-30:]
             session_lock = buf["lock"]
             member_id = buf.get("member_id")
+            tone_snapshots = list(buf.get("tone_snapshots", []))
+            latest_tone = buf.get("latest_tone")
 
         # Prevent concurrent LLM calls for the same session (skip if already analyzing)
         if session_lock.locked():
@@ -205,24 +220,62 @@ class LiveMeetingAnalysisEngine:
             try:
                 from app.modules.rag import run_rag_analysis
                 
+                # Build tone context for the LLM
+                tone_context = ""
+                if tone_snapshots:
+                    # Use the most recent snapshot for the human-readable summary
+                    latest = tone_snapshots[-1]
+                    tone_context = latest.to_human_summary()
+                    logger.info(
+                        f"[Live Analysis] Tone context for session {session_id}: "
+                        f"affect={latest.affect_label} congruence={latest.congruence_score:.2f} "
+                        f"incongruence={latest.incongruence_flag}"
+                    )
+                
                 analysis_text = await run_rag_analysis(
                     session_id=session_id,
                     member_id=member_id,
                     recent_lines=recent_lines,
-                    working_buffer_text=raw_buffer_text
+                    working_buffer_text=raw_buffer_text,
+                    tone_context=tone_context
                 )
                 
                 duration = int((asyncio.get_event_loop().time() - t_start) * 1000)
                 logger.info(f"[Live Analysis] Completed in {duration}ms. Result: \"{analysis_text}\"")
                 
+                # Build response payload with tone data
+                response_payload = {
+                    "type": "live_analysis",
+                    "analysis": analysis_text
+                }
+                
+                # Include tone data if available
+                if latest_tone:
+                    response_payload["tone"] = {
+                        "pitch_mean": latest_tone.pitch_mean,
+                        "pitch_std": latest_tone.pitch_std,
+                        "energy_mean": latest_tone.energy_mean,
+                        "energy_trend": latest_tone.energy_trend,
+                        "speech_rate_wpm": latest_tone.speech_rate_wpm,
+                        "pause_ratio": latest_tone.pause_ratio,
+                        "affect_label": latest_tone.affect_label,
+                        "congruence_score": latest_tone.congruence_score,
+                        "incongruence_flag": latest_tone.incongruence_flag,
+                        "text_sentiment_score": latest_tone.text_sentiment_score,
+                        "vocal_markers": [
+                            m for m, detected in [
+                                ("laughter", latest_tone.laughter_detected),
+                                ("sigh", latest_tone.sigh_detected),
+                                ("voice_break", latest_tone.voice_break_detected),
+                            ] if detected
+                        ]
+                    }
+                
                 # Forward to client over WebSocket in a thread-safe manner
                 async with write_lock:
                     if websocket:
                         try:
-                            await websocket.send_json({
-                                "type": "live_analysis",
-                                "analysis": analysis_text
-                            })
+                            await websocket.send_json(response_payload)
                         except Exception as ws_err:
                             # WebSocket may have been closed while RAG was running — that's fine
                             logger.debug(f"[Live Analysis] Could not send result for session {session_id} (WS closed?): {ws_err}")

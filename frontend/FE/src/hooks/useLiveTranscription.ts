@@ -8,7 +8,7 @@ export function useLiveTranscription(
   onFinalTranscript?: (text: string) => void,
   sessionId?: string,
   transcriptionToken?: string,
-  onLiveAnalysis?: (text: string) => void,
+  onLiveAnalysis?: (text: string, tone?: any) => void,
   latestEmotion?: any
 ) {
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
@@ -267,9 +267,10 @@ export function useLiveTranscription(
 
           if (data?.type === "live_analysis") {
             const analysisText = data.analysis;
-            console.log('[STT] Received live analysis:', analysisText);
+            const toneData = data.tone || null;
+            console.log('[STT] Received live analysis:', analysisText, 'tone:', toneData);
             if (onLiveAnalysisRef.current) {
-              onLiveAnalysisRef.current(analysisText);
+              onLiveAnalysisRef.current(analysisText, toneData);
             }
             return;
           }
