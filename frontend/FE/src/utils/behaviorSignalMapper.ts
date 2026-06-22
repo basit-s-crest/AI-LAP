@@ -111,19 +111,22 @@ export function mapBehaviorSignal(
     const lowerEmotion = currentSample.hseEmotion.toLowerCase();
     const confidence = currentSample.hseConfidence || 0.0;
 
-    // 1. High Confidence (>= 0.50): trust the HSEmotion result directly and skip movement check
-    if (confidence >= 0.50) {
+    // 1. High Confidence (>= 0.20): trust the HSEmotion result directly and skip movement check
+    if (confidence >= 0.20) {
       if (lowerEmotion === "happy" || lowerEmotion === "happiness") {
         return "Happy";
       }
       if (lowerEmotion === "sad" || lowerEmotion === "sadness") {
         return "Sad";
       }
+      if (lowerEmotion === "surprise") {
+        return "Surprise";
+      }
+      if (lowerEmotion === "angry" || lowerEmotion === "anger") {
+        return "Angry";
+      }
       if (
         lowerEmotion === "fear" ||
-        lowerEmotion === "angry" ||
-        lowerEmotion === "anger" ||
-        lowerEmotion === "surprise" ||
         lowerEmotion === "disgust" ||
         lowerEmotion === "contempt"
       ) {

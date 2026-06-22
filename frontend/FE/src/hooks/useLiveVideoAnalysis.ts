@@ -14,7 +14,9 @@ export type EmotionType =
   | "Unstable Presence"
   | "Distracted"
   | "Happy"
-  | "Sad";
+  | "Sad"
+  | "Surprise"
+  | "Angry";
 
 export interface EmotionSignal {
   type: "emotion_signal";
@@ -37,6 +39,8 @@ const CONFIDENCE_MAP: Record<EmotionType, number> = {
   "Distracted": 0.88,
   "Happy": 0.92,
   "Sad": 0.84,
+  "Surprise": 0.80,
+  "Angry": 0.80,
 };
 
 interface UseLiveVideoAnalysisProps {
