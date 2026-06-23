@@ -107,23 +107,24 @@ function VideoCallInterface({
     (t) => t.participant.identity === remoteParticipant?.identity
   );
   const remoteAudioTrack = audioTracks.find(t => t.participant.identity !== localParticipant.identity);
-  const lastStreamIdRef = useRef<string | null>(null);
+
+  const lastTrackIdRef = useRef<string | null>(null);
 
   // Extract remote participant's audio track and notify parent
   useEffect(() => {
     const trackObj = remoteAudioTrack?.publication?.track;
-    const stream = trackObj?.mediaStream;
+    const nativeTrack = (trackObj as any)?.mediaStreamTrack;
+    const trackId = nativeTrack ? nativeTrack.id : null;
 
-    const streamId = stream ? stream.id : null;
-    if (lastStreamIdRef.current !== streamId) {
-      lastStreamIdRef.current = streamId;
-      if (stream) {
-        onRemoteStream?.(stream);
+    if (lastTrackIdRef.current !== trackId) {
+      lastTrackIdRef.current = trackId;
+      if (nativeTrack) {
+        onRemoteStream?.(new MediaStream([nativeTrack]));
       } else {
         onRemoteStream?.(null);
       }
     }
-  }, [remoteAudioTrack, remoteAudioTrack?.publication?.track?.mediaStream, onRemoteStream]);
+  }, [remoteAudioTrack, remoteAudioTrack?.publication?.track, onRemoteStream]);
 
   const hasLoggedVideoTrackFoundRef = useRef(false);
 

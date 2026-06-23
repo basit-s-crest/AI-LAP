@@ -378,8 +378,33 @@ export function useLiveVideoAnalysis({
             width: (120 / 320) * 100,
             height: (140 / 240) * 100,
           });
+
+          // Generate dynamic mock raw scores
+          const scores: Record<string, number> = {
+            happy: 0.01 + Math.random() * 0.04,
+            sad: 0.01 + Math.random() * 0.04,
+            angry: 0.01 + Math.random() * 0.04,
+            fear: 0.01 + Math.random() * 0.04,
+            surprise: 0.01 + Math.random() * 0.04,
+            neutral: 0.01 + Math.random() * 0.04,
+            disgust: 0.01 + Math.random() * 0.04,
+            contempt: 0.01 + Math.random() * 0.04,
+          };
+          const key = mockEmotion.toLowerCase() === "calm" ? "neutral" :
+                      mockEmotion.toLowerCase() === "anxious" ? "fear" :
+                      mockEmotion.toLowerCase();
+          if (scores[key] !== undefined) {
+            scores[key] = 0.50 + Math.random() * 0.30;
+          }
+          // Normalize scores to sum to 1.0
+          const sum = Object.values(scores).reduce((a, b) => a + b, 0);
+          for (const k in scores) {
+            scores[k] = scores[k] / sum;
+          }
+          setRawScores(scores);
         } else {
           setCurrentBoundingBox(null);
+          setRawScores(null);
         }
 
         setLatestEmotion({

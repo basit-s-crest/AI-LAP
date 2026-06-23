@@ -17,6 +17,7 @@ Pillow
 numpy
 torch
 hsemotion
+timm==0.9.16
 sentence-transformers
 librosa>=0.10.0
 soundfile>=0.12.0

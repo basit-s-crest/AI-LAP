@@ -126,7 +126,17 @@ async def websocket_endpoint(websocket: WebSocket):
         async with websockets.connect(DEEPGRAM_URL, additional_headers=headers) as dg_socket:
             logger.info("[STT Proxy] Connected to Deepgram streaming service")
 
-            # Concurrently forward data back and forth
+            async def keepalive():
+                """Send periodic KeepAlive messages to prevent Deepgram idle timeout (1011)."""
+                try:
+                    while True:
+                        await asyncio.sleep(3.0)  # KeepAlive every 3 seconds (well within the 10s rule)
+                        await dg_socket.send(json.dumps({"type": "KeepAlive"}))
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    pass
+
             async def client_to_dg():
                 nonlocal connected_participant_id
                 try:
@@ -134,7 +144,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         message = await websocket.receive()
                         if "bytes" in message:
                             audio_bytes = message["bytes"]
-                            await dg_socket.send(audio_bytes)
+                            if not audio_bytes or len(audio_bytes) == 0:
+                                continue  # Guard: avoid sending empty packets which can cause unexpected SSL closures
+                            try:
+                                await dg_socket.send(audio_bytes)
+                            except Exception:
+                                return  # Connection lost; caught by wait
                             # Also buffer audio for tone analysis
                             await tone_analyzer.buffer_audio(session_id, audio_bytes)
                         elif "text" in message:
@@ -143,7 +158,6 @@ async def websocket_endpoint(websocket: WebSocket):
                                 data = json.loads(text_data)
                                 if isinstance(data, dict):
                                     if data.get("type") == "emotion_signal":
-                                        # Capture participant ID if available
                                         pid = data.get("participantId")
                                         if pid:
                                             connected_participant_id = pid
@@ -151,14 +165,7 @@ async def websocket_endpoint(websocket: WebSocket):
                                         ack_msg = handle_emotion_signal(data)
                                         async with websocket_write_lock:
                                             await websocket.send_text(ack_msg.model_dump_json())
-                                    else:
-                                        # Unknown JSON types ignored safely
-                                        pass
-                                else:
-                                    # Non-dict JSON ignored safely
-                                    pass
                             except json.JSONDecodeError:
-                                # Invalid JSON ignored safely
                                 pass
                 except WebSocketDisconnect:
                     logger.info("[STT Proxy] Client connection closed (normal disconnect)")
@@ -177,7 +184,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             # Forward the raw Deepgram response to client first
                             async with websocket_write_lock:
                                 await websocket.send_text(msg)
-                            
+
                             # Parse final transcripts and buffer for live analysis
                             try:
                                 data = json.loads(msg)
@@ -200,14 +207,17 @@ async def websocket_endpoint(websocket: WebSocket):
                 except asyncio.CancelledError:
                     raise
                 except Exception as e:
-                    logger.warning(f"[STT Proxy] Exception in dg_to_client loop: {e}")
+                    logger.warning(f"[STT Proxy] Deepgram connection lost: {e}")
 
-            # Run both loops; cancel the sibling when either one finishes
+            # Run all three loops; cancel siblings when any finishes
+            ka_task = asyncio.create_task(keepalive())
             c2d_task = asyncio.create_task(client_to_dg())
             d2c_task = asyncio.create_task(dg_to_client())
+            all_tasks = [ka_task, c2d_task, d2c_task]
+
             try:
                 done, pending = await asyncio.wait(
-                    [c2d_task, d2c_task],
+                    all_tasks,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 for task in pending:
@@ -217,25 +227,27 @@ async def websocket_endpoint(websocket: WebSocket):
                     except (asyncio.CancelledError, Exception):
                         pass
             except asyncio.CancelledError:
-                for task in [c2d_task, d2c_task]:
+                for task in all_tasks:
                     task.cancel()
                     try:
                         await task
                     except (asyncio.CancelledError, Exception):
                         pass
                 raise
-
+    except asyncio.CancelledError:
+        raise
     except Exception as err:
-        logger.error(f"[STT Proxy] Connection to Deepgram failed: {err}")
-    finally:
-        logger.info("[STT Proxy] Connection finalized")
-        if session_id:
-            await live_analysis_engine.clear_session(session_id)
-            await tone_analyzer.clear_session(session_id)
-            if connected_participant_id:
-                clear_participant_buffer(session_id, connected_participant_id)
-        try:
-            await websocket.close()
-        except Exception:
-            pass
+        logger.error(f"[STT Proxy] Failed to connect to Deepgram or connection error: {err}")
+
+    # --- Cleanup ---
+    logger.info("[STT Proxy] Connection finalized")
+    if session_id:
+        await live_analysis_engine.clear_session(session_id)
+        await tone_analyzer.clear_session(session_id)
+        if connected_participant_id:
+            clear_participant_buffer(session_id, connected_participant_id)
+    try:
+        await websocket.close()
+    except Exception:
+        pass
 

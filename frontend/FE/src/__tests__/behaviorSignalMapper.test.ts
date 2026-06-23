@@ -81,7 +81,7 @@ describe("behaviorSignalMapper", () => {
     expect(result).toBe("Distracted");
   });
 
-  describe("HSEmotion mappings with High Confidence (>= 0.20)", () => {
+  describe("HSEmotion mappings with High Confidence (>= 0.50)", () => {
     it("should trust Happy/Happiness directly", () => {
       const history: BehaviorSample[] = [
         {
@@ -178,7 +178,7 @@ describe("behaviorSignalMapper", () => {
     });
   });
 
-  describe("HSEmotion mappings with Low Confidence (< 0.20)", () => {
+  describe("HSEmotion mappings with Low Confidence (< 0.50)", () => {
     it("should map to Calm if movement between last two face center frames is stable (< 20px)", () => {
       const history: BehaviorSample[] = [
         {

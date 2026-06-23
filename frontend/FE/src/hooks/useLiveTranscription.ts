@@ -22,6 +22,8 @@ export function useLiveTranscription(
   const audioContextRef = useRef<AudioContext | null>(null);
   const isListeningRef = useRef(false);
   const isStartingRef = useRef(false);
+  const isListeningIntendedRef = useRef(false);
+  const reconnectAttemptsRef = useRef(0);
 
   const onFinalTranscriptRef = useRef(onFinalTranscript);
   useEffect(() => {
@@ -51,6 +53,9 @@ export function useLiveTranscription(
   }, [customStream]);
 
   const stopListening = useCallback(() => {
+    isListeningIntendedRef.current = false;
+    reconnectAttemptsRef.current = 0;
+
     if (!isListeningRef.current && !mediaRecorderRef.current) return;
 
     isListeningRef.current = false;
@@ -113,6 +118,7 @@ export function useLiveTranscription(
     isStartingRef.current = true;
     setError(null);
     stopListening(); // Clear any existing resources first
+    isListeningIntendedRef.current = true;
 
     try {
       console.log('[STT] Initializing STT proxy connection for speaker:', speakerRef.current);
@@ -251,6 +257,7 @@ export function useLiveTranscription(
           }
           setIsListening(true);
           isListeningRef.current = true;
+          reconnectAttemptsRef.current = 0; // Reset reconnect attempts on successful connection
         } catch (err: any) {
           console.error('[STT] Failed to start MediaRecorder on WebSocket open:', err);
           if (err.name === 'NotSupportedError') {
@@ -309,11 +316,6 @@ export function useLiveTranscription(
 
       socket.onerror = (err) => {
         console.error('[STT] WebSocket error — check API key and network', err);
-        setIsListening(false);
-        isListeningRef.current = false;
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-          try { mediaRecorderRef.current.stop(); } catch {}
-        }
       };
 
       socket.onclose = () => {
@@ -322,6 +324,30 @@ export function useLiveTranscription(
         isListeningRef.current = false;
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
           try { mediaRecorderRef.current.stop(); } catch {}
+        }
+
+        // If we intended to listen (meaning not an intentional stop), trigger reconnect
+        if (isListeningIntendedRef.current) {
+          if (reconnectAttemptsRef.current < 10) {
+            reconnectAttemptsRef.current += 1;
+            const delay = reconnectAttemptsRef.current === 1 ? 100 : Math.min(1000 * Math.pow(1.5, reconnectAttemptsRef.current - 1), 15000);
+            console.log(`[STT] Connection closed unexpectedly. Reconnecting in ${delay.toFixed(0)}ms (attempt ${reconnectAttemptsRef.current})...`);
+            
+            // Clear socket & media recorder reference to allow clean restart
+            mediaRecorderRef.current = null;
+            socketRef.current = null;
+
+            setTimeout(() => {
+              if (isListeningIntendedRef.current) {
+                console.log('[STT] Attempting reconnection...');
+                startListening();
+              }
+            }, delay);
+          } else {
+            console.error('[STT] Maximum reconnect attempts reached. Giving up.');
+            isListeningIntendedRef.current = false;
+            setError("STT service disconnected. Maximum reconnection attempts reached.");
+          }
         }
       };
 
