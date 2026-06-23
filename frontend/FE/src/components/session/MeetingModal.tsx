@@ -146,10 +146,10 @@ export default function MeetingModal({
     setIsJoining(true);
     setLoading(true);
     setError(null);
-    
+
     // 1. set callEnded = true (to unmount old room UI first)
     setCallEnded(true);
-    
+
     // 2. clear token/session video config / tracks / stream / consent / participant info
     setTokenDetails(null);
     setRemoteVideoTrack(null);
@@ -160,10 +160,10 @@ export default function MeetingModal({
     try {
       // 3. Request fresh token
       const details = await LiveKitApiService.startSession(sessionId);
-      
+
       // 5. Increment callInstanceKey
       setCallInstanceKey((prev) => prev + 1);
-      
+
       // 6. Set token details (mount SessionVideoCall)
       setTokenDetails(details);
       setCallEnded(false);
@@ -203,7 +203,7 @@ export default function MeetingModal({
       setIsAnalyzing(true);
       setPanelView("ai");
       setCallEnded(true);
-      
+
       // Stop sampler & clear tracks, streams, token state
       setConsentChecked(false);
       setRemoteVideoTrack(null);
@@ -263,26 +263,26 @@ export default function MeetingModal({
                       {latestEmotion.dominantEmotion === "Calm"
                         ? "🟢"
                         : latestEmotion.dominantEmotion === "Anxious"
-                        ? "🟠"
-                        : latestEmotion.dominantEmotion === "No Face"
-                        ? "👤"
-                        : latestEmotion.dominantEmotion === "Camera Off"
-                        ? "📷"
-                        : latestEmotion.dominantEmotion === "Happy"
-                        ? "😊"
-                        : latestEmotion.dominantEmotion === "Sad"
-                        ? "😢"
-                        : latestEmotion.dominantEmotion === "Surprise"
-                        ? "😲"
-                        : latestEmotion.dominantEmotion === "Angry"
-                        ? "😠"
-                        : latestEmotion.dominantEmotion === "Intermittent Presence"
-                        ? "🔄"
-                        : latestEmotion.dominantEmotion === "Unstable Presence"
-                        ? "🫨"
-                        : latestEmotion.dominantEmotion === "Distracted"
-                        ? "👀"
-                        : "🟡"}
+                          ? "🟠"
+                          : latestEmotion.dominantEmotion === "No Face"
+                            ? "👤"
+                            : latestEmotion.dominantEmotion === "Camera Off"
+                              ? "📷"
+                              : latestEmotion.dominantEmotion === "Happy"
+                                ? "😊"
+                                : latestEmotion.dominantEmotion === "Sad"
+                                  ? "😢"
+                                  : latestEmotion.dominantEmotion === "Surprise"
+                                    ? "😲"
+                                    : latestEmotion.dominantEmotion === "Angry"
+                                      ? "😠"
+                                      : latestEmotion.dominantEmotion === "Intermittent Presence"
+                                        ? "🔄"
+                                        : latestEmotion.dominantEmotion === "Unstable Presence"
+                                          ? "🫨"
+                                          : latestEmotion.dominantEmotion === "Distracted"
+                                            ? "👀"
+                                            : "🟡"}
                     </span>
                     <span className="font-outfit text-xs font-semibold text-[#1E252B] capitalize">
                       {latestEmotion.dominantEmotion} ({(latestEmotion.confidence * 100).toFixed(0)}%)
