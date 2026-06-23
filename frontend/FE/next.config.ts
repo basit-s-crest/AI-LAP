@@ -20,6 +20,7 @@ function getLocalIpAddresses(): string[] {
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   devIndicators: false,
+  output: 'standalone',
   // Allow ioredis/bullmq to run in Node.js API routes (not Edge runtime)
   serverExternalPackages: ["ioredis", "bullmq"],
   typescript: {

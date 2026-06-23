@@ -1,0 +1,121 @@
+name: safecircle
+
+services:
+  # 1. Local Redis (Queue & Cache for BullMQ)
+  redis:
+    image: redis:7-alpine
+    container_name: safecircle-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - safecircle-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # 2. Python FastAPI Backend (Machine Learning & AI pipelines)
+  python:
+    image: basit0crest/safecircle-python:1.0.0
+    container_name: safecircle-python
+    entrypoint: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=${PYTHON_DATABASE_URL}
+      - REDIS_URL=redis://redis:6379/0
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+    networks:
+      - safecircle-net
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 3. Express TypeScript Backend (Authentication & Business Logic)
+  backend:
+    image: basit0crest/safecircle-backend:1.0.0
+    container_name: safecircle-backend
+    entrypoint: ["node", "dist/server.js"]
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - DIRECT_URL=${DIRECT_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=4000
+      - GMAIL_USER=${GMAIL_USER}
+      - GMAIL_PASS=${GMAIL_PASS}
+      - PYTHON_BACKEND_URL=http://python:8001
+      - PYTHON_ORG_ID=${PYTHON_ORG_ID}
+      - SUPERADMIN_INVITE_CODE=${SUPERADMIN_INVITE_CODE}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - LIVEKIT_URL=${LIVEKIT_URL}
+      - LIVEKIT_WS_URL=${LIVEKIT_WS_URL}
+    networks:
+      - safecircle-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      python:
+        condition: service_started
+    restart: unless-stopped
+
+  # 4. Next.js Frontend App
+  frontend:
+    image: basit0crest/safecircle-frontend:1.0.0
+    container_name: safecircle-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_BE_URL=${NEXT_PUBLIC_BE_URL}
+      - FASTAPI_URL=http://python:8001
+      - REDIS_URL=redis://redis:6379/0
+      - ORG_ID=${ORG_ID}
+      - SUPERADMIN_INVITE_CODE=${SUPERADMIN_INVITE_CODE}
+    networks:
+      - safecircle-net
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  # 5. BullMQ background worker (Reuses the Next.js frontend image with a different entry command)
+  worker:
+    image: basit0crest/safecircle-worker:1.0.0
+    container_name: safecircle-worker
+    command: node worker.mjs
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_BE_URL=${NEXT_PUBLIC_BE_URL}
+      - FASTAPI_URL=http://python:8001
+      - REDIS_URL=redis://redis:6379/0
+      - ORG_ID=${ORG_ID}
+      - SUPERADMIN_INVITE_CODE=${SUPERADMIN_INVITE_CODE}
+    networks:
+      - safecircle-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+networks:
+  safecircle-net:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
