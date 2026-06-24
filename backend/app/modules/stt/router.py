@@ -165,6 +165,9 @@ async def websocket_endpoint(websocket: WebSocket):
                                         ack_msg = handle_emotion_signal(data)
                                         async with websocket_write_lock:
                                             await websocket.send_text(ack_msg.model_dump_json())
+                                    elif data.get("type") == "ping":
+                                        async with websocket_write_lock:
+                                            await websocket.send_json({"type": "pong"})
                             except json.JSONDecodeError:
                                 pass
                 except WebSocketDisconnect:

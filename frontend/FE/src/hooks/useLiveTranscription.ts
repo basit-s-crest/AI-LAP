@@ -24,6 +24,7 @@ export function useLiveTranscription(
   const isStartingRef = useRef(false);
   const isListeningIntendedRef = useRef(false);
   const reconnectAttemptsRef = useRef(0);
+  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const onFinalTranscriptRef = useRef(onFinalTranscript);
   useEffect(() => {
@@ -55,6 +56,11 @@ export function useLiveTranscription(
   const stopListening = useCallback(() => {
     isListeningIntendedRef.current = false;
     reconnectAttemptsRef.current = 0;
+
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
 
     if (!isListeningRef.current && !mediaRecorderRef.current) return;
 
@@ -246,6 +252,20 @@ export function useLiveTranscription(
 
       socket.onopen = () => {
         console.log('[STT] Deepgram WebSocket open for:', speakerRef.current);
+        
+        // Start 5-second ping interval
+        if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = setInterval(() => {
+          if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+            console.log('[STT] Sending client ping...');
+            try {
+              socketRef.current.send(JSON.stringify({ type: "ping" }));
+            } catch (err) {
+              console.warn("[STT] Failed to send client ping:", err);
+            }
+          }
+        }, 5000);
+
         try {
           console.log('[STT DEBUG] socket.onopen - mediaRecorder state:', mediaRecorder.state);
           // Start MediaRecorder only AFTER the WebSocket is successfully open
@@ -326,28 +346,9 @@ export function useLiveTranscription(
           try { mediaRecorderRef.current.stop(); } catch {}
         }
 
-        // If we intended to listen (meaning not an intentional stop), trigger reconnect
-        if (isListeningIntendedRef.current) {
-          if (reconnectAttemptsRef.current < 10) {
-            reconnectAttemptsRef.current += 1;
-            const delay = reconnectAttemptsRef.current === 1 ? 100 : Math.min(1000 * Math.pow(1.5, reconnectAttemptsRef.current - 1), 15000);
-            console.log(`[STT] Connection closed unexpectedly. Reconnecting in ${delay.toFixed(0)}ms (attempt ${reconnectAttemptsRef.current})...`);
-            
-            // Clear socket & media recorder reference to allow clean restart
-            mediaRecorderRef.current = null;
-            socketRef.current = null;
-
-            setTimeout(() => {
-              if (isListeningIntendedRef.current) {
-                console.log('[STT] Attempting reconnection...');
-                startListening();
-              }
-            }, delay);
-          } else {
-            console.error('[STT] Maximum reconnect attempts reached. Giving up.');
-            isListeningIntendedRef.current = false;
-            setError("STT service disconnected. Maximum reconnection attempts reached.");
-          }
+        if (pingIntervalRef.current) {
+          clearInterval(pingIntervalRef.current);
+          pingIntervalRef.current = null;
         }
       };
 
