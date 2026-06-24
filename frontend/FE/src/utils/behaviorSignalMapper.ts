@@ -111,8 +111,8 @@ export function mapBehaviorSignal(
     const lowerEmotion = currentSample.hseEmotion.toLowerCase();
     const confidence = currentSample.hseConfidence || 0.0;
 
-    // 1. High Confidence (>= 0.50): trust the HSEmotion result directly and skip movement check
-    if (confidence >= 0.50) {
+    // 1. High Confidence (>= 0.20): trust the HSEmotion result directly and skip movement check
+    if (confidence >= 0.20) {
       if (lowerEmotion === "happy" || lowerEmotion === "happiness") {
         return "Happy";
       }
@@ -136,7 +136,7 @@ export function mapBehaviorSignal(
         return "Neutral";
       }
     } else {
-      // 2. Low Confidence (< 0.50): fall back to movement variance Calm/Neutral
+      // 2. Low Confidence (< 0.20): fall back to movement variance Calm/Neutral
       const lastTwoFaceSamples = history.filter(s => s.facePresent && s.boundingBox).slice(-2);
       let movement = 0;
       if (lastTwoFaceSamples.length >= 2) {
