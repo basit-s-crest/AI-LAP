@@ -13,6 +13,8 @@ interface SessionNoteEditorProps {
   initialNotes?: string;
   initialNextSessionGoal?: string;
   aiSessionNoteId?: string | null;
+  emotionTimeline?: any;
+  emotionCounts?: any;
   onCancel: () => void;
 }
 
@@ -24,10 +26,14 @@ export default function SessionNoteEditor({
   initialNotes = "",
   initialNextSessionGoal = "",
   aiSessionNoteId,
+  emotionTimeline: initialEmotionTimeline = null,
+  emotionCounts: initialEmotionCounts = null,
   onCancel,
 }: SessionNoteEditorProps) {
   const [notes, setNotes] = useState(initialNotes);
   const [nextSessionGoal, setNextSessionGoal] = useState(initialNextSessionGoal);
+  const [emotionTimeline, setEmotionTimeline] = useState<any>(initialEmotionTimeline);
+  const [emotionCounts, setEmotionCounts] = useState<any>(initialEmotionCounts);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [existingNoteId, setExistingNoteId] = useState<string | null>(null);
@@ -42,6 +48,11 @@ export default function SessionNoteEditor({
           // If notes have already been edited/saved, load them
           setNotes(res.note.summary || "");
           setNextSessionGoal(res.note.recommendedFollowUp || "");
+          setEmotionTimeline(res.note.emotionTimeline || null);
+          setEmotionCounts(res.note.emotionCounts || null);
+        } else if (res.prefillData) {
+          setEmotionTimeline(res.prefillData.emotionTimeline || null);
+          setEmotionCounts(res.prefillData.emotionCounts || null);
         }
       } catch (err) {
         console.error("[SessionNoteEditor] Failed to check existing note:", err);
@@ -62,6 +73,8 @@ export default function SessionNoteEditor({
         status: status === "draft" ? "DRAFT" : "FINAL",
         aiSessionNoteId: aiSessionNoteId || undefined,
         sessionType: sessionType as any,
+        emotionTimeline,
+        emotionCounts,
       });
 
       toast.success(status === "draft" ? "Draft saved successfully!" : "Note saved & finalized!");

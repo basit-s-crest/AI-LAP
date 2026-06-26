@@ -47,6 +47,8 @@ export const sessionNoteService = {
       riskFlag: boolean;
       riskNotes: string;
       recommendedFollowUp: string;
+      emotionTimeline?: any;
+      emotionCounts?: any;
     } | null;
   }> {
     const { data } = await api.get<{

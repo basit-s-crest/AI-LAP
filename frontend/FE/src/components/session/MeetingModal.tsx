@@ -11,6 +11,7 @@ import LiveSessionTranscript from "@/components/session/LiveSessionTranscript";
 import AiSessionNoteView from "@/components/session/AiSessionNoteView";
 import SessionNoteEditor from "@/components/session/SessionNoteEditor";
 import { aiSessionNoteService } from "@/services/aiSessionNote.service";
+import { LiveVideoAnalysisApiService } from "@/services/liveVideoAnalysis.service";
 import type { TranscriptLine, AiSessionNoteDTO } from "@/types/sessionNote";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
@@ -123,11 +124,7 @@ export default function MeetingModal({
         if (lastEntry && lastEntry.emotion === newEmotion) {
           return prev;
         }
-        const updated = [...prev, { emotion: newEmotion, timestamp: Date.now() }];
-        if (updated.length > 8) {
-          return updated.slice(updated.length - 8);
-        }
-        return updated;
+        return [...prev, { emotion: newEmotion, timestamp: Date.now() }];
       });
     }
   }, [latestEmotion]);
@@ -219,10 +216,29 @@ export default function MeetingModal({
         console.warn("[MeetingModal] Failed to mark session call as ended:", endErr);
       }
 
+      let finalCounts: Record<string, number> = {};
+      try {
+        const agg = await LiveVideoAnalysisApiService.getSessionAggregation(sessionId);
+        finalCounts = agg.emotionCounts || {};
+      } catch (err) {
+        console.warn("[MeetingModal] Failed to fetch session aggregation from Python API, using fallback counts:", err);
+        emotionHistory.forEach((item) => {
+          finalCounts[item.emotion] = (finalCounts[item.emotion] || 0) + 1;
+        });
+      }
+
+      // Convert emotionHistory to database format
+      const finalTimeline = emotionHistory.map(h => ({
+        emotion: h.emotion,
+        timestamp: new Date(h.timestamp).toISOString(),
+      }));
+
       const note = await aiSessionNoteService.create({
         memberId,
         sessionId,
         transcript: finalTranscript,
+        emotionTimeline: finalTimeline,
+        emotionCounts: finalCounts,
       });
       setAiNote(note);
       toast.success("AI Analysis note created and saved successfully!");

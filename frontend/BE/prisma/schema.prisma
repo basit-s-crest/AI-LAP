@@ -309,6 +309,8 @@ model SessionNoteVersion {
   riskNotes           String      @db.Text @default("")
   recommendedFollowUp String      @db.Text
   createdById         String
+  emotionTimeline     Json?
+  emotionCounts       Json?
   createdAt           DateTime    @default(now())
 
   sessionNote         SessionNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
@@ -382,6 +384,8 @@ model AiSessionNote {
   riskFlag            Boolean  @default(false)
   riskNotes           String   @default("")
   recommendedFollowUp String
+  emotionTimeline     Json?
+  emotionCounts       Json?
   createdAt           DateTime @default(now())
 }
 

@@ -79,6 +79,49 @@ export default function AiSessionNoteView({
 
   const sentimentStyle = getSentimentStyle(note.memberSentiment);
 
+  const emotionCounts = note.emotionCounts || {};
+  const totalCounts = Object.values(emotionCounts).reduce((a: number, b) => a + (b as number), 0);
+
+  const getEmotionDetails = (emotion: string): { color: string; emoji: string } => {
+    const map: Record<string, { color: string; emoji: string }> = {
+      happy: { color: "#FFD54F", emoji: "😊" },
+      sad: { color: "#64B5F6", emoji: "😢" },
+      angry: { color: "#E57373", emoji: "😠" },
+      fear: { color: "#9575CD", emoji: "😨" },
+      neutral: { color: "#B0BEC5", emoji: "😐" },
+      calm: { color: "#81C784", emoji: "😌" },
+      anxious: { color: "#FFB74D", emoji: "😰" },
+      surprise: { color: "#4DD0E1", emoji: "😲" },
+      disgust: { color: "#A1887F", emoji: "🤢" },
+      distracted: { color: "#F06292", emoji: "👀" },
+      "unstable presence": { color: "#E57373", emoji: "⚠️" },
+      "no face": { color: "#78909C", emoji: "👤" },
+      "camera off": { color: "#78909C", emoji: "📷" },
+      "intermittent presence": { color: "#FFB74D", emoji: "🔄" },
+    };
+    const key = emotion.toLowerCase();
+    return map[key] || { color: "#CFD8DC", emoji: "🟡" };
+  };
+
+  const segments = Object.entries(emotionCounts)
+    .map(([emotion, count]) => {
+      const percentage = totalCounts > 0 ? ((count as number) / totalCounts) * 100 : 0;
+      return { emotion, count: count as number, percentage };
+    })
+    .filter((s) => s.percentage > 0)
+    .sort((a, b) => b.percentage - a.percentage);
+
+  const timeline = Array.isArray(note.emotionTimeline) ? note.emotionTimeline : [];
+
+  const formatTime = (ts: string) => {
+    try {
+      const d = new Date(ts);
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    } catch {
+      return ts;
+    }
+  };
+
   return (
     <div className="flex flex-col w-full bg-white rounded-2xl border border-[#D2DBE3] overflow-hidden shadow-sm h-full max-h-[700px]">
       {/* Header Banner */}
@@ -131,13 +174,71 @@ export default function AiSessionNoteView({
 
         {activeTab === "sentiment" && (
           <div className="space-y-4 animate-fadeIn">
-            <div>
-              <h5 className="font-outfit font-bold text-[#1E252B] text-sm mb-2">Member Sentiment</h5>
-              <div className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm", sentimentStyle.bg, sentimentStyle.text)}>
-                <span>{sentimentStyle.emoji}</span>
-                <span>{note.memberSentiment}</span>
+            <div className="flex gap-6 items-start">
+              <div>
+                <h5 className="font-outfit font-bold text-[#1E252B] text-sm mb-2">Member Sentiment</h5>
+                <div className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm", sentimentStyle.bg, sentimentStyle.text)}>
+                  <span>{sentimentStyle.emoji}</span>
+                  <span>{note.memberSentiment}</span>
+                </div>
               </div>
             </div>
+
+            {/* Session Emotion Distribution */}
+            {segments.length > 0 && (
+              <div className="pt-2 border-t border-[#F1F6FC]">
+                <h5 className="font-outfit font-bold text-[#1E252B] text-sm mb-2">Session Emotion Distribution</h5>
+                <div className="h-4 w-full rounded-full overflow-hidden flex bg-gray-100 mb-2">
+                  {segments.map((seg, idx) => {
+                    const details = getEmotionDetails(seg.emotion);
+                    return (
+                      <div
+                        key={idx}
+                        style={{ width: `${seg.percentage}%`, backgroundColor: details.color }}
+                        title={`${seg.emotion}: ${seg.percentage.toFixed(1)}%`}
+                        className="h-full transition-all duration-300 relative group"
+                      />
+                    );
+                  })}
+                </div>
+                {/* Legend */}
+                <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-[10px] text-[#5C6B73]">
+                  {segments.map((seg, idx) => {
+                    const details = getEmotionDetails(seg.emotion);
+                    return (
+                      <span key={idx} className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: details.color }} />
+                        <span className="capitalize font-semibold text-[#1E252B]">{seg.emotion}</span>
+                        <span>({seg.percentage.toFixed(0)}%)</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Emotion Timeline */}
+            {timeline.length > 0 && (
+              <div className="pt-2 border-t border-[#F1F6FC]">
+                <h5 className="font-outfit font-bold text-[#1E252B] text-sm mb-2">Emotion Timeline</h5>
+                <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto pr-1">
+                  {timeline.map((item, idx) => {
+                    const details = getEmotionDetails(item.emotion);
+                    return (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border border-gray-200 bg-white"
+                      >
+                        <span>{details.emoji}</span>
+                        <span className="capitalize font-semibold text-[#1E252B]">{item.emotion}</span>
+                        <span className="text-[9px] text-[#5C6B73] font-mono">{formatTime(item.timestamp)}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="pt-2 border-t border-[#F1F6FC]">
               <h5 className="font-outfit font-bold text-[#1E252B] text-sm mb-1">Engagement & Observations</h5>
               <p className="text-sm font-sans text-[#5C6B73] leading-relaxed">

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.retention_policy (
 ALTER TABLE public.retention_policy ENABLE ROW LEVEL SECURITY;
 
 -- System bypass/management
+DROP POLICY IF EXISTS system_manages_retention ON public.retention_policy;
 CREATE POLICY system_manages_retention ON public.retention_policy
   FOR ALL USING (true);
 

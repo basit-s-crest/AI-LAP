@@ -44,6 +44,7 @@ ALTER TABLE public.patient_consent ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.phi_access_log ENABLE ROW LEVEL SECURITY;
 
 -- Consent Policies
+DROP POLICY IF EXISTS coach_reads_assigned_consent ON public.patient_consent;
 CREATE POLICY coach_reads_assigned_consent ON public.patient_consent
   FOR SELECT USING (
     EXISTS (
@@ -53,13 +54,16 @@ CREATE POLICY coach_reads_assigned_consent ON public.patient_consent
     )
   );
 
+DROP POLICY IF EXISTS member_reads_own_consent ON public.patient_consent;
 CREATE POLICY member_reads_own_consent ON public.patient_consent
   FOR SELECT USING (patient_id = (SELECT auth.uid()::text));
 
+DROP POLICY IF EXISTS system_manages_consent ON public.patient_consent;
 CREATE POLICY system_manages_consent ON public.patient_consent
   FOR ALL USING (true); -- fallback for server-side operations using direct client/system roles
 
 -- Access Log Policies
+DROP POLICY IF EXISTS admin_reads_all_logs ON public.phi_access_log;
 CREATE POLICY admin_reads_all_logs ON public.phi_access_log
   FOR SELECT USING (
     EXISTS (
@@ -69,9 +73,11 @@ CREATE POLICY admin_reads_all_logs ON public.phi_access_log
     )
   );
 
+DROP POLICY IF EXISTS actor_reads_own_logs ON public.phi_access_log;
 CREATE POLICY actor_reads_own_logs ON public.phi_access_log
   FOR SELECT USING (actor_id = (SELECT auth.uid()::text));
 
+DROP POLICY IF EXISTS system_inserts_logs ON public.phi_access_log;
 CREATE POLICY system_inserts_logs ON public.phi_access_log
   FOR INSERT WITH CHECK (true);
 
