@@ -267,7 +267,7 @@ export function useLiveVideoAnalysis({
                     result.boundingBox
                   );
                 }
-                const response = await LiveVideoAnalysisApiService.detectEmotion(frameToSend);
+                const response = await LiveVideoAnalysisApiService.detectEmotion(frameToSend, sessionId);
                 hseEmotion = response.emotion;
                 hseConfidence = response.confidence;
                 hseScores = response.all_scores || {};

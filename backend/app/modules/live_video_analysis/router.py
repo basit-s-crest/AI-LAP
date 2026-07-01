@@ -1,6 +1,9 @@
 import logging
 import base64
 import io
+import time
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Optional
 from pydantic import BaseModel
 from PIL import Image
@@ -25,6 +28,9 @@ logger = logging.getLogger(__name__)
 # Router with no fixed prefix to allow registering both v1 and non-v1 routes
 router = APIRouter(tags=["Live Video Analysis"])
 
+# Dedicated executor for HSEmotion inference to run in background thread pool
+fer_executor = ThreadPoolExecutor(max_workers=16, thread_name_prefix="fer_inference")
+
 # Initialize model once at module load
 try:
     logger.info("[LiveVideoAnalysis] Initializing HSEmotion EfficientNet-B2 model...")
@@ -47,6 +53,7 @@ EMOTION_MAP = {
 
 class EmotionDetectRequest(BaseModel):
     frame: str
+    sessionId: Optional[str] = None
 
 class EmotionDetectResponse(BaseModel):
     emotion: str
@@ -62,6 +69,9 @@ async def detect_emotion_endpoint(payload: EmotionDetectRequest):
         logger.error("[LiveVideoAnalysis] HSEmotion model is not loaded.")
         return EmotionDetectResponse(emotion="unknown", confidence=0.0)
 
+    session_id = payload.sessionId or "unknown"
+    start_time = time.perf_counter()
+
     try:
         base64_frame = payload.frame
         if "," in base64_frame:
@@ -71,8 +81,14 @@ async def detect_emotion_endpoint(payload: EmotionDetectRequest):
         img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
         img_np = np.array(img)
 
-        # Run inference
-        emotion, scores = fer_model.predict_emotions(img_np, logits=False)
+        # Run inference in dedicated thread pool
+        loop = asyncio.get_running_loop()
+        emotion, scores = await loop.run_in_executor(
+            fer_executor,
+            fer_model.predict_emotions,
+            img_np,
+            False  # logits=False
+        )
 
         mapped_emotion = EMOTION_MAP.get(emotion, emotion.lower())
         all_scores = {}
@@ -82,6 +98,11 @@ async def detect_emotion_endpoint(payload: EmotionDetectRequest):
             all_scores[mapped_name] = float(score_val)
 
         confidence = all_scores.get(mapped_emotion, 0.0)
+
+        latency_ms = (time.perf_counter() - start_time) * 1000
+        logger.info(
+            f"[LiveVideoAnalysis] [Session: {session_id}] Emotion detection latency: {latency_ms:.2f}ms"
+        )
 
         return EmotionDetectResponse(
             emotion=mapped_emotion,

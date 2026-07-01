@@ -214,7 +214,8 @@ async def websocket_endpoint(websocket: WebSocket):
                                     asyncio.create_task(
                                         live_analysis_engine.add_transcript(
                                             session_id, transcript, websocket, websocket_write_lock,
-                                            tone_snapshot=tone_snapshot
+                                            tone_snapshot=tone_snapshot,
+                                            speaker="member"
                                         )
                                     )
                             except Exception as e:

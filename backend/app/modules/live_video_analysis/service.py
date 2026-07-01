@@ -1,6 +1,6 @@
 import logging
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict
 from pydantic import ValidationError
 from app.modules.live_video_analysis.schemas import EmotionSignal, EmotionSignalAck, EmotionAggregation, SessionAggregation
@@ -10,6 +10,10 @@ logger = logging.getLogger(__name__)
 # Thread-safe in-memory buffer: session_id -> { participant_id -> list of EmotionSignal }
 _buffer_lock = threading.Lock()
 _session_buffers: Dict[str, Dict[str, list]] = {}
+
+# Thread-safe in-memory clock skew tracking: { f"{session_id}/{participant_id}" -> timedelta }
+_skew_lock = threading.Lock()
+_clock_skews: Dict[str, timedelta] = {}
 
 def parse_iso_timestamp(ts_str: str) -> datetime:
     try:
@@ -23,6 +27,24 @@ def _buffer_signal(signal: EmotionSignal) -> None:
     session_id = signal.sessionId
     participant_id = signal.participantId
     
+    # Calculate or retrieve clock skew dynamically
+    key = f"{session_id}/{participant_id}"
+    sig_time = parse_iso_timestamp(signal.timestamp)
+    now = datetime.now(timezone.utc)
+    
+    with _skew_lock:
+        if key not in _clock_skews:
+            _clock_skews[key] = now - sig_time
+            logger.info(
+                f"[LiveVideoAnalysis] Calculated clock skew for {key}: "
+                f"{_clock_skews[key].total_seconds():.3f}s"
+            )
+        skew = _clock_skews[key]
+        
+    # Adjust client timestamp to server clock
+    corrected_time = sig_time + skew
+    signal.timestamp = corrected_time.isoformat()
+    
     with _buffer_lock:
         if session_id not in _session_buffers:
             _session_buffers[session_id] = {}
@@ -33,7 +55,6 @@ def _buffer_signal(signal: EmotionSignal) -> None:
         buffer.append(signal)
         
         # Prune older than 2 minutes and keep max 10
-        now = datetime.now(timezone.utc)
         valid_signals = []
         for sig in buffer:
             sig_time = parse_iso_timestamp(sig.timestamp)
@@ -74,22 +95,27 @@ def handle_emotion_signal(payload: dict) -> EmotionSignalAck:
         # Return ignored/invalid ack
         return EmotionSignalAck(timestamp=timestamp, status="ignored")
 
-def get_participant_aggregation(session_id: str, participant_id: str) -> EmotionAggregation:
+def get_participant_aggregation(session_id: str, participant_id: str, window_seconds: int = 120) -> EmotionAggregation:
     with _buffer_lock:
         session_buf = _session_buffers.get(session_id, {})
         signals = session_buf.get(participant_id, [])
         
-        # Prune older than 2 minutes
+        # Prune older than window_seconds
         now = datetime.now(timezone.utc)
         valid_signals = []
         for sig in signals:
             sig_time = parse_iso_timestamp(sig.timestamp)
-            if (now - sig_time).total_seconds() <= 120:
+            if (now - sig_time).total_seconds() <= window_seconds:
                 valid_signals.append(sig)
                 
         # Update buffer
+        pruned_signals = []
+        for sig in signals:
+            sig_time = parse_iso_timestamp(sig.timestamp)
+            if (now - sig_time).total_seconds() <= 120:
+                pruned_signals.append(sig)
         if session_id in _session_buffers and participant_id in _session_buffers[session_id]:
-            _session_buffers[session_id][participant_id] = valid_signals
+            _session_buffers[session_id][participant_id] = pruned_signals
             
     if not valid_signals:
         return EmotionAggregation(
@@ -104,7 +130,7 @@ def get_participant_aggregation(session_id: str, participant_id: str) -> Emotion
         counts[sig.dominantEmotion] = counts.get(sig.dominantEmotion, 0) + 1
         
     # Dominant emotion (highest count)
-    dominant = max(counts, key=counts.get)
+    dominant = max(counts, key=counts.get) if counts else "Neutral"
     
     latest_sig = valid_signals[-1]
     
@@ -115,13 +141,13 @@ def get_participant_aggregation(session_id: str, participant_id: str) -> Emotion
         lastUpdatedAt=latest_sig.timestamp
     )
 
-def get_session_aggregation(session_id: str) -> Dict[str, EmotionAggregation]:
+def get_session_aggregation(session_id: str, window_seconds: int = 120) -> Dict[str, EmotionAggregation]:
     with _buffer_lock:
         session_buf = _session_buffers.get(session_id, {})
         participant_ids = list(session_buf.keys())
         
     return {
-        part_id: get_participant_aggregation(session_id, part_id)
+        part_id: get_participant_aggregation(session_id, part_id, window_seconds=window_seconds)
         for part_id in participant_ids
     }
 
@@ -130,6 +156,10 @@ def clear_session_buffer(session_id: str) -> None:
         if session_id in _session_buffers:
             del _session_buffers[session_id]
             logger.info(f"[LiveVideoAnalysis] Cleared in-memory emotion buffer for sessionId={session_id}")
+    with _skew_lock:
+        keys_to_remove = [k for k in _clock_skews.keys() if k.startswith(f"{session_id}/")]
+        for k in keys_to_remove:
+            _clock_skews.pop(k, None)
 
 def clear_participant_buffer(session_id: str, participant_id: str) -> None:
     with _buffer_lock:
@@ -142,10 +172,13 @@ def clear_participant_buffer(session_id: str, participant_id: str) -> None:
                 )
             if not _session_buffers[session_id]:
                 del _session_buffers[session_id]
+    with _skew_lock:
+        key = f"{session_id}/{participant_id}"
+        _clock_skews.pop(key, None)
 
-def get_session_wide_aggregation(session_id: str) -> SessionAggregation:
+def get_session_wide_aggregation(session_id: str, window_seconds: int = 120) -> SessionAggregation:
     # 1. Get participant-level aggregations
-    participants = get_session_aggregation(session_id)
+    participants = get_session_aggregation(session_id, window_seconds=window_seconds)
     
     # If no participants are active or have sent any signals:
     if not participants:

@@ -53,7 +53,7 @@ coachChat.use(socketAuth_middleware_1.socketAuthMiddleware);
 coachChat.on("connection", (socket) => {
     (0, coachChat_1.registerCoachChatHandlers)(io, socket);
 });
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, "0.0.0.0", () => {
     (0, orgNotification_scheduler_1.startOrgNotificationScheduler)();
     (0, sessionAutoCompleter_1.startSessionAutoCompleter)();
     console.log(`✅ VASL Server running on http://localhost:${PORT}`);

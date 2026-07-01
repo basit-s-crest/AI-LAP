@@ -43,6 +43,8 @@ const getCoachSessionNotes = async (req, res) => {
                 riskFlag: latest ? latest.riskFlag : false,
                 riskNotes: latest ? latest.riskNotes : "",
                 recommendedFollowUp: latest ? latest.recommendedFollowUp : "",
+                emotionTimeline: latest ? latest.emotionTimeline : null,
+                emotionCounts: latest ? latest.emotionCounts : null,
             };
         });
         return res.status(200).json({ notes: mappedNotes });
@@ -104,6 +106,8 @@ const getSessionNote = async (req, res) => {
                     recommendedFollowUp: latest ? latest.recommendedFollowUp : "",
                     createdById: latest ? latest.createdById : "",
                     versionCreatedAt: latest ? latest.createdAt.toISOString() : "",
+                    emotionTimeline: latest ? latest.emotionTimeline : null,
+                    emotionCounts: latest ? latest.emotionCounts : null,
                 },
             });
         }
@@ -123,6 +127,8 @@ const getSessionNote = async (req, res) => {
                     riskFlag: aiNote.riskFlag,
                     riskNotes: aiNote.riskNotes,
                     recommendedFollowUp: aiNote.recommendedFollowUp,
+                    emotionTimeline: aiNote.emotionTimeline,
+                    emotionCounts: aiNote.emotionCounts,
                 },
             });
         }
@@ -143,7 +149,7 @@ const saveSessionNote = async (req, res) => {
         if (!coachId)
             return res.status(401).json({ message: "Unauthorized" });
         const { sessionId } = req.params;
-        const { summary, keyThemes, memberSentiment, coachObservations, riskFlag, riskNotes, recommendedFollowUp, status, aiSessionNoteId, sessionType, } = req.body;
+        const { summary, keyThemes, memberSentiment, coachObservations, riskFlag, riskNotes, recommendedFollowUp, status, aiSessionNoteId, sessionType, emotionTimeline, emotionCounts, } = req.body;
         if (!status || (status !== "DRAFT" && status !== "FINAL")) {
             return res.status(400).json({ message: "Invalid status. Must be DRAFT or FINAL" });
         }
@@ -209,6 +215,8 @@ const saveSessionNote = async (req, res) => {
                     riskNotes: riskNotes || "",
                     recommendedFollowUp: recommendedFollowUp || "",
                     createdById: coachId,
+                    emotionTimeline: emotionTimeline || null,
+                    emotionCounts: emotionCounts || null,
                 },
             });
             return { note, version };
@@ -240,6 +248,8 @@ const saveSessionNote = async (req, res) => {
                 recommendedFollowUp: result.version.recommendedFollowUp,
                 createdById: result.version.createdById,
                 versionCreatedAt: result.version.createdAt.toISOString(),
+                emotionTimeline: result.version.emotionTimeline,
+                emotionCounts: result.version.emotionCounts,
             },
         });
     }
