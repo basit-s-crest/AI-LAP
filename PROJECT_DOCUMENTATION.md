@@ -167,20 +167,23 @@ The processing workflow of a user's conversational message (e.g., peer post or c
 
 | Layer | Technology | Purpose | Why Chosen |
 | ----- | ---------- | ------- | ---------- |
-| **Frontend Framework** | Next.js 14 (React) | Application Dashboard & UI rendering | Provides optimized Server-Side Rendering (SSR), API routes, and Client-side hydration. |
-| **Styling** | Vanilla CSS / CSS Modules | UI layouts and glassmorphic designs | Offers absolute layout control, lightweight assets, and avoids Tailwind compilation overhead. |
+| **Frontend Framework** | Next.js 16 (React 19) | Application Dashboard & UI rendering | Provides optimized Server-Side Rendering (SSR) via App Router, API routes, and Client-side hydration. |
+| **Styling** | Vanilla CSS / Tailwind CSS | UI layouts, responsive utility styling, and glassmorphic designs | Offers absolute layout control, sleek aesthetics, and lightweight assets. |
 | **TypeScript Backend** | Node.js Express | Auth, messaging, groups, and membership routing | High I/O handling, simple integration with Prisma and messaging websockets. |
 | **Python Backend** | FastAPI (uvicorn) | LLM inference execution, acoustic/vocal features processing, and vector search | Best performance for async tasks, native Python library integration (`librosa`, `numpy`, `textblob`). |
 | **State Management** | Redux Toolkit & React Query | Global dashboard client states & DB server sync | RTK handles localized authentication and UI states, while React Query optimizes database cache synchronization. |
-| **Real-Time Video/Audio** | LiveKit Room SFU & SDK | Live video/audio conferencing | Power high-fidelity WebRTC call routing between Coach and Member with low signaling overhead. |
-| **Real-Time Speech** | Deepgram Nova-3 API | Live streaming automatic speech recognition | Low latency streaming ASR with sub-100ms endpointing options. |
+| **Real-Time Video/Audio** | LiveKit Room SFU, SDK, & LiveKit Client | Live video/audio conferencing | Power high-fidelity WebRTC call routing between Coach and Member with low signaling overhead. |
+| **Real-Time Speech** | Deepgram Nova-3 API & Deepgram SDK | Live streaming automatic speech recognition | Low latency streaming ASR with sub-100ms silence endpointing options. |
 | **Facial & Gesture Ext.** | Google MediaPipe Tasks-Vision | Live face mesh landmark extraction | Runs in the client browser to capture 478 face landmarks and compute emotion indicators without sending raw video backends. |
-| **Acoustic processing** | Librosa & Pydub | Vocal pitch (F0 via PyIN), energy, and voice texture analysis | Standard scientific Python libraries for high-fidelity audio waveform analysis. |
+| **Facial Emotion Recognition** | HSEmotion (EfficientNet-B2) & PyTorch / timm | Backend facial emotion inference | Classifies facial emotion from base64 frames concurrently using a dedicated FastAPI background thread pool. |
+| **Acoustic processing** | Librosa, Pydub, & soundfile | Vocal pitch (F0 via PyIN), energy, and voice texture analysis | Standard scientific Python libraries for high-fidelity audio waveform analysis. |
+| **De-identification & NLP** | MS Presidio & TextBlob / SpaCy | PII scrubbing and text sentiment analysis | Microsoft Presidio anonymizes PHI data before ingestion, and TextBlob computes polarity scores. |
 | **Database (Auth/Core)** | Supabase PostgreSQL (`vasl_ts`) | User records, messages, groups, and coach logs | Managed cloud transactional engine, queried through Prisma ORM. |
 | **Database (AI/Risk)** | Supabase PostgreSQL (`vasl` with pgvector) | Inference events, snapshots, memory events, and vectors | Enables semantic vector searches over clinical narratives using 384-dimensional pgvector embeddings. |
-| **Background Processing**| Redis & BullMQ | Asynchronous job queues and SSE message broadcasts | Guarantees decoupling of user-facing endpoints from heavy LLM calls. |
-| **Orchestration** | Strands Framework | Clinical RAG Agent orchestration | Lightweight cognitive agent architecture wrapping LLM states. |
+| **Background Processing**| Redis (`ioredis` / `redis`) & BullMQ | Asynchronous job queues and SSE message broadcasts | Guarantees decoupling of user-facing endpoints from heavy LLM calls. |
+| **Orchestration** | Strands Framework & LiteLLM | Clinical RAG Agent & Note Comparison orchestration | Lightweight cognitive agent architecture wrapping LLM states. |
 | **Encryption/Security** | Supabase Vault / pgsodium | HIPAA-compliant encryption of Protected Health Information (PHI) | Provides hardware/database level encryption with row-level policies. |
+| **Visualizations & Alerts** | Recharts, Lucide React, & Sonner | Dashboard graphs, indicators, and alerts | Offers high-fidelity visual representations of clinical data (such as risk trends and SHAP parameters). |
 
 ---
 
@@ -267,19 +270,24 @@ frontend/BE/
 
 ### API Design
 ```
-Ingestion Service (FastAPI :8000)
+Ingestion Service (FastAPI :8001 / :8000)
 ├── POST /v1/ingest/peer-post     - Processes community posts for risk signals
 ├── POST /v1/ingest/journal       - Extracts sentiment & mood triggers from logs
 ├── POST /v1/ingest/chat          - Ingests active text conversations
 └── POST /v1/ingest/assessment    - Evaluates question-level clinical distress
 
-STT & Real-Time Gateway (FastAPI :8000)
-└── WS /v1/stt                    - Live STT streaming connection (requires JWT)
+STT, Video, & Real-Time Gateway (FastAPI :8001 / :8000)
+├── WS /v1/stt                    - Live STT streaming connection (requires JWT)
+├── POST /api/emotion/detect      - Classifies facial emotion from base64 frames via HSEmotion
+├── GET /v1/live-video-analysis/{session_id}/aggregation - Retrieves session-wide emotion counts/dominant metrics
+└── POST /v1/change-detection/compare - Compares two session notes for progress and safety flags
 
-Core User Service (Express :4000)
+Core User & Change Service (Express :5000 / :4000)
 ├── POST /api/auth/register       - Generates user accounts
 ├── POST /api/auth/consent        - Updates active consent flags for recording/analysis
-└── GET /api/auth/consent         - Retrieves patient-specific consent statuses
+├── GET /api/auth/consent         - Retrieves patient-specific consent statuses
+├── GET /api/change-insights      - Retrieves historical change insights for a member
+└── POST /api/change-insights/compare - Triggers AI session comparison
 ```
 
 ### Request Lifecycle (Ingestion API)
@@ -388,6 +396,37 @@ SafeCircle uses **Supabase Cloud** as its hosted PostgreSQL engine. The database
                                          | overallProgressScoreFLOAT |
                                          | current_risk_tier    TEXT |
                                          +---------------------------+
+    |
+    |------------------------+
+    |                        |
+    |                        |           +------------------------+
+    |                        |           |      SessionNote       |
+    |                        |           +------------------------+
+    |                        ├---------o | id (PK)           TEXT |
+    |                        |           | sessionId (FK-UK) TEXT |
+    |                        |           | coachId (FK)      TEXT |
+    |                        |           | memberId (FK)     TEXT |
+    |                        |           | status            TEXT |
+    |                        |           +------------------------+
+    |                        |               ^
+    |                        |               | (one-to-many)
+    |                        |               +-----------+
+    |                        |                           |
+    |                        |           +---------------v-----------+
+    |                        |           |    MemberChangeInsight    |
+    |                        |           +---------------------------+
+    |                        └---------o | id (PK)              TEXT |
+    |                                    | memberId (FK)        TEXT |
+    |                                    | sessionNoteIdA(FK-O) TEXT |
+    |                                    | sessionNoteIdB(FK-N) TEXT |
+    |                                    | summary              TEXT |
+    |                                    | improvements        JSONB |
+    |                                    | concerns            JSONB |
+    |                                    | goals               JSONB |
+    |                                    | behavioralPatterns  JSONB |
+    |                                    | safetyFlags         JSONB |
+    |                                    | hasSafetyAlert    BOOLEAN |
+    |                                    +---------------------------+
 
 +------------------------+               +------------------------+
 |     InferenceEvent     |               |      EventSignal       |
@@ -426,6 +465,8 @@ SafeCircle uses **Supabase Cloud** as its hosted PostgreSQL engine. The database
 * **`member_memory_events`**: Holds encrypted, vector-embedded clinical events (L3a) extracted at the end of sessions.
 * **`member_longitudinal_profile`**: Stores the client's summarized clinical history (presenting conditions, core wounds, recurring themes, progress score).
 * **`inference_events`**: Contains structured classifications for text ingestion points.
+* **`SessionNote`**: Stores draft and finalized coach session notes (summaries, observations, recommendations) with automated versioning tracking.
+* **`MemberChangeInsight`**: Holds AI-detected session-to-session progress reviews (improvements, setbacks/concerns, goals, behavioral shifts, and safety flags) generated when note comparisons are triggered.
 
 ---
 
@@ -474,10 +515,14 @@ SafeCircle uses a dual-domain emotion classification framework:
   * **Pitch (F0)**: Extracted via the PyIN algorithm (C2–C7 notes) inside `tone_analyzer.py`. Rapid pitch shifts indicate voice breaks or tremors.
   * **Energy**: Calculated via hop-window RMS. Rising energy trends indicate agitation or panic.
   * **Pause Ratio**: Measures silence frames (RMS < 0.02) to detect cognitive slowing or hesitation.
-* **Visual Features (MediaPipe Face Landmarker)**:
-  * **Dynamic WASM Import**: Dynamically downloads the MediaPipe Tasks-Vision WASM compiler from standard jsdelivr CDN at runtime.
-  * **Landmark Sampling**: Grabs the `face_landmarker.task` model file on demand to map 478 3D facial landmarks from the local/remote video streams.
-  * **Emotion Softmax Map**: Evaluates geometric distances between landmarks (e.g., mouth shape, eye widening, brow contraction) to construct classification confidence parameters for dominant expressions: *Neutral*, *Happy*, *Agitated*, *Sad*, and *Surprised*.
+* **Visual Features (MediaPipe & HSEmotion Backend Classifier)**:
+  * **Dynamic WASM Import**: Dynamically downloads the MediaPipe Tasks-Vision WASM compiler from standard jsdelivr CDN at runtime to map 478 3D facial landmarks from client streams.
+  * **Image Ingestion**: The client client-side captures video frames, converts them to base64, and POSTs them to the backend API (`/api/emotion/detect`).
+  * **Model Architecture**: The Python backend evaluates frames using the **HSEmotion Recognizer** (specifically the `enet_b2_8` EfficientNet-B2 PyTorch model), run inside a thread-safe `ThreadPoolExecutor` background pool (16 workers) to ensure sub-100ms concurrent inference without blocking the async event loop.
+  * **Softmax Emotion Mapping**: Maps raw models outputs to standardized clinical affect states: Neutral, Happy, Sad, Angry, Contempt, Disgust, Fear, and Surprise.
+  * **In-Memory Buffering & Clock Correction**: Backend services buffer incoming emotion packets in `_session_buffers`, keeping a rolling window of the last 120 seconds (max 10 signals) per participant. The system dynamically computes network clock skew (`_clock_skews`) on the first packet and normalizes client timestamps to the server clock.
+  - **Incongruence Detection & Live Integration**: During active sessions, the `LiveMeetingAnalysisEngine` fetches video emotion counts over the last 30 seconds and injects `video_context` into the Strands RAG agent alongside acoustic tone and transcript text. This enables detection of affect incongruence (e.g., patient claiming to feel happy while displaying fear/anger facially).
+  - **Analysis safety net**: Includes a safety net that force-triggers a RAG analysis if 120 seconds have elapsed since the last success, regardless of activity thresholds.
 * **Affect Congruence**: Matches text sentiment (TextBlob polarity) against vocal valence. Mismatches (e.g., negative words with laughter) trigger "masking" alerts:
   $$\text{Congruence} = 1.0 - \frac{|\text{Sentiment}_{\text{text}} - \text{Valence}_{\text{vocal}}|}{2.0}$$
 
@@ -669,3 +714,15 @@ ALTER TABLE public.patient_consent ENABLE ROW LEVEL SECURITY;
 CREATE POLICY member_reads_own_consent ON public.patient_consent
   FOR SELECT USING (patient_id = (SELECT auth.uid()::text));
 ```
+
+### 4. Session-to-Session Change Insights
+* **Purpose**: Tracks longitudinal client progress, setbacks, behavioral patterns, and safety flags across sequential sessions.
+* **Technical Implementation**:
+  * **Strands Clinical Agent**: Orchestrated using LiteLLM. Initiated when a coach triggers comparison between Note A (previous finalized session note version) and Note B (current draft session note version).
+  * **Report Structure**: Formulates structural sections: Narrative change summary, Improvements list, Concerns/Setbacks list, Goal progress, Behavioral patterns, and Safety flags.
+  * **Dedicated Safety Net Classifier**: Compares Note B text against a static dictionary of crisis keywords (`"suicide"`, `"kill"`, `"harm"`, `"die"`, `"end my life"`, `"end it all"`, `"self-harm"`, `"cutting"`, `"overdose"`). If a match is found, it automatically raises `hasSafetyAlert = true` and appends safety flags, preventing LLM classifier misses.
+  * **Consent Gate**: Verifies active client consent check for AI Clinical Analysis (`consentType: "ai_analysis"`).
+  * **HIPAA Compliance & Audit Trigger**:
+    - `MemberChangeInsight` records are subject to Row-Level Security (RLS) policies: selective read restricted to assigned coaches (`coach_reads_assigned_insights`) or the owner member (`member_reads_own_insights`).
+    - Database audit trigger `audit_change_insights` runs after insert/update/delete, calling `log_phi_access()` to record clinical access paths.
+    - Soft delete constraints prevent hard deletion of clinical history records (`FOR DELETE USING (false)` policy).
