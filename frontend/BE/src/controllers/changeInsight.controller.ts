@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
+import { forwardChangeInsightToSentiment } from "../services/sentimentForwarder";
 
 export const getChangeInsights = async (req: Request, res: Response): Promise<Response> => {
   try {
@@ -208,6 +209,21 @@ export const compareSessionNotes = async (req: Request, res: Response): Promise<
         },
       });
     }
+
+    let orgId = "org_default";
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: session.memberId },
+        select: { organizationId: true },
+      });
+      if (user?.organizationId) {
+        orgId = user.organizationId;
+      }
+    } catch (err) {
+      console.warn("Failed to get member orgId in changeInsight controller:", err);
+    }
+
+    forwardChangeInsightToSentiment(insight, orgId);
 
     return res.status(200).json({ status: "success", insight });
   } catch (error) {

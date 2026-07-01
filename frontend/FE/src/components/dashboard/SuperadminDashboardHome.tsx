@@ -25,7 +25,9 @@ import {
   Legend,
 } from "recharts";
 
-function formatShortDate(date: Date) {
+function formatShortDate(dateStr: string) {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
@@ -50,7 +52,7 @@ export function SuperadminDashboardHome() {
   const chartFormattedData = useMemo(() => {
     console.log('[SuperadminDashboard] Raw chart data:', chartData);
     const formatted = chartData.map((d) => ({
-      label: formatShortDate(new Date(d.date)),
+      label: formatShortDate(d.date),
       Users: d.users,
       Coaches: d.coaches,
       Organizations: d.orgs,

@@ -247,47 +247,47 @@ export async function getConversationList(
       distinct: ["coachId"],
     });
 
-    const summaries: ConversationSummary[] = [];
+    const summaries = await Promise.all(
+      distinctCoachIds.map(async ({ coachId }) => {
+        // Fetch coach info
+        const coach = await prisma.coach.findUnique({
+          where: { id: coachId },
+          select: { id: true, name: true, avatar: true },
+        });
 
-    for (const { coachId } of distinctCoachIds) {
-      // Fetch coach info
-      const coach = await prisma.coach.findUnique({
-        where: { id: coachId },
-        select: { id: true, name: true, avatar: true },
-      });
+        if (!coach) return null;
 
-      if (!coach) continue;
+        // Get last message
+        const lastMsg = await prisma.coachMessage.findFirst({
+          where: { userId: id, coachId },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          select: { content: true, createdAt: true },
+        });
 
-      // Get last message
-      const lastMsg = await prisma.coachMessage.findFirst({
-        where: { userId: id, coachId },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        select: { content: true, createdAt: true },
-      });
+        if (!lastMsg) return null;
 
-      if (!lastMsg) continue;
+        // Count unread messages where member is the receiver (sent by coach)
+        const unreadCount = await prisma.coachMessage.count({
+          where: {
+            userId: id,
+            coachId,
+            read: false,
+            senderRole: "coach",
+          },
+        });
 
-      // Count unread messages where member is the receiver (sent by coach)
-      const unreadCount = await prisma.coachMessage.count({
-        where: {
-          userId: id,
-          coachId,
-          read: false,
-          senderRole: "coach",
-        },
-      });
+        return {
+          partnerId: coach.id,
+          partnerName: coach.name,
+          partnerAvatar: coach.avatar ?? null,
+          lastMessage: lastMsg.content,
+          lastMessageAt: lastMsg.createdAt,
+          unreadCount,
+        };
+      })
+    );
 
-      summaries.push({
-        partnerId: coach.id,
-        partnerName: coach.name,
-        partnerAvatar: coach.avatar ?? null,
-        lastMessage: lastMsg.content,
-        lastMessageAt: lastMsg.createdAt,
-        unreadCount,
-      });
-    }
-
-    return summaries;
+    return summaries.filter((s): s is ConversationSummary => s !== null);
   } else {
     // role === "coach"
     // Find all distinct userIds for this coach
@@ -297,46 +297,46 @@ export async function getConversationList(
       distinct: ["userId"],
     });
 
-    const summaries: ConversationSummary[] = [];
+    const summaries = await Promise.all(
+      distinctUserIds.map(async ({ userId }) => {
+        // Fetch user info
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, name: true, avatar: true },
+        });
 
-    for (const { userId } of distinctUserIds) {
-      // Fetch user info
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { id: true, name: true, avatar: true },
-      });
+        if (!user) return null;
 
-      if (!user) continue;
+        // Get last message
+        const lastMsg = await prisma.coachMessage.findFirst({
+          where: { coachId: id, userId },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          select: { content: true, createdAt: true },
+        });
 
-      // Get last message
-      const lastMsg = await prisma.coachMessage.findFirst({
-        where: { coachId: id, userId },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        select: { content: true, createdAt: true },
-      });
+        if (!lastMsg) return null;
 
-      if (!lastMsg) continue;
+        // Count unread messages where coach is the receiver (sent by member)
+        const unreadCount = await prisma.coachMessage.count({
+          where: {
+            coachId: id,
+            userId,
+            read: false,
+            senderRole: "member",
+          },
+        });
 
-      // Count unread messages where coach is the receiver (sent by member)
-      const unreadCount = await prisma.coachMessage.count({
-        where: {
-          coachId: id,
-          userId,
-          read: false,
-          senderRole: "member",
-        },
-      });
+        return {
+          partnerId: user.id,
+          partnerName: user.name,
+          partnerAvatar: user.avatar ?? null,
+          lastMessage: lastMsg.content,
+          lastMessageAt: lastMsg.createdAt,
+          unreadCount,
+        };
+      })
+    );
 
-      summaries.push({
-        partnerId: user.id,
-        partnerName: user.name,
-        partnerAvatar: user.avatar ?? null,
-        lastMessage: lastMsg.content,
-        lastMessageAt: lastMsg.createdAt,
-        unreadCount,
-      });
-    }
-
-    return summaries;
+    return summaries.filter((s): s is ConversationSummary => s !== null);
   }
 }

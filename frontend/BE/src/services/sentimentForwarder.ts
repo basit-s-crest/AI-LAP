@@ -138,7 +138,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(45000),
   });
 
   if (!response.ok) {
@@ -312,3 +312,85 @@ export function forwardPeerPostToSentiment(
     }
   })();
 }
+
+interface ChangeInsightIngestPayload {
+  event_id: string;
+  org_id: string;
+  member_token: string;
+  text: string;
+  timestamp: string;
+  consent_active: boolean;
+  original_source_id: string;
+}
+
+export function forwardChangeInsightToSentiment(
+  insight: any,
+  orgId: string
+): void {
+  void (async () => {
+    const payload: ChangeInsightIngestPayload = {
+      event_id: randomUUID(),
+      org_id: orgId,
+      member_token: insight.memberId,
+      text: (insight.summary || "").slice(0, 10000),
+      timestamp: (insight.createdAt || new Date()).toISOString(),
+      consent_active: true,
+      original_source_id: insight.id,
+    };
+
+    try {
+      const resp = await postJson<IngestResponse>(
+        `${pythonBaseUrl()}/v1/ingest/change-insight`,
+        payload
+      );
+
+      console.log(
+        "[sentiment/change-insight] enqueued event_id=",
+        resp.event_id,
+        "tier=",
+        resp.risk_tier
+      );
+
+      let clientName = "Member";
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: insight.memberId },
+          select: { name: true },
+        });
+        if (user?.name) clientName = user.name;
+      } catch {
+        // non-critical
+      }
+
+      const scoreUpdate = {
+        event_id: resp.event_id ?? payload.event_id,
+        member_token: insight.memberId,
+        client_name: clientName,
+        source: "change_insight",
+        risk_tier: resp.risk_tier ?? "low",
+        risk_score: resp.risk_score ?? 0,
+        risk_trend: resp.risk_trend ?? "stable",
+        recommended_action: resp.recommended_action ?? "no_action",
+        active_signals: resp.active_signals ?? [],
+        processed_at: new Date().toISOString(),
+      };
+
+      await safePublish(SCORE_CHANNEL, scoreUpdate);
+      console.log(
+        "[sentiment/change-insight] published to Redis channel=",
+        SCORE_CHANNEL,
+        "tier=",
+        scoreUpdate.risk_tier
+      );
+    } catch (err: unknown) {
+      const reason =
+        err instanceof Error && err.name === "TimeoutError"
+          ? "timeout after 15s"
+          : err instanceof Error
+            ? err.message
+            : String(err);
+
+      console.error("[sentiment/change-insight] forward failed:", reason);
+    }
+  })();
+}

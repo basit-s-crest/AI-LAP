@@ -133,6 +133,18 @@ class AssessmentIn(BaseModel):
     consent_active: bool
 
 
+class ChangeInsightIn(BaseModel):
+    """POST /v1/ingest/change-insight"""
+    event_id:       str
+    org_id:         str
+    member_token:   str
+    text:           str = Field(..., max_length=10000)
+    timestamp:      datetime
+    consent_active: bool
+    original_source_id: Optional[str] = None
+
+
+
 class IngestOut(BaseModel):
     status:          str
     event_id:        str

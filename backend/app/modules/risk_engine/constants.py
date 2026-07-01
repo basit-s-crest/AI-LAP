@@ -26,14 +26,16 @@ When clinical notes become available, restore:
 """
 
 # ── Source weights (must sum to 1.0) ─────────────────────────────────────────
-WEIGHT_CHAT_POSTS   = 0.46   # peer-post + chat (sentiment analysis)
-WEIGHT_MOOD         = 0.23   # journal mood_score (1-5 scale → 0-1)
-WEIGHT_ASSESSMENTS  = 0.31   # PHQ8 / GAD7 / ACES assessment scores
-WEIGHT_CLINICAL     = 0.00   # doctor/coach notes — not available yet
+WEIGHT_CHAT_POSTS      = 0.30   # peer-post + chat (sentiment analysis)
+WEIGHT_MOOD            = 0.15   # journal mood_score (1-5 scale → 0-1)
+WEIGHT_ASSESSMENTS     = 0.20   # PHQ8 / GAD7 / ACES assessment scores
+WEIGHT_CHANGE_INSIGHTS = 0.35   # session change detection summaries
+WEIGHT_CLINICAL        = 0.00   # doctor/coach notes — not available yet
 
 # ── Time decay half-lives (days) ─────────────────────────────────────────────
-HALF_LIFE_CHAT_DAYS        = 3    # chat & peer-posts decay quickly
-HALF_LIFE_ASSESSMENT_DAYS  = 30   # assessments are stable longer
+HALF_LIFE_CHAT_DAYS           = 3    # chat & peer-posts decay quickly
+HALF_LIFE_ASSESSMENT_DAYS     = 30   # assessments are stable longer
+HALF_LIFE_CHANGE_INSIGHT_DAYS = 14   # session change insights are stable but updated weekly
 # Mood uses a fixed 5-day window, no exponential decay
 
 MOOD_WINDOW_DAYS = 5   # only look at mood entries within this window

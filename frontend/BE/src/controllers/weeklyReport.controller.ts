@@ -272,17 +272,62 @@ export const getAvailableWeeks = async (req: Request, res: Response): Promise<Re
       return res.status(403).json({ message: "No organization associated" });
     }
 
-    const reports = await prisma.weeklyReport.findMany({
-      where: { organizationId: orgId },
-      orderBy: { weekStartDate: "desc" },
-      select: {
-        weekStartDate: true,
-        weekEndDate: true,
-        generatedAt: true,
-      },
+    // 1. Fetch organization's createdAt to know when they joined
+    const org = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { createdAt: true },
     });
 
-    return res.status(200).json(reports);
+    // 2. Fetch the oldest existing weekly report to ensure we don't miss anything in DB
+    const oldestReport = await prisma.weeklyReport.findFirst({
+      where: { organizationId: orgId },
+      orderBy: { weekStartDate: "asc" },
+      select: { weekStartDate: true },
+    });
+
+    // 3. Determine the start date:
+    // We want to support all weeks since the organization was created,
+    // or at least the last 12 weeks to give plenty of testing data,
+    // or since the oldest report in the database.
+    let startLimit = new Date();
+    startLimit.setDate(startLimit.getDate() - 12 * 7); // 12 weeks ago
+
+    const datesToCompare: Date[] = [startLimit];
+    if (org?.createdAt) {
+      datesToCompare.push(new Date(org.createdAt));
+    }
+    if (oldestReport?.weekStartDate) {
+      datesToCompare.push(new Date(oldestReport.weekStartDate));
+    }
+
+    // Use the earliest date among them
+    const earliestDate = new Date(Math.min(...datesToCompare.map((d) => d.getTime())));
+
+    // 4. Generate all week starts (Mondays) from earliestDate's Monday up to the current week's Monday
+    const currentMonday = getMonday(new Date());
+    const startMonday = getMonday(earliestDate);
+
+    const weeks: Array<{ weekStartDate: string; weekEndDate: string; generatedAt: string }> = [];
+
+    let iterDate = new Date(startMonday);
+    while (iterDate <= currentMonday) {
+      const wStart = getMonday(iterDate);
+      const wEnd = getSunday(iterDate);
+
+      weeks.push({
+        weekStartDate: wStart.toISOString(),
+        weekEndDate: wEnd.toISOString(),
+        generatedAt: wStart.toISOString(),
+      });
+
+      // Move to next week (add 7 days)
+      iterDate.setDate(iterDate.getDate() + 7);
+    }
+
+    // Sort descending so the most recent weeks are at the top of the select dropdown
+    weeks.sort((a, b) => new Date(b.weekStartDate).getTime() - new Date(a.weekStartDate).getTime());
+
+    return res.status(200).json(weeks);
   } catch (error) {
     console.error("[getAvailableWeeks]", error);
     return res.status(500).json({ message: "Internal server error" });

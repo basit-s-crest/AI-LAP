@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { hashPassword } from "../services/auth.service";
 import { notifyOrganizationMemberJoined } from "../services/notificationEmail.service";
+import { buildOrgOverviewMetrics } from "../services/orgStats.service";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -756,25 +757,16 @@ export const adminGetOrgOverview = async (
     const organization = await prisma.organization.findUnique({ where: { id: orgId } });
     if (!organization) return res.status(404).json({ message: "Organization not found" });
 
-    const [totalMembers, activeMembers, totalCoaches] = await Promise.all([
-      prisma.user.count({ where: { organizationId: orgId } }),
-      prisma.user.count({ where: { organizationId: orgId, isVerified: true } }),
-      prisma.organizationCoach.count({ where: { organizationId: orgId } }),
-    ]);
-
-    const engagementRate = totalMembers > 0 ? (activeMembers / totalMembers) * 100 : 0;
+    const metrics = await buildOrgOverviewMetrics(orgId);
+    const totalCoaches = await prisma.organizationCoach.count({ where: { organizationId: orgId } });
 
     return res.status(200).json({
       orgName: organization.name,
       type: organization.type,
       plan: organization.plan,
       status: organization.status,
-      totalMembers,
-      activeMembers,
       totalCoaches,
-      engagementRate: Number(engagementRate.toFixed(2)),
-      sessionsThisMonth: 0,
-      avgPhqScore: null,
+      ...metrics,
     });
   } catch (error) {
     console.error("[adminGetOrgOverview]", error);
@@ -970,91 +962,84 @@ export const adminGetActivityChart = async (
   try {
     const days = parseInt(req.query.days as string) || 30;
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    startDate.setHours(0, 0, 0, 0);
+    startDate.setUTCHours(0, 0, 0, 0);
+    startDate.setUTCDate(startDate.getUTCDate() - days);
 
-    // Get users: use lastActiveAt if available, otherwise createdAt (for historical data)
-    const users = await prisma.user.findMany({
-      where: {
-        role: "member",
-        OR: [
-          { lastActiveAt: { gte: startDate } },
-          { 
-            lastActiveAt: null,
-            createdAt: { gte: startDate }
-          }
-        ]
-      },
-      select: { id: true, lastActiveAt: true, createdAt: true },
+    // Fetch all users and map to organization
+    const usersList = await prisma.user.findMany({
+      select: { id: true, organizationId: true }
+    });
+    const userOrgMap = new Map<string, string>();
+    usersList.forEach(u => {
+      if (u.organizationId) userOrgMap.set(u.id, u.organizationId);
     });
 
-    // Get coaches: use lastActiveAt if available, otherwise createdAt
-    const coaches = await prisma.coach.findMany({
-      where: {
-        OR: [
-          { lastActiveAt: { gte: startDate } },
-          { 
-            lastActiveAt: null,
-            createdAt: { gte: startDate }
-          }
-        ]
-      },
-      select: { id: true, lastActiveAt: true, createdAt: true },
-    });
-
-    // Get organizations: use lastActiveAt if available, otherwise createdAt
-    const orgs = await prisma.organization.findMany({
-      where: {
-        OR: [
-          { lastActiveAt: { gte: startDate } },
-          { 
-            lastActiveAt: null,
-            createdAt: { gte: startDate }
-          }
-        ]
-      },
-      select: { id: true, lastActiveAt: true, createdAt: true },
-    });
-
-    console.log(`[adminGetActivityChart] Found ${users.length} users, ${coaches.length} coaches, ${orgs.length} orgs with activity in last ${days} days`);
+    // Fetch all interaction events for the period
+    const [moods, sessions, messages, coachMessages, posts] = await Promise.all([
+      prisma.mood.findMany({
+        where: { date: { gte: startDate } },
+        select: { userId: true, date: true }
+      }),
+      prisma.session.findMany({
+        where: { scheduledAt: { gte: startDate }, status: { not: "cancelled" } },
+        select: { memberId: true, coachId: true, scheduledAt: true }
+      }),
+      prisma.message.findMany({
+        where: { createdAt: { gte: startDate } },
+        select: { senderId: true, createdAt: true }
+      }),
+      prisma.coachMessage.findMany({
+        where: { createdAt: { gte: startDate } },
+        select: { userId: true, coachId: true, senderRole: true, createdAt: true }
+      }),
+      prisma.peerGroupPost.findMany({
+        where: { createdAt: { gte: startDate } },
+        select: { memberId: true, createdAt: true }
+      })
+    ]);
 
     // Group by date - count unique users/coaches/orgs per day
     const dateMap = new Map<string, { users: Set<string>; coaches: Set<string>; orgs: Set<string> }>();
     
     for (let i = 0; i < days; i++) {
       const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
+      date.setUTCDate(startDate.getUTCDate() + i);
       const key = date.toISOString().split('T')[0];
       dateMap.set(key, { users: new Set(), coaches: new Set(), orgs: new Set() });
     }
 
-    // Track unique users per day (use lastActiveAt if available, fallback to createdAt)
-    users.forEach((u) => {
-      const activeDate = u.lastActiveAt || u.createdAt;
-      if (activeDate) {
-        const key = new Date(activeDate).toISOString().split('T')[0];
-        const entry = dateMap.get(key);
-        if (entry) entry.users.add(u.id);
+    const addActivity = (dateVal: Date | string, userId: string, type: 'user' | 'coach') => {
+      const key = new Date(dateVal).toISOString().split('T')[0];
+      const entry = dateMap.get(key);
+      if (!entry) return;
+
+      if (type === 'user') {
+        entry.users.add(userId);
+        const orgId = userOrgMap.get(userId);
+        if (orgId) entry.orgs.add(orgId);
+      } else {
+        entry.coaches.add(userId);
+      }
+    };
+
+    moods.forEach(m => addActivity(m.date, m.userId, 'user'));
+    
+    sessions.forEach(s => {
+      addActivity(s.scheduledAt, s.memberId, 'user');
+      addActivity(s.scheduledAt, s.coachId, 'coach');
+    });
+
+    messages.forEach(m => addActivity(m.createdAt, m.senderId, 'user'));
+
+    coachMessages.forEach(m => {
+      if (m.senderRole === 'member') {
+        addActivity(m.createdAt, m.userId, 'user');
+      } else {
+        addActivity(m.createdAt, m.coachId, 'coach');
       }
     });
 
-    coaches.forEach((c) => {
-      const activeDate = c.lastActiveAt || c.createdAt;
-      if (activeDate) {
-        const key = new Date(activeDate).toISOString().split('T')[0];
-        const entry = dateMap.get(key);
-        if (entry) entry.coaches.add(c.id);
-      }
-    });
-
-    orgs.forEach((o) => {
-      const activeDate = o.lastActiveAt || o.createdAt;
-      if (activeDate) {
-        const key = new Date(activeDate).toISOString().split('T')[0];
-        const entry = dateMap.get(key);
-        if (entry) entry.orgs.add(o.id);
-      }
-    });
+    posts.forEach(p => addActivity(p.createdAt, p.memberId, 'user'));
 
     const chartData = Array.from(dateMap.entries()).map(([date, sets]) => ({
       date,
