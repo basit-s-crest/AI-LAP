@@ -38,6 +38,7 @@ model User {
   sessionNotes     SessionNote[]
   onboardingAssessments OnboardingAssessment[]
   patientConsents  PatientConsent[]
+  changeInsights   MemberChangeInsight[]
   notifyGroupActivity    Boolean @default(true)
   notifySessionReminders Boolean @default(true)
   notifyDailyCheckin     Boolean @default(false)
@@ -291,6 +292,8 @@ model SessionNote {
   coach           Coach              @relation(fields: [coachId], references: [id], onDelete: Cascade)
   member          User               @relation(fields: [memberId], references: [id], onDelete: Cascade)
   versions        SessionNoteVersion[]
+  insightsA       MemberChangeInsight[] @relation("NoteA")
+  insightsB       MemberChangeInsight[] @relation("NoteB")
 
   @@index([coachId])
   @@index([memberId])
@@ -309,6 +312,8 @@ model SessionNoteVersion {
   riskNotes           String      @db.Text @default("")
   recommendedFollowUp String      @db.Text
   createdById         String
+  emotionTimeline     Json?
+  emotionCounts       Json?
   createdAt           DateTime    @default(now())
 
   sessionNote         SessionNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
@@ -382,6 +387,8 @@ model AiSessionNote {
   riskFlag            Boolean  @default(false)
   riskNotes           String   @default("")
   recommendedFollowUp String
+  emotionTimeline     Json?
+  emotionCounts       Json?
   createdAt           DateTime @default(now())
 }
 
@@ -487,6 +494,29 @@ model RetentionPolicy {
 
   @@map("retention_policy")
 }
+
+model MemberChangeInsight {
+  id                String       @id @default(uuid())
+  memberId          String
+  sessionNoteIdA    String?      // Nullable in case it is the first compared note and gets deleted
+  sessionNoteIdB    String       // The note that triggered this comparison
+  summary           String       @db.Text
+  improvements      Json?        // Array of { area: string, details: string }
+  concerns          Json?        // Array of { area: string, details: string }
+  goals             Json?        // Array of { goal: string, progress: string }
+  behavioralPatterns Json?       // Array of strings
+  safetyFlags       Json?        // Array of { flag: string, reason: string }
+  hasSafetyAlert    Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+
+  member            User         @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  noteA             SessionNote? @relation("NoteA", fields: [sessionNoteIdA], references: [id], onDelete: SetNull)
+  noteB             SessionNote  @relation("NoteB", fields: [sessionNoteIdB], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@index([createdAt(sort: Desc)])
+}
+
 
 
 

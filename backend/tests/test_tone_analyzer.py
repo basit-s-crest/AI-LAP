@@ -97,8 +97,7 @@ def test_tone_analyzer_analyze_empty():
     analyzer = ToneAnalyzer()
     # If no audio buffered, analyze should return None
     import asyncio
-    loop = asyncio.get_event_loop()
-    snapshot = loop.run_until_complete(analyzer.analyze("test-session", "hello"))
+    snapshot = asyncio.run(analyzer.analyze("test-session", "hello"))
     assert snapshot is None
 
 def test_audio_buffer_header():

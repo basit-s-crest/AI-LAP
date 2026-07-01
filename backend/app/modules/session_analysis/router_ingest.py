@@ -30,7 +30,7 @@ import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.session_analysis.schemas import PeerPostIn, JournalIn, ChatIn, AssessmentIn, IngestOut
+from app.modules.session_analysis.schemas import PeerPostIn, JournalIn, ChatIn, AssessmentIn, ChangeInsightIn, IngestOut
 from app.core.database import get_db, AsyncSessionLocal
 from app.modules.session_analysis import crud
 from app.modules.session_analysis.llm import run_inference
@@ -375,6 +375,23 @@ async def ingest_assessment(
         instrument       = payload.instrument,
         item_number      = payload.item_number,
     )
+
+
+@router.post("/change-insight", response_model=IngestOut, status_code=202)
+async def ingest_change_insight(
+    payload: ChangeInsightIn,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    _consent_check(payload.consent_active, payload.event_id)
+    return await _infer_and_store(
+        raw_text         = payload.text,
+        source_type      = "change-insight",
+        payload          = payload,
+        background_tasks = background_tasks,
+        original_source_id = payload.original_source_id,
+    )
+
 
 
 

@@ -22,7 +22,35 @@ async function coachOwnsMember(coachId: string, memberId: string): Promise<boole
 }
 
 // Generate highly realistic mock data based on the actual transcript contents
-function generateMockAnalysis(transcript: TranscriptLine[], memberName: string) {
+function formatEmotionDataForPrompt(emotionCounts?: any, emotionTimeline?: any): string {
+  if (!emotionCounts && !emotionTimeline) return "";
+  
+  let output = "\nEmotion Analysis Data:\n";
+  if (emotionCounts && Object.keys(emotionCounts).length > 0) {
+    output += "- Overall detected emotion frequencies:\n";
+    for (const [emotion, count] of Object.entries(emotionCounts)) {
+      output += `  * ${emotion}: ${count} time(s)\n`;
+    }
+  }
+  
+  if (Array.isArray(emotionTimeline) && emotionTimeline.length > 0) {
+    output += "- Emotion changes chronological timeline:\n";
+    emotionTimeline.forEach((t: any) => {
+      const timeStr = t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : "";
+      output += `  * ${timeStr}: transitioned to ${t.emotion}\n`;
+    });
+  }
+  
+  return output;
+}
+
+// Generate highly realistic mock data based on the actual transcript contents and emotion signals
+function generateMockAnalysis(
+  transcript: TranscriptLine[],
+  memberName: string,
+  emotionCounts?: any,
+  emotionTimeline?: any
+) {
   const lineCount = transcript.length;
   const memberLines = transcript.filter((l) => l.speaker === "member");
   const memberText = memberLines.map((l) => l.text.toLowerCase()).join(" ");
@@ -74,8 +102,21 @@ function generateMockAnalysis(transcript: TranscriptLine[], memberName: string) 
     summary = `A ${lineCount}-line coaching session was completed with ${memberName}. The member discussed topics including ${keyThemes.slice(0, 2).join(" and ")}. The member shared their current circumstances and feelings, and the coach offered active listening and supportive guidance.`;
   }
 
+  // Append emotion summary if available
+  if (emotionCounts && Object.keys(emotionCounts).length > 0) {
+    const list = Object.entries(emotionCounts)
+      .map(([em, count]) => `${em} (${count} times)`)
+      .join(", ");
+    summary += ` Dynamic video analysis tracked client emotion expressions throughout the session, noting: ${list}.`;
+  }
+
   // Observations
-  const coachObservations = `The coach engaged effectively, with ${coachLines.length} statements matching the member's ${memberLines.length} statements. The member appeared responsive to safety checks and mindfulness exercises suggested by the coach.`;
+  let coachObservations = `The coach engaged effectively, with ${coachLines.length} statements matching the member's ${memberLines.length} statements. The member appeared responsive to safety checks and mindfulness exercises suggested by the coach.`;
+  
+  if (emotionCounts && Object.keys(emotionCounts).length > 0) {
+    const dominant = Object.entries(emotionCounts).reduce((a, b) => (b[1] as number) > (a[1] as number) ? b : a)[0];
+    coachObservations += ` Client expressions were dominantly characterized by a ${dominant} state, matching their clinical presentation.`;
+  }
 
   // Recommended Follow Up
   const recommendedFollowUp = riskFlag
@@ -93,8 +134,14 @@ function generateMockAnalysis(transcript: TranscriptLine[], memberName: string) 
   };
 }
 
-async function runAnthropicAnalysis(formattedTranscript: string, apiKey: string) {
+async function runAnthropicAnalysis(
+  formattedTranscript: string,
+  apiKey: string,
+  emotionCounts?: any,
+  emotionTimeline?: any
+) {
   console.log(`[createAiSessionNote] Calling Anthropic API using model 'claude-sonnet-4-20250514'...`);
+  const emotionData = formatEmotionDataForPrompt(emotionCounts, emotionTimeline);
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -105,20 +152,21 @@ async function runAnthropicAnalysis(formattedTranscript: string, apiKey: string)
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
-      system: "You are an AI psychiatric clinical assistant. Analyze the session transcript between a Mental Health Coach and a Member. Respond ONLY with a valid, clean JSON object matching the requested schema. Do not output any markdown code blocks, backticks, or text before/after the JSON.",
+      system: "You are an AI psychiatric clinical assistant. Analyze the session transcript and client video emotion metrics between a Mental Health Coach and a Member. Respond ONLY with a valid, clean JSON object matching the requested schema. Do not output any markdown code blocks, backticks, or text before/after the JSON.",
       messages: [
         {
           role: "user",
-          content: `Analyze the following mental health coaching session transcript.
+          content: `Analyze the following mental health coaching session transcript and associated client video emotion tracking metrics.
 
 Transcript:
 ${formattedTranscript}
+${emotionData}
 
 Provide a JSON object with the exact keys:
-- "summary": (string) A clinical, objective summary of the session.
+- "summary": (string) A clinical, objective summary of the session. Incorporate a brief clinical interpretation of the video emotion tracking data and how it aligned with the verbal sharing.
 - "keyThemes": (array of strings) 2 to 4 major topics or issues discussed in the session.
 - "memberSentiment": (string) The primary emotional state of the member (e.g., "Anxious", "Depressed", "Neutral", "Reflective", "Agitated").
-- "coachObservations": (string) Observations of the member's engagement and response during the session.
+- "coachObservations": (string) Observations of the member's engagement, response, and facial emotion changes during the session.
 - "riskFlag": (boolean) Set to true if the member mentions active self-harm, suicidal ideation, violence, abuse, or other high-risk indicators. Otherwise false.
 - "riskNotes": (string) If riskFlag is true, provide details of the specific risk indicators. Otherwise, empty string.
 - "recommendedFollowUp": (string) Concrete clinical recommendations or goals for the next session.
@@ -163,10 +211,12 @@ export const createAiSessionNote = async (req: Request, res: Response): Promise<
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const { memberId, sessionId, transcript } = req.body as {
+    const { memberId, sessionId, transcript, emotionTimeline, emotionCounts } = req.body as {
       memberId?: string;
       sessionId?: string | null;
       transcript?: TranscriptLine[];
+      emotionTimeline?: any;
+      emotionCounts?: any;
     };
 
     if (!memberId || !transcript) {
@@ -197,6 +247,7 @@ export const createAiSessionNote = async (req: Request, res: Response): Promise<
     if (xaiApiKey && xaiApiKey !== "your_key_here") {
       try {
         console.log(`[createAiSessionNote] Calling xAI API using model 'grok-beta'...`);
+        const emotionData = formatEmotionDataForPrompt(emotionCounts, emotionTimeline);
         const response = await fetch("https://api.x.ai/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -208,20 +259,21 @@ export const createAiSessionNote = async (req: Request, res: Response): Promise<
             messages: [
               {
                 role: "system",
-                content: "You are an AI psychiatric clinical assistant. Analyze the session transcript between a Mental Health Coach and a Member. Respond ONLY with a valid, clean JSON object matching the requested schema. Do not output any markdown code blocks, backticks, or text before/after the JSON."
+                content: "You are an AI psychiatric clinical assistant. Analyze the session transcript and client video emotion metrics between a Mental Health Coach and a Member. Respond ONLY with a valid, clean JSON object matching the requested schema. Do not output any markdown code blocks, backticks, or text before/after the JSON."
               },
               {
                 role: "user",
-                content: `Analyze the following mental health coaching session transcript.
+                content: `Analyze the following mental health coaching session transcript and associated client video emotion tracking metrics.
 
 Transcript:
 ${formattedTranscript}
+${emotionData}
 
 Provide a JSON object with the exact keys:
-- "sessionSummary": (string) A clinical, objective summary of the session.
+- "sessionSummary": (string) A clinical, objective summary of the session. Incorporate a brief clinical interpretation of the video emotion tracking data and how it aligned with the verbal sharing.
 - "keyTopics": (array of strings) 2 to 4 major topics or issues discussed in the session.
 - "memberMood": (string) The primary emotional state of the member (e.g., "Anxious", "Depressed", "Neutral", "Reflective", "Agitated").
-- "concerns": (string) Major observed concerns or clinical impressions.
+- "concerns": (string) Major observed concerns or clinical impressions (mentioning facial emotion metrics if clinically relevant).
 - "actionItems": (string) Specific tasks, exercises, or homework decided.
 - "followUpRecommendations": (string) Concrete clinical recommendations or goals for the next session.
 - "riskFlag": (boolean) Set to true if the member mentions active self-harm, suicidal ideation, violence, abuse, or other high-risk indicators. Otherwise false.
@@ -272,25 +324,25 @@ Respond with ONLY the JSON object. Do not wrap in markdown \`\`\`json blocks.`
         console.warn("[createAiSessionNote] xAI call failed. Falling back to next available provider. Error:", err);
         if (anthropicApiKey && anthropicApiKey !== "your_key_here") {
           try {
-            analysisResult = await runAnthropicAnalysis(formattedTranscript, anthropicApiKey);
+            analysisResult = await runAnthropicAnalysis(formattedTranscript, anthropicApiKey, emotionCounts, emotionTimeline);
           } catch (antErr) {
             console.warn("[createAiSessionNote] Fallback Claude call failed. Using mock generator. Error:", antErr);
-            analysisResult = generateMockAnalysis(transcript, memberName);
+            analysisResult = generateMockAnalysis(transcript, memberName, emotionCounts, emotionTimeline);
           }
         } else {
-          analysisResult = generateMockAnalysis(transcript, memberName);
+          analysisResult = generateMockAnalysis(transcript, memberName, emotionCounts, emotionTimeline);
         }
       }
     } else if (anthropicApiKey && anthropicApiKey !== "your_key_here") {
       try {
-        analysisResult = await runAnthropicAnalysis(formattedTranscript, anthropicApiKey);
+        analysisResult = await runAnthropicAnalysis(formattedTranscript, anthropicApiKey, emotionCounts, emotionTimeline);
       } catch (err) {
         console.warn("[createAiSessionNote] Claude call failed. Falling back to local generation. Error:", err);
-        analysisResult = generateMockAnalysis(transcript, memberName);
+        analysisResult = generateMockAnalysis(transcript, memberName, emotionCounts, emotionTimeline);
       }
     } else {
       console.log("[createAiSessionNote] Neither XAI_API_KEY nor ANTHROPIC_API_KEY is configured. Using rule-based fallback generator.");
-      analysisResult = generateMockAnalysis(transcript, memberName);
+      analysisResult = generateMockAnalysis(transcript, memberName, emotionCounts, emotionTimeline);
     }
 
     // Save to the database
@@ -306,6 +358,8 @@ Respond with ONLY the JSON object. Do not wrap in markdown \`\`\`json blocks.`
         riskFlag: !!analysisResult.riskFlag,
         riskNotes: analysisResult.riskNotes || "",
         recommendedFollowUp: analysisResult.recommendedFollowUp || "",
+        emotionTimeline: emotionTimeline || null,
+        emotionCounts: emotionCounts || null,
       },
     });
 

@@ -33,6 +33,8 @@ export interface SessionNoteDTO {
   riskFlag: boolean;
   riskNotes: string;
   recommendedFollowUp: string;
+  emotionTimeline?: any;
+  emotionCounts?: any;
   // Legacy / Manual fields
   notes?: string;
   nextSessionGoal?: string;
@@ -51,6 +53,8 @@ export interface SessionNoteVersionDTO {
   recommendedFollowUp: string;
   createdById: string;
   createdAt: string;
+  emotionTimeline?: any;
+  emotionCounts?: any;
 }
 
 export interface SaveSessionNotePayload {
@@ -65,6 +69,8 @@ export interface SaveSessionNotePayload {
   status: SessionNoteStatus;
   aiSessionNoteId?: string;
   sessionType?: SessionNoteType;
+  emotionTimeline?: any;
+  emotionCounts?: any;
   // Old fields for manual saves
   notes?: string;
   nextSessionGoal?: string;
@@ -99,10 +105,14 @@ export interface AiSessionNoteDTO {
   riskNotes: string;
   recommendedFollowUp: string;
   createdAt: string;
+  emotionTimeline?: any;
+  emotionCounts?: any;
 }
 
 export interface CreateAiSessionNotePayload {
   memberId: string;
   sessionId?: string | null;
   transcript: TranscriptLine[];
+  emotionTimeline?: any;
+  emotionCounts?: any;
 }

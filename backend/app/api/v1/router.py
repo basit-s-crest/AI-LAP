@@ -16,6 +16,7 @@ from app.modules.session_analysis.router_request_logs  import router as request_
 from app.modules.risk_engine.router                    import router as risk_router
 from app.modules.stt.router                            import router as stt_router
 from app.modules.live_video_analysis.router            import router as live_video_analysis_router
+from app.modules.change_detection.router               import router as change_detection_router
 
 api_router = APIRouter()
 
@@ -27,3 +28,4 @@ api_router.include_router(request_logs_router)
 api_router.include_router(risk_router)
 api_router.include_router(stt_router)
 api_router.include_router(live_video_analysis_router)
+api_router.include_router(change_detection_router)

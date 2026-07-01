@@ -49,7 +49,8 @@ async def run_rag_analysis(
     member_id: str,
     recent_lines: list[str],
     working_buffer_text: str,
-    tone_context: str = ""
+    tone_context: str = "",
+    video_context: str = ""
 ) -> str:
     """
     RAG-based clinical status analysis orchestrated within Strands Agent.
@@ -153,6 +154,16 @@ async def run_rag_analysis(
             "- Voice tremor/breaks on specific topics → emotional sensitivity\n"
             "- Calm words + elevated energy/pitch → hidden agitation\n\n"
         )
+
+    # Build visual emotion section if available
+    video_section = ""
+    if video_context:
+        video_section = (
+            "FACIAL EMOTION & BEHAVIOR ANALYSIS (L1 — Visual Features):\n"
+            + video_context + "\n\n"
+            "IMPORTANT: The facial emotion analysis above reveals visual cues from the remote participant's video. "
+            "Cross-reference this with the vocal tone and transcript to detect emotional incongruence.\n\n"
+        )
     
     prompt = (
         "You are an AI psychiatric clinical assistant observing a live mental health coaching session. "
@@ -161,11 +172,12 @@ async def run_rag_analysis(
         "PATIENT LONGITUDINAL PROFILE (L3b):\n" + profile_str + "\n"
         "RELEVANT PATIENT HISTORY (L3a):\n" + history_str + "\n"
         "RECENT SESSION EPISODES (L2):\n" + episodes_str + "\n"
-        + tone_section +
+        + tone_section
+        + video_section +
         "CURRENT SESSION TRANSCRIPT (L1):\n" + transcript_context + "\n\n"
-        "Based on the current conversation, historical context, and vocal tone analysis (if available), "
+        "Based on the current conversation, historical context, vocal tone, and facial emotion/behavior analysis (if available), "
         "provide the following:\n"
-        "1. A brief sentiment/tone assessment of the patient's current state, considering BOTH what they said AND how they said it. "
+        "1. A brief sentiment/tone assessment of the patient's current state, considering BOTH what they said AND how they said/looked. "
         "If affect incongruence is detected, explicitly note the mismatch and what it might indicate clinically.\n"
         "2. Suggest 2-3 highly relevant, clinically sound questions or responses for the coach/therapist.\n\n"
         "Format the output strictly as follows:\n"

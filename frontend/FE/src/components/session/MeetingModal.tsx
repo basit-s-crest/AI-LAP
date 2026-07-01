@@ -10,7 +10,10 @@ import { useLiveVideoAnalysis } from "@/hooks/useLiveVideoAnalysis";
 import LiveSessionTranscript from "@/components/session/LiveSessionTranscript";
 import AiSessionNoteView from "@/components/session/AiSessionNoteView";
 import SessionNoteEditor from "@/components/session/SessionNoteEditor";
+import ChangeInsightsPanel from "@/components/session/ChangeInsightsPanel";
+import { changeInsightService } from "@/services/changeInsight.service";
 import { aiSessionNoteService } from "@/services/aiSessionNote.service";
+import { LiveVideoAnalysisApiService } from "@/services/liveVideoAnalysis.service";
 import type { TranscriptLine, AiSessionNoteDTO } from "@/types/sessionNote";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
@@ -83,7 +86,10 @@ export default function MeetingModal({
   const [accumulatedTranscript, setAccumulatedTranscript] = useState<TranscriptLine[]>([]);
   const [aiNote, setAiNote] = useState<AiSessionNoteDTO | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [panelView, setPanelView] = useState<"transcript" | "ai" | "editor">("transcript");
+  const [panelView, setPanelView] = useState<"transcript" | "ai" | "editor" | "insights">("transcript");
+  const [insight, setInsight] = useState<any>(null);
+  const [isInsightLoading, setIsInsightLoading] = useState(false);
+  const [insightStatusMessage, setInsightStatusMessage] = useState<string | null>(null);
 
   // Emotion history state and helper map
   const [emotionHistory, setEmotionHistory] = useState<
@@ -110,6 +116,27 @@ export default function MeetingModal({
     return map[emotion] || "🟡";
   };
 
+  const handleNoteSaved = async () => {
+    setIsInsightLoading(true);
+    setInsightStatusMessage(null);
+    setPanelView("insights");
+    try {
+      const res = await changeInsightService.compare(sessionId);
+      if (res.status === "success" && res.insight) {
+        setInsight(res.insight);
+      } else {
+        setInsight(null);
+        setInsightStatusMessage(res.message || "Comparison could not be completed.");
+      }
+    } catch (err: any) {
+      console.error("[MeetingModal] Failed to run comparison:", err);
+      setInsight(null);
+      setInsightStatusMessage("An error occurred while generating change insights.");
+    } finally {
+      setIsInsightLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (
       latestEmotion &&
@@ -123,11 +150,7 @@ export default function MeetingModal({
         if (lastEntry && lastEntry.emotion === newEmotion) {
           return prev;
         }
-        const updated = [...prev, { emotion: newEmotion, timestamp: Date.now() }];
-        if (updated.length > 8) {
-          return updated.slice(updated.length - 8);
-        }
-        return updated;
+        return [...prev, { emotion: newEmotion, timestamp: Date.now() }];
       });
     }
   }, [latestEmotion]);
@@ -219,10 +242,29 @@ export default function MeetingModal({
         console.warn("[MeetingModal] Failed to mark session call as ended:", endErr);
       }
 
+      let finalCounts: Record<string, number> = {};
+      try {
+        const agg = await LiveVideoAnalysisApiService.getSessionAggregation(sessionId);
+        finalCounts = agg.emotionCounts || {};
+      } catch (err) {
+        console.warn("[MeetingModal] Failed to fetch session aggregation from Python API, using fallback counts:", err);
+        emotionHistory.forEach((item) => {
+          finalCounts[item.emotion] = (finalCounts[item.emotion] || 0) + 1;
+        });
+      }
+
+      // Convert emotionHistory to database format
+      const finalTimeline = emotionHistory.map(h => ({
+        emotion: h.emotion,
+        timestamp: new Date(h.timestamp).toISOString(),
+      }));
+
       const note = await aiSessionNoteService.create({
         memberId,
         sessionId,
         transcript: finalTranscript,
+        emotionTimeline: finalTimeline,
+        emotionCounts: finalCounts,
       });
       setAiNote(note);
       toast.success("AI Analysis note created and saved successfully!");
@@ -418,6 +460,17 @@ export default function MeetingModal({
                 >
                   AI Note
                 </button>
+                <button
+                  onClick={() => setPanelView("insights")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-semibold font-outfit transition-all",
+                    panelView === "insights"
+                      ? "bg-white text-[#4E8C58] shadow-sm font-bold"
+                      : "text-[#5C6B73] hover:text-[#1E252B]"
+                  )}
+                >
+                  Change Insights
+                </button>
               </div>
             )}
 
@@ -447,6 +500,13 @@ export default function MeetingModal({
                   initialNextSessionGoal={aiNote?.recommendedFollowUp || ""}
                   aiSessionNoteId={aiNote?.id || null}
                   onCancel={() => setPanelView("ai")}
+                  onSaveSuccess={handleNoteSaved}
+                />
+              ) : panelView === "insights" ? (
+                <ChangeInsightsPanel
+                  insight={insight}
+                  isLoading={isInsightLoading}
+                  statusMessage={insightStatusMessage}
                 />
               ) : (
                 <AiSessionNoteView

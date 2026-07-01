@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional
 from openai import AsyncOpenAI
 from app.modules.session_analysis.llm import _get_client as get_fallback_client
 from app.modules.live_analysis.tone_analyzer import ToneSnapshot
+from app.modules.live_video_analysis import get_session_wide_aggregation
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +111,7 @@ class LiveMeetingAnalysisEngine:
         websocket: Any,
         write_lock: asyncio.Lock,
         tone_snapshot: Optional[ToneSnapshot] = None,
+        speaker: str = "member",
     ) -> None:
         """
         Add a transcript line to the buffer for session_id.
@@ -140,6 +142,9 @@ class LiveMeetingAnalysisEngine:
                     "lines": [],
                     "words_since_last": 0,
                     "lines_since_last": 0,
+                    "client_words_since_last_success": 0,
+                    "client_lines_since_last_success": 0,
+                    "last_success_time": time.time(),
                     "working_buffer": WorkingBuffer(60),
                     "lock": asyncio.Lock(),
                     "member_id": member_id,
@@ -156,6 +161,10 @@ class LiveMeetingAnalysisEngine:
         buf["words_since_last"] += words_count
         buf["lines_since_last"] += 1
 
+        if speaker.lower() in ("member", "client"):
+            buf["client_words_since_last_success"] += words_count
+            buf["client_lines_since_last_success"] += 1
+
         # Accumulate tone snapshot if available
         if tone_snapshot:
             buf["tone_snapshots"].append(tone_snapshot)
@@ -164,16 +173,15 @@ class LiveMeetingAnalysisEngine:
             if len(buf["tone_snapshots"]) > 10:
                 buf["tone_snapshots"] = buf["tone_snapshots"][-10:]
 
-        # Check if thresholds are met
-        if (buf["lines_since_last"] >= self._line_threshold or 
-                buf["words_since_last"] >= self._word_threshold):
-            
-            logger.debug(
-                f"[Live Analysis] Threshold met for session {session_id}. "
-                f"Lines since last: {buf['lines_since_last']}, Words since last: {buf['words_since_last']}"
+        # Check elapsed-time condition FIRST (regardless of speaker or total count)
+        last_success = buf.get("last_success_time", 0.0)
+        elapsed = time.time() - last_success
+        if elapsed > 120.0:
+            logger.info(
+                f"[Live Analysis] Force-trigger safety net met: elapsed time {elapsed:.1f}s > 120s. "
+                f"Triggering analysis for session {session_id}."
             )
-            
-            # Reset counters
+            # Reset total activity counters since we are performing an analysis now
             buf["lines_since_last"] = 0
             buf["words_since_last"] = 0
             
@@ -181,6 +189,36 @@ class LiveMeetingAnalysisEngine:
             asyncio.create_task(
                 self._run_analysis(session_id, websocket, write_lock)
             )
+        else:
+            # Check if thresholds are met
+            if (buf["lines_since_last"] >= self._line_threshold or 
+                    buf["words_since_last"] >= self._word_threshold):
+                
+                logger.debug(
+                    f"[Live Analysis] Threshold met for session {session_id}. "
+                    f"Lines since last: {buf['lines_since_last']}, Words since last: {buf['words_since_last']}"
+                )
+                
+                # Reset counters always (independent of gate)
+                buf["lines_since_last"] = 0
+                buf["words_since_last"] = 0
+                
+                # Check debounce gate
+                client_words = buf.get("client_words_since_last_success", 0)
+                client_lines = buf.get("client_lines_since_last_success", 0)
+                
+                if (client_lines >= self._line_threshold or 
+                    client_words >= self._word_threshold):
+                    
+                    # Launch analysis asynchronously in the background
+                    asyncio.create_task(
+                        self._run_analysis(session_id, websocket, write_lock)
+                    )
+                else:
+                    logger.info(
+                        f"[Live Analysis] skipped: only {client_words} new client words and {client_lines} "
+                        f"new client lines since last call (elapsed: {elapsed:.1f}s)"
+                    )
 
     async def _run_analysis(
         self,
@@ -232,13 +270,37 @@ class LiveMeetingAnalysisEngine:
                         f"incongruence={latest.incongruence_flag}"
                     )
                 
+                # Get video emotion aggregation for the last 30 seconds (matching AI summary interval)
+                video_context = ""
+                try:
+                    video_agg = get_session_wide_aggregation(session_id, window_seconds=30)
+                    if video_agg and video_agg.participants:
+                        video_lines = []
+                        for pid, part_agg in video_agg.participants.items():
+                            counts_str = ", ".join(f"{k}: {v}" for k, v in part_agg.emotionCounts.items())
+                            video_lines.append(
+                                f"Participant {pid}: dominantEmotion={part_agg.dominantEmotion} (Counts: {counts_str})"
+                            )
+                        video_context = "\n".join(video_lines)
+                        logger.info(f"[Live Analysis] Aligned video context: {video_context.replace('\n', ' | ')}")
+                except Exception as ex:
+                    logger.warning(f"[Live Analysis] Failed to get video aggregation: {ex}")
+                
                 analysis_text = await run_rag_analysis(
                     session_id=session_id,
                     member_id=member_id,
                     recent_lines=recent_lines,
                     working_buffer_text=raw_buffer_text,
-                    tone_context=tone_context
+                    tone_context=tone_context,
+                    video_context=video_context
                 )
+
+                async with self._engine_lock:
+                    buf = self._buffers.get(session_id)
+                    if buf:
+                        buf["client_words_since_last_success"] = 0
+                        buf["client_lines_since_last_success"] = 0
+                        buf["last_success_time"] = time.time()
                 
                 duration = int((asyncio.get_event_loop().time() - t_start) * 1000)
                 logger.info(f"[Live Analysis] Completed in {duration}ms. Result: \"{analysis_text}\"")

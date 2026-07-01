@@ -18,8 +18,12 @@ import os
 import re
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
-import psycopg2
+# Load env variables from backend/.env
+load_dotenv(Path(__file__).parent.parent / ".env")
+
+import psycopg
 
 # ── Connection ────────────────────────────────────────────────────────────────
 DATABASE_URL = os.environ.get("DATABASE_URL", "").replace("postgresql+psycopg://", "postgresql://")
@@ -32,13 +36,17 @@ MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 
 def get_version(filename: str) -> int:
-    """Extract version number from V14__name.sql → 14"""
-    match = re.match(r"V(\d+)__", filename)
-    return int(match.group(1)) if match else -1
+    """Extract version number from V14__name.sql → 1400 or V14_1__name.sql → 1401"""
+    match = re.match(r"V(\d+)(?:_(\d+))?__", filename)
+    if not match:
+        return -1
+    major = int(match.group(1))
+    minor = int(match.group(2)) if match.group(2) else 0
+    return major * 100 + minor
 
 
 def run():
-    conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+    conn = psycopg.connect(DATABASE_URL)
     conn.autocommit = True
     cur = conn.cursor()
 

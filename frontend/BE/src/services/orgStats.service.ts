@@ -27,40 +27,61 @@ async function memberIdsForOrg(orgId: string): Promise<string[]> {
   return rows.map((r) => r.id);
 }
 
-export async function buildOrgOverviewMetrics(orgId: string) {
+export async function buildOrgOverviewMetrics(orgId: string, monthParam?: string) {
   const memberIds = await memberIdsForOrg(orgId);
   const totalMembers = memberIds.length;
+
+  let reqMonthStart: Date;
+  let reqMonthEnd: Date;
+
+  if (monthParam) {
+    const [year, month] = monthParam.split("-").map(Number);
+    reqMonthStart = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    reqMonthEnd = new Date(year, month, 0, 23, 59, 59, 999);
+  } else {
+    const now = new Date();
+    reqMonthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    reqMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  }
+
   const since30 = daysAgo(30);
   const since15 = daysAgo(14);
 
-  const activeMoodUserIds = await prisma.mood.findMany({
+  const moods30 = await prisma.mood.findMany({
     where: { userId: { in: memberIds }, date: { gte: since30 } },
-    select: { userId: true },
-    distinct: ["userId"],
+    select: { userId: true, date: true, mood: true },
   });
-  const activeSessionUserIds = await prisma.session.findMany({
+  const sessions30 = await prisma.session.findMany({
     where: {
       memberId: { in: memberIds },
       scheduledAt: { gte: since30 },
       status: { not: "cancelled" },
     },
-    select: { memberId: true },
-    distinct: ["memberId"],
+    select: { memberId: true, scheduledAt: true },
   });
+  const messages30 = await prisma.message.findMany({
+    where: { senderId: { in: memberIds }, createdAt: { gte: since30 } },
+    select: { senderId: true, createdAt: true },
+  });
+  const coachMessages30 = await prisma.coachMessage.findMany({
+    where: { userId: { in: memberIds }, senderRole: "member", createdAt: { gte: since30 } },
+    select: { userId: true, createdAt: true },
+  });
+  const posts30 = await prisma.peerGroupPost.findMany({
+    where: { memberId: { in: memberIds }, createdAt: { gte: since30 } },
+    select: { memberId: true, createdAt: true },
+  });
+
   const sessionsThisMonth = await prisma.session.count({
     where: {
       memberId: { in: memberIds },
-      scheduledAt: { gte: startOfMonth() },
-      status: { not: "cancelled" },
+      scheduledAt: { gte: reqMonthStart, lte: reqMonthEnd },
+      status: "completed",
     },
   });
   const assessments = await prisma.onboardingAssessment.findMany({
     where: { userId: { in: memberIds } },
     select: { phqScore: true, gadScore: true },
-  });
-  const moods15 = await prisma.mood.findMany({
-    where: { userId: { in: memberIds }, date: { gte: since15 } },
-    select: { userId: true, date: true, mood: true },
   });
   const onboardingCount = await prisma.onboardingAssessment.count({
     where: { userId: { in: memberIds } },
@@ -83,8 +104,11 @@ export async function buildOrgOverviewMetrics(orgId: string) {
   });
 
   const activeSet = new Set([
-    ...activeMoodUserIds.map((m) => m.userId),
-    ...activeSessionUserIds.map((s) => s.memberId),
+    ...moods30.map((m) => m.userId),
+    ...sessions30.map((s) => s.memberId),
+    ...messages30.map((m) => m.senderId),
+    ...coachMessages30.map((m) => m.userId),
+    ...posts30.map((p) => p.memberId),
   ]);
   const activeMembers = activeSet.size;
   const engagementRate =
@@ -117,18 +141,36 @@ export async function buildOrgOverviewMetrics(orgId: string) {
   });
 
   const engagementByDay: { label: string; value: number }[] = [];
-  for (let i = 14; i >= 0; i--) {
+  for (let i = 29; i >= 0; i--) {
     const dayStart = daysAgo(i);
     const dayEnd = new Date(dayStart);
     dayEnd.setDate(dayEnd.getDate() + 1);
-    const activeOnDay = new Set(
-      moods15
-        .filter((m) => m.date >= dayStart && m.date < dayEnd)
-        .map((m) => m.userId)
-    );
+
+    const activeUsersOnDay = new Set<string>();
+
+    moods30
+      .filter((m) => m.date >= dayStart && m.date < dayEnd)
+      .forEach((m) => activeUsersOnDay.add(m.userId));
+
+    sessions30
+      .filter((s) => s.scheduledAt >= dayStart && s.scheduledAt < dayEnd)
+      .forEach((s) => activeUsersOnDay.add(s.memberId));
+
+    messages30
+      .filter((m) => m.createdAt >= dayStart && m.createdAt < dayEnd)
+      .forEach((m) => activeUsersOnDay.add(m.senderId));
+
+    coachMessages30
+      .filter((m) => m.createdAt >= dayStart && m.createdAt < dayEnd)
+      .forEach((m) => activeUsersOnDay.add(m.userId));
+
+    posts30
+      .filter((p) => p.createdAt >= dayStart && p.createdAt < dayEnd)
+      .forEach((p) => activeUsersOnDay.add(p.memberId));
+
     engagementByDay.push({
-      label: String(15 - i),
-      value: activeOnDay.size,
+      label: String(30 - i),
+      value: activeUsersOnDay.size,
     });
   }
 

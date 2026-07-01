@@ -17,6 +17,8 @@ import { useAppSelector } from "@/hooks/redux";
 import api from "@/lib/api";
 import { sessionNoteService } from "@/services/sessionNote.service";
 import type { SessionNoteDTO, SessionNoteType } from "@/types/sessionNote";
+import ChangeInsightsPanel from "@/components/session/ChangeInsightsPanel";
+import { changeInsightService } from "@/services/changeInsight.service";
 
 const SESSION_TYPE_OPTIONS: { value: SessionNoteType; label: string }[] = [
   { value: "Weekly Check-in", label: "Weekly Check-in" },
@@ -56,6 +58,11 @@ export default function NotesPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  const [activeRightTab, setActiveRightTab] = useState<"note" | "insights">("note");
+  const [insight, setInsight] = useState<any>(null);
+  const [isInsightLoading, setIsInsightLoading] = useState(false);
+  const [insightStatusMessage, setInsightStatusMessage] = useState<string | null>(null);
+
   const { data: members = [] } = useQuery<CoachMemberOption[]>({
     queryKey: ["coach", "members"],
     queryFn: async () => {
@@ -84,6 +91,9 @@ export default function NotesPage() {
   const resetForm = useCallback(() => {
     setSelectedNoteId(null);
     setSelectedSessionId(null);
+    setActiveRightTab("note");
+    setInsight(null);
+    setInsightStatusMessage(null);
     setForm({
       ...emptyForm,
       memberId: memberOptions[0]?.value ?? "",
@@ -93,6 +103,9 @@ export default function NotesPage() {
   const loadNoteIntoForm = useCallback((note: SessionNoteDTO) => {
     setSelectedNoteId(note.id);
     setSelectedSessionId(note.sessionId);
+    setActiveRightTab("note");
+    setInsight(null);
+    setInsightStatusMessage(null);
     setForm({
       memberId: note.memberId,
       sessionType: (note.sessionType || "Weekly Check-in") as SessionNoteType,
@@ -100,6 +113,33 @@ export default function NotesPage() {
       nextSessionGoal: note.recommendedFollowUp || note.nextSessionGoal || "",
     });
   }, []);
+
+  const loadChangeInsights = useCallback(async (sessId: string) => {
+    setIsInsightLoading(true);
+    setInsightStatusMessage(null);
+    try {
+      const res = await changeInsightService.compare(sessId);
+      if (res.status === "success" && res.insight) {
+        setInsight(res.insight);
+      } else {
+        setInsight(null);
+        setInsightStatusMessage(res.message || "Comparison could not be completed.");
+      }
+    } catch (err: any) {
+      console.error("[NotesPage] Failed to load comparison:", err);
+      setInsight(null);
+      setInsightStatusMessage("An error occurred while generating change insights.");
+    } finally {
+      setIsInsightLoading(false);
+    }
+  }, []);
+
+  const handleTabChange = (tab: "note" | "insights") => {
+    setActiveRightTab(tab);
+    if (tab === "insights" && selectedSessionId && !insight && !isInsightLoading) {
+      loadChangeInsights(selectedSessionId);
+    }
+  };
 
   useEffect(() => {
     if (sessionIdParam) {
@@ -243,69 +283,111 @@ export default function NotesPage() {
           </table>
         </TableWrap>
         <Card>
-          <h3 className="mb-3 serif text-lg font-semibold text-ink">Session Note</h3>
-          <div className="mb-4">
-            <Label>Client</Label>
-            <Select
-              options={memberOptions}
-              value={form.memberId}
-              disabled={!!selectedNoteId}
-              onChange={(v) => setForm((prev) => ({ ...prev, memberId: v }))}
+          <div className="flex items-center justify-between mb-4 pb-2 border-b border-line">
+            <h3 className="serif text-lg font-semibold text-ink">Session Workspace</h3>
+            <div className="flex gap-1.5 bg-[#F1F6FC] p-1 rounded-xl border border-[#D2DBE3]">
+              <button
+                type="button"
+                onClick={() => handleTabChange("note")}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-semibold font-outfit transition-all",
+                  activeRightTab === "note"
+                    ? "bg-white text-[#4E8C58] shadow-sm font-bold border border-[#D2DBE3]"
+                    : "text-[#5C6B73] hover:text-[#1E252B]"
+                )}
+              >
+                Session Note
+              </button>
+              <button
+                type="button"
+                disabled={!selectedSessionId}
+                onClick={() => handleTabChange("insights")}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-semibold font-outfit transition-all",
+                  activeRightTab === "insights"
+                    ? "bg-white text-[#4E8C58] shadow-sm font-bold border border-[#D2DBE3]"
+                    : "text-[#5C6B73] hover:text-[#1E252B]",
+                  !selectedSessionId && "opacity-40 cursor-not-allowed"
+                )}
+                title={!selectedSessionId ? "Comparison requires a session-based note" : ""}
+              >
+                Change Detection
+              </button>
+            </div>
+          </div>
+
+          {activeRightTab === "note" ? (
+            <>
+              <div className="mb-4">
+                <Label>Client</Label>
+                <Select
+                  options={memberOptions}
+                  value={form.memberId}
+                  disabled={!!selectedNoteId}
+                  onChange={(v) => setForm((prev) => ({ ...prev, memberId: v }))}
+                />
+              </div>
+              <div className="mb-4">
+                <Label>Session Type</Label>
+                <Select
+                  options={SESSION_TYPE_OPTIONS}
+                  value={form.sessionType}
+                  disabled={!!selectedSessionId}
+                  onChange={(v) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      sessionType: v as SessionNoteType,
+                    }))
+                  }
+                />
+              </div>
+              <div className="mb-4">
+                <Label>Notes</Label>
+                <Textarea
+                  rows={5}
+                  placeholder="Session observations, progress, action items..."
+                  value={form.notes}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, notes: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="mb-4">
+                <Label>Next Session Goal</Label>
+                <Textarea
+                  rows={2}
+                  placeholder="What to focus on next time..."
+                  value={form.nextSessionGoal}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, nextSessionGoal: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  type="button"
+                  disabled={saving}
+                  onClick={() => saveNote("draft")}
+                >
+                  Save Draft
+                </Button>
+                <Button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => saveNote("saved")}
+                >
+                  Save & Close
+                </Button>
+              </div>
+            </>
+          ) : (
+            <ChangeInsightsPanel
+              insight={insight}
+              isLoading={isInsightLoading}
+              statusMessage={insightStatusMessage}
             />
-          </div>
-          <div className="mb-4">
-            <Label>Session Type</Label>
-            <Select
-              options={SESSION_TYPE_OPTIONS}
-              value={form.sessionType}
-              disabled={!!selectedSessionId}
-              onChange={(v) =>
-                setForm((prev) => ({
-                  ...prev,
-                  sessionType: v as SessionNoteType,
-                }))
-              }
-            />
-          </div>
-          <div className="mb-4">
-            <Label>Notes</Label>
-            <Textarea
-              rows={5}
-              placeholder="Session observations, progress, action items..."
-              value={form.notes}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, notes: e.target.value }))
-              }
-            />
-          </div>
-          <div className="mb-4">
-            <Label>Next Session Goal</Label>
-            <Textarea
-              rows={2}
-              placeholder="What to focus on next time..."
-              value={form.nextSessionGoal}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, nextSessionGoal: e.target.value }))
-              }
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              type="button"
-              disabled={saving}
-              onClick={() => saveNote("draft")}
-            >
-              Save Draft
-            </Button>
-            <Button
-              type="button"
-              disabled={saving}
-              onClick={() => saveNote("saved")}
-            >
-              Save & Close
-            </Button>
-          </div>
+          )}
         </Card>
       </div>
     </DashboardLayout>

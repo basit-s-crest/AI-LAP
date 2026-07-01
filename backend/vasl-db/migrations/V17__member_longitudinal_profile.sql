@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS public.member_longitudinal_profile (
 ALTER TABLE public.member_longitudinal_profile ENABLE ROW LEVEL SECURITY;
 
 -- Select policies
+DROP POLICY IF EXISTS coach_reads_assigned_profile ON public.member_longitudinal_profile;
 CREATE POLICY coach_reads_assigned_profile ON public.member_longitudinal_profile
   FOR SELECT USING (
     EXISTS (
@@ -34,14 +35,17 @@ CREATE POLICY coach_reads_assigned_profile ON public.member_longitudinal_profile
     )
   );
 
+DROP POLICY IF EXISTS member_reads_own_profile ON public.member_longitudinal_profile;
 CREATE POLICY member_reads_own_profile ON public.member_longitudinal_profile
   FOR SELECT USING (member_id = (SELECT auth.uid()::text));
 
 -- System management/bypass
+DROP POLICY IF EXISTS system_manages_profile ON public.member_longitudinal_profile;
 CREATE POLICY system_manages_profile ON public.member_longitudinal_profile
   FOR ALL USING (true);
 
 -- No hard delete
+DROP POLICY IF EXISTS no_hard_delete_profile ON public.member_longitudinal_profile;
 CREATE POLICY no_hard_delete_profile ON public.member_longitudinal_profile
   FOR DELETE USING (false);
 

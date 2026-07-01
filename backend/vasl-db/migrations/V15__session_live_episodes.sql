@@ -22,6 +22,7 @@ CREATE INDEX IF NOT EXISTS session_live_episodes_session_idx
 ALTER TABLE public.session_live_episodes ENABLE ROW LEVEL SECURITY;
 
 -- Select policies
+DROP POLICY IF EXISTS coach_reads_assigned_episodes ON public.session_live_episodes;
 CREATE POLICY coach_reads_assigned_episodes ON public.session_live_episodes
   FOR SELECT USING (
     EXISTS (
@@ -31,13 +32,16 @@ CREATE POLICY coach_reads_assigned_episodes ON public.session_live_episodes
     )
   );
 
+DROP POLICY IF EXISTS member_reads_own_episodes ON public.session_live_episodes;
 CREATE POLICY member_reads_own_episodes ON public.session_live_episodes
   FOR SELECT USING (member_id = (SELECT auth.uid()::text));
 
+DROP POLICY IF EXISTS system_manages_episodes ON public.session_live_episodes;
 CREATE POLICY system_manages_episodes ON public.session_live_episodes
   FOR ALL USING (true);
 
 -- No hard delete
+DROP POLICY IF EXISTS no_hard_delete_episodes ON public.session_live_episodes;
 CREATE POLICY no_hard_delete_episodes ON public.session_live_episodes
   FOR DELETE USING (false);
 

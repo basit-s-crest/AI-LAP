@@ -43,6 +43,8 @@ export const getCoachSessionNotes = async (
         riskFlag: latest ? latest.riskFlag : false,
         riskNotes: latest ? latest.riskNotes : "",
         recommendedFollowUp: latest ? latest.recommendedFollowUp : "",
+        emotionTimeline: latest ? latest.emotionTimeline : null,
+        emotionCounts: latest ? latest.emotionCounts : null,
       };
     });
 
@@ -110,6 +112,8 @@ export const getSessionNote = async (
           recommendedFollowUp: latest ? latest.recommendedFollowUp : "",
           createdById: latest ? latest.createdById : "",
           versionCreatedAt: latest ? latest.createdAt.toISOString() : "",
+          emotionTimeline: latest ? latest.emotionTimeline : null,
+          emotionCounts: latest ? latest.emotionCounts : null,
         },
       });
     }
@@ -131,6 +135,8 @@ export const getSessionNote = async (
           riskFlag: aiNote.riskFlag,
           riskNotes: aiNote.riskNotes,
           recommendedFollowUp: aiNote.recommendedFollowUp,
+          emotionTimeline: aiNote.emotionTimeline,
+          emotionCounts: aiNote.emotionCounts,
         },
       });
     }
@@ -165,6 +171,8 @@ export const saveSessionNote = async (
       status,
       aiSessionNoteId,
       sessionType,
+      emotionTimeline,
+      emotionCounts,
     } = req.body as {
       summary?: string;
       keyThemes?: any;
@@ -176,6 +184,8 @@ export const saveSessionNote = async (
       status?: "DRAFT" | "FINAL";
       aiSessionNoteId?: string;
       sessionType?: string;
+      emotionTimeline?: any;
+      emotionCounts?: any;
     };
 
     if (!status || (status !== "DRAFT" && status !== "FINAL")) {
@@ -250,6 +260,8 @@ export const saveSessionNote = async (
           riskNotes: riskNotes || "",
           recommendedFollowUp: recommendedFollowUp || "",
           createdById: coachId,
+          emotionTimeline: emotionTimeline || null,
+          emotionCounts: emotionCounts || null,
         },
       });
 
@@ -284,6 +296,8 @@ export const saveSessionNote = async (
         recommendedFollowUp: result.version.recommendedFollowUp,
         createdById: result.version.createdById,
         versionCreatedAt: result.version.createdAt.toISOString(),
+        emotionTimeline: result.version.emotionTimeline,
+        emotionCounts: result.version.emotionCounts,
       },
     });
   } catch (error) {

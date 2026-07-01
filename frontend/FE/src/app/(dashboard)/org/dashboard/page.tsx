@@ -1,5 +1,6 @@
 "use client";
- 
+
+import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -8,7 +9,24 @@ import { useOrgOverview } from "@/hooks/org/useOrgOverview";
 import { OrgEngagementChart } from "@/components/charts/OrgEngagementChart";
  
 export default function OrgDashboardPage() {
-  const { data, isPending, isError, error } = useOrgOverview();
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+
+  const { data, isPending, isError, error } = useOrgOverview(selectedMonth);
+
+  const availableMonths = useMemo(() => {
+    const list: Array<{ value: string; label: string }> = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const lbl = d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      list.push({ value: val, label: lbl });
+    }
+    return list;
+  }, []);
  
   return (
     <DashboardLayout title="Overview">
@@ -30,19 +48,42 @@ export default function OrgDashboardPage() {
                   {data.type} · {data.plan} Plan · {data.totalCoaches} coaches assigned
                 </div>
               </div>
-              <Badge variant="gold">{data.type}</Badge>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <label htmlFor="month-selector" className="text-xs font-semibold text-mid">
+                    View Month:
+                  </label>
+                  <select
+                    id="month-selector"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="rounded-md border border-line bg-canvas px-2.5 py-1 text-xs font-bold text-ink focus:outline-none focus:ring-1 focus:ring-sage"
+                  >
+                    {availableMonths.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Badge variant="gold">{data.type}</Badge>
+              </div>
             </div>
           </Card>
-
+ 
           <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatsCard label="Total Members" value={data.totalMembers} accent="sage" />
             <StatsCard
               label="Active (30d)"
               value={data.activeMembers}
               sub={`${Math.round(data.engagementRate)}% engagement`}
-              accent="teal"
+              accent="blue"
             />
-            <StatsCard label="Sessions This Month" value={data.sessionsThisMonth} accent="amber" />
+            <StatsCard
+              label={`Sessions in ${new Date(selectedMonth + "-02").toLocaleDateString("en-US", { month: "long" })}`}
+              value={data.sessionsThisMonth}
+              accent="gold"
+            />
             <StatsCard
               label="Avg PHQ-8 Score"
               value={data.avgPhqScore ?? "—"}

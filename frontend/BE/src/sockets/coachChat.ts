@@ -43,12 +43,16 @@ export function registerCoachChatHandlers(io: Server, socket: Socket): void {
           return;
         }
 
+        console.log("[coachChat/send_message] Received message request from user:", user.id, "role:", user.role, "content:", data.content);
+
         const message = await saveMessage({
           userId,
           coachId,
           content: data.content,
           senderRole: user.role,
         });
+
+        console.log("[coachChat/send_message] Saved message ID:", message.id);
 
         const dto = toCoachMessageDTO(message);
 
@@ -62,8 +66,11 @@ export function registerCoachChatHandlers(io: Server, socket: Socket): void {
 
         // Sentiment — member messages only
         if (user.role === "member") {
+          console.log("[coachChat/send_message] Triggering forwardToSentiment for message ID:", message.id);
           forwardToSentiment(message, message.id);
           void maybeEmailCoachUnreadMessages(coachId, userId);
+        } else {
+          console.log("[coachChat/send_message] Skipping sentiment forwarding because sender is coach.");
         }
       } catch (err) {
         if (err instanceof ValidationError || err instanceof AssignmentError) {

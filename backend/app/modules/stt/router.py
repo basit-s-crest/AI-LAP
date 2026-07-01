@@ -36,7 +36,7 @@ def validate_transcription_token(token: str, query_session_id: str) -> bool:
         logger.error("[STT Proxy] JWT_SECRET is not configured on the server")
         return False
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"], leeway=60)
         
         # Validate exact fields
         if payload.get("purpose") != "transcription":
@@ -63,9 +63,12 @@ async def websocket_endpoint(websocket: WebSocket):
     session_id = websocket.query_params.get("sessionId")
     
     if not validate_transcription_token(token, session_id):
-        await websocket.accept()
-        logger.warning(f"[STT Proxy] Rejecting unauthorized connection for sessionId={session_id}")
-        await websocket.close(code=1008, reason="Invalid or missing transcription token")
+        try:
+            await websocket.accept()
+            logger.warning(f"[STT Proxy] Rejecting unauthorized connection for sessionId={session_id}")
+            await websocket.close(code=1008, reason="Invalid or missing transcription token")
+        except Exception:
+            pass
         return
 
     # Check patient consent gating
@@ -82,21 +85,30 @@ async def websocket_endpoint(websocket: WebSocket):
             row = result.fetchone()
             if not row:
                 logger.warning(f"[STT Proxy] Session {session_id} not found in database")
-                await websocket.accept()
-                await websocket.close(code=1008, reason="Session not found")
+                try:
+                    await websocket.accept()
+                    await websocket.close(code=1008, reason="Session not found")
+                except Exception:
+                    pass
                 return
             member_id = row[0]
             
             await require_active_consent(db, member_id, ["recording", "ai_analysis"])
     except ConsentRequiredError as e:
         logger.warning(f"[STT Proxy] Consent validation failed for sessionId={session_id}: {e}")
-        await websocket.accept()
-        await websocket.close(code=1008, reason=str(e))
+        try:
+            await websocket.accept()
+            await websocket.close(code=1008, reason=str(e))
+        except Exception:
+            pass
         return
     except Exception as e:
         logger.error(f"[STT Proxy] Unexpected error checking consent for sessionId={session_id}: {e}")
-        await websocket.accept()
-        await websocket.close(code=1011, reason="Internal server error checking consent")
+        try:
+            await websocket.accept()
+            await websocket.close(code=1011, reason="Internal server error checking consent")
+        except Exception:
+            pass
         return
 
     await websocket.accept()
@@ -202,7 +214,8 @@ async def websocket_endpoint(websocket: WebSocket):
                                     asyncio.create_task(
                                         live_analysis_engine.add_transcript(
                                             session_id, transcript, websocket, websocket_write_lock,
-                                            tone_snapshot=tone_snapshot
+                                            tone_snapshot=tone_snapshot,
+                                            speaker="member"
                                         )
                                     )
                             except Exception as e:

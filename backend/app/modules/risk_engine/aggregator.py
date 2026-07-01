@@ -27,7 +27,9 @@ from typing import List, Optional, Sequence
 
 from app.modules.risk_engine.constants import (
     WEIGHT_CHAT_POSTS, WEIGHT_MOOD, WEIGHT_ASSESSMENTS, WEIGHT_CLINICAL,
+    WEIGHT_CHANGE_INSIGHTS,
     HALF_LIFE_CHAT_DAYS, HALF_LIFE_ASSESSMENT_DAYS,
+    HALF_LIFE_CHANGE_INSIGHT_DAYS,
     MOOD_WINDOW_DAYS, MOOD_SCORE_MIN, MOOD_SCORE_MAX,
     CRISIS_OVERRIDE_HOURS, FLOOR_PHQ_GAD_THRESHOLD, FLOOR_MODERATE_MIN,
     TIER_MODERATE,
@@ -270,6 +272,56 @@ def compute_clinical_score() -> SourceContribution:
     )
 
 
+# ── 4.5. Change Insights score ────────────────────────────────────────────────
+
+def compute_change_insights_score(
+    events: Sequence[dict],
+) -> SourceContribution:
+    """
+    Compute a time-decayed weighted average of risk_score for
+    source_type == 'change-insight'.
+
+    Each event dict must have:
+        risk_score      float 0–1
+        event_timestamp datetime
+    """
+    relevant = [
+        e for e in events
+        if e.get("source_type") == "change-insight"
+    ]
+
+    if not relevant:
+        return SourceContribution(
+            source="change_insights", weight=WEIGHT_CHANGE_INSIGHTS,
+            raw_score=None, weighted_score=None,
+            event_count=0, available=False,
+            note="no change-insight events found",
+        )
+
+    total_weight = 0.0
+    weighted_sum = 0.0
+
+    for e in relevant:
+        score  = _safe_float(e.get("risk_score"), 0.0)
+        ts     = e["event_timestamp"]
+        w      = decay_weight(ts, HALF_LIFE_CHANGE_INSIGHT_DAYS)
+        weighted_sum   += score * w
+        total_weight   += w
+
+    raw = weighted_sum / total_weight if total_weight > 0 else 0.0
+    raw = min(max(raw, 0.0), 1.0)
+
+    return SourceContribution(
+        source="change_insights",
+        weight=WEIGHT_CHANGE_INSIGHTS,
+        raw_score=round(raw, 4),
+        weighted_score=round(raw * WEIGHT_CHANGE_INSIGHTS, 4),
+        event_count=len(relevant),
+        available=True,
+    )
+
+
+
 # ── 5. Crisis override ────────────────────────────────────────────────────────
 
 def check_crisis_override(events: Sequence[dict]) -> bool:
@@ -308,9 +360,10 @@ def compute_composite_score(
     chat_contrib           = compute_chat_posts_score(events)
     mood_contrib           = compute_mood_score(events)
     assessment_contrib, floor_triggered = compute_assessment_score(events)
+    change_insight_contrib = compute_change_insights_score(events)
     clinical_contrib       = compute_clinical_score()
 
-    sources = [chat_contrib, mood_contrib, assessment_contrib, clinical_contrib]
+    sources = [chat_contrib, mood_contrib, assessment_contrib, change_insight_contrib, clinical_contrib]
 
     # ── Weighted sum of available sources only ────────────────────────────────
     # If a source has no data (available=False), its weight is NOT counted

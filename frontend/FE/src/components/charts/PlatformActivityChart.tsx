@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   Bar,
   BarChart,
+  CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,12 +18,34 @@ export function PlatformActivityChart({
   data: { label: string; value: number }[];
   color?: string;
 }) {
+  const maxVal = useMemo(() => {
+    const m = Math.max(...data.map((d) => d.value), 1);
+    return Math.ceil(m / 5) * 5;
+  }, [data]);
+
   return (
-    <div className="h-[110px] w-full">
+    <div className="h-[160px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-          <XAxis dataKey="label" hide />
-          <YAxis hide />
+        <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 4 }}>
+          <CartesianGrid
+            vertical={false}
+            stroke="rgba(60,50,40,0.07)"
+            strokeDasharray="3 3"
+          />
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 10, fill: "#8D99AE", fontWeight: 600 }}
+            axisLine={{ stroke: "#D2DBE3" }}
+            tickLine={false}
+          />
+          <YAxis
+            domain={[0, maxVal]}
+            tickCount={5}
+            tick={{ fontSize: 10, fill: "#8D99AE", fontWeight: 600 }}
+            axisLine={false}
+            tickLine={false}
+            width={32}
+          />
           <Tooltip
             cursor={{ fill: "rgba(60,50,40,0.06)" }}
             contentStyle={{

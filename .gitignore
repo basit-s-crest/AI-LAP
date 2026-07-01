@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 **/node_modules/
+/docs
+
 
 # Package lock files (keep only one — delete this section if you want to track them)
 package-lock.json

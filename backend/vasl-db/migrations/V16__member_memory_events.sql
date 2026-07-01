@@ -32,6 +32,7 @@ CREATE INDEX IF NOT EXISTS member_memory_events_embedding_idx
 ALTER TABLE public.member_memory_events ENABLE ROW LEVEL SECURITY;
 
 -- Select policies
+DROP POLICY IF EXISTS coach_reads_assigned_memory_events ON public.member_memory_events;
 CREATE POLICY coach_reads_assigned_memory_events ON public.member_memory_events
   FOR SELECT USING (
     EXISTS (
@@ -41,14 +42,17 @@ CREATE POLICY coach_reads_assigned_memory_events ON public.member_memory_events
     )
   );
 
+DROP POLICY IF EXISTS member_reads_own_memory_events ON public.member_memory_events;
 CREATE POLICY member_reads_own_memory_events ON public.member_memory_events
   FOR SELECT USING (member_id = (SELECT auth.uid()::text));
 
 -- System bypass/management
+DROP POLICY IF EXISTS system_manages_memory_events ON public.member_memory_events;
 CREATE POLICY system_manages_memory_events ON public.member_memory_events
   FOR ALL USING (true);
 
 -- No hard delete
+DROP POLICY IF EXISTS no_hard_delete_memory_events ON public.member_memory_events;
 CREATE POLICY no_hard_delete_memory_events ON public.member_memory_events
   FOR DELETE USING (false);
 
