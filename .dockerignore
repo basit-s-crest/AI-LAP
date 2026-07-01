@@ -6,3 +6,7 @@ backend/.venv/
 backend/.pytest_cache/
 backend/__pycache__/
 .git/
+.env
+backend/.env
+frontend/FE/.env.local
+frontend/BE/.env
