@@ -204,21 +204,21 @@ export function OrgEngagementChart({ data, color = "#B8832A" }: Props) {
           >
             <CartesianGrid
               vertical={false}
-              stroke="rgba(60,50,40,0.07)"
+              stroke="rgba(60,50,40,0.12)"
               strokeDasharray="3 3"
             />
             <XAxis
               dataKey="label"
               tickFormatter={xTickFormatter}
-              tick={{ fontSize: 11, fill: "var(--ink-ghost)", fontWeight: 600 }}
-              axisLine={{ stroke: "rgba(60,50,40,0.12)" }}
+              tick={{ fontSize: 11, fill: "#8D99AE", fontWeight: 600 }}
+              axisLine={{ stroke: "#D2DBE3" }}
               tickLine={false}
               interval={0}
             />
             <YAxis
               domain={[0, maxVal]}
               tickCount={5}
-              tick={{ fontSize: 11, fill: "var(--ink-ghost)", fontWeight: 600 }}
+              tick={{ fontSize: 11, fill: "#8D99AE", fontWeight: 600 }}
               axisLine={false}
               tickLine={false}
               width={32}

@@ -77,6 +77,7 @@ const getSourceDetails = (source: string) => {
   if (normalized.includes("mood")) return { icon: "🎭", desc: "Daily mood check-ins" };
   if (normalized.includes("assess")) return { icon: "📝", desc: "Clinical assessments & surveys" };
   if (normalized.includes("clinic")) return { icon: "🩺", desc: "Primary clinical records" };
+  if (normalized.includes("change")) return { icon: "🔄", desc: "Session change detection summaries" };
   return { icon: "📊", desc: "Other diagnostic signals" };
 };
 

@@ -34,11 +34,12 @@ export interface OrgOverview {
   completionStats: OrgCompletionStat[];
 }
 
-export function useOrgOverview() {
+export function useOrgOverview(month?: string) {
   return useQuery({
-    queryKey: ["org", "overview"],
+    queryKey: ["org", "overview", month],
     queryFn: async (): Promise<OrgOverview> => {
-      const { data } = await api.get("/api/org/overview");
+      const params = month ? { month } : {};
+      const { data } = await api.get("/api/org/overview", { params });
       return data;
     },
   });

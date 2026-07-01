@@ -109,7 +109,7 @@ TAXONOMY (dimensions & signal_codes):
 OUTPUT FORMAT (JSON only, no markdown wrappers/code blocks, no explanation):
 {
   "event_id": "<echo event_id>",
-  "source_type": "peer-post"|"journal"|"chat"|null,
+  "source_type": "peer-post"|"journal"|"chat"|"change-insight"|null,
   "risk_tier": "low"|"moderate"|"high"|"crisis",
   "risk_score": <float 0.0-1.0, 2 decimals>,
   "risk_trend": "stable"|"increasing"|"decreasing",

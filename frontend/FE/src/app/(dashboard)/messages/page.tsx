@@ -564,7 +564,7 @@ useEffect(() => {
                       messages.flatMap((msg, i) => {
                         const msgRisk =
                           msg.senderRole === "member"
-                            ? riskByMessageId[msg.id] ?? riskFromMessageDto(msg)
+                            ? riskFromMessageDto(msg) ?? riskByMessageId[msg.id]
                             : null;
                         const topSignals = msgRisk?.signal_codes?.slice(0, 2) ?? [];
                         const showSeparator =

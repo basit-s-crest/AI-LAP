@@ -3,12 +3,13 @@ import { Pool } from "pg";
 let pool: Pool | null = null;
 
 function getVaslPool(): Pool | null {
-  const url = process.env.DATABASE_URL_VASL;
+  const url = process.env.DATABASE_URL_VASL || process.env.DATABASE_URL;
   if (!url) {
     return null;
   }
   if (!pool) {
-    pool = new Pool({ connectionString: url });
+    const connectionString = url.replace("pgbouncer=true", "pgbouncer=false");
+    pool = new Pool({ connectionString });
   }
   return pool;
 }
