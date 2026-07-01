@@ -25,16 +25,19 @@ ENV HOME=/home/user \
 # Set working directory to the user's home folder app directory
 WORKDIR $HOME/app
 
+# Create a python virtual environment and prepend it to PATH.
+# This prevents PEP 668 'externally-managed-environment' errors when pip is invoked internally (e.g. by spaCy download).
+RUN python -m venv $HOME/venv
+ENV PATH="$HOME/venv/bin:$PATH"
+
 # Install uv (extremely fast Python package installer)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Copy backend dependencies list first to leverage Docker build cache
 COPY --chown=user backend/requirements.txt .
 
-# Install Python packages using uv.
-# We do NOT use the CPU-only index here because Hugging Face Spaces offers GPU resources,
-# and we want PyTorch to utilize the GPU with CUDA.
-RUN uv pip install --user -r requirements.txt
+# Install Python packages using uv into the virtual environment
+RUN uv pip install -r requirements.txt
 
 # Pre-download spaCy, SentenceTransformer, and HSEmotion models to cache them in the image
 # This ensures that when the Space launches, it starts instantly without downloading models at runtime.
