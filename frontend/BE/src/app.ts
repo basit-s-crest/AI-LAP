@@ -16,6 +16,7 @@ import sessionRouter from "./routes/session.routes";
 import sessionNoteRouter from "./routes/sessionNote.routes";
 import onboardingRouter from "./routes/onboarding.routes";
 import aiSessionNoteRouter from "./routes/aiSessionNote.routes";
+import changeInsightRouter from "./routes/changeInsight.routes";
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use("/api/sessions", sessionRouter);
 app.use("/api/session-notes", sessionNoteRouter);
 app.use("/api/onboarding", onboardingRouter);
 app.use("/api/ai-session-notes", aiSessionNoteRouter);
+app.use("/api/change-insights", changeInsightRouter);
 
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────

@@ -16,6 +16,7 @@ interface SessionNoteEditorProps {
   emotionTimeline?: any;
   emotionCounts?: any;
   onCancel: () => void;
+  onSaveSuccess?: () => void;
 }
 
 export default function SessionNoteEditor({
@@ -29,6 +30,7 @@ export default function SessionNoteEditor({
   emotionTimeline: initialEmotionTimeline = null,
   emotionCounts: initialEmotionCounts = null,
   onCancel,
+  onSaveSuccess,
 }: SessionNoteEditorProps) {
   const [notes, setNotes] = useState(initialNotes);
   const [nextSessionGoal, setNextSessionGoal] = useState(initialNextSessionGoal);
@@ -78,7 +80,11 @@ export default function SessionNoteEditor({
       });
 
       toast.success(status === "draft" ? "Draft saved successfully!" : "Note saved & finalized!");
-      onCancel(); // return back to AI tabs view after saving
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      } else {
+        onCancel();
+      }
     } catch (err: any) {
       console.error("[SessionNoteEditor] Save failed:", err);
       toast.error(err.message || "Failed to save session note.");

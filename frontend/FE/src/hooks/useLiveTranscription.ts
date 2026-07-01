@@ -335,11 +335,18 @@ export function useLiveTranscription(
       };
 
       socket.onerror = (err) => {
-        console.error('[STT] WebSocket error — check API key and network', err);
+        console.error('[STT] WebSocket connection error (handshake rejected or network issue)', err);
       };
 
-      socket.onclose = () => {
-        console.log('[STT] WebSocket closed for:', speakerRef.current);
+      socket.onclose = (event) => {
+        console.log(
+          `[STT] WebSocket closed for: ${speakerRef.current}. Code: ${event.code}, Reason: ${event.reason || "None"}`
+        );
+        if (event.code !== 1000 && event.code !== 1005) {
+          console.warn(
+            `[STT] Connection closed abnormally. Code: ${event.code}, Reason: ${event.reason || "None"}`
+          );
+        }
         setIsListening(false);
         isListeningRef.current = false;
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {

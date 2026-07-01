@@ -116,7 +116,7 @@ export const startVideoSession = async (
       },
       secret,
       {
-        expiresIn: "15m",
+        expiresIn: "2h",
       }
     );
 
@@ -223,7 +223,7 @@ export const getVideoToken = async (
         },
         secret,
         {
-          expiresIn: "15m",
+          expiresIn: "2h",
         }
       );
     }
