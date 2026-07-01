@@ -1,0 +1,8 @@
+node_modules/
+frontend/FE/.next/
+frontend/FE/node_modules/
+frontend/BE/node_modules/
+backend/.venv/
+backend/.pytest_cache/
+backend/__pycache__/
+.git/
