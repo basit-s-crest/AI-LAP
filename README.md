@@ -1,3 +1,5 @@
+
+git commit -m "Add Hugging Face configuration to README.md"
 ---
 title: Safecircle Python
 emoji: 🐍
