@@ -39,11 +39,11 @@ COPY --chown=user backend/requirements.txt .
 # Install Python packages using uv into the virtual environment
 RUN uv pip install -r requirements.txt
 
-# Pre-download spaCy, SentenceTransformer, and HSEmotion models to cache them in the image
-# This ensures that when the Space launches, it starts instantly without downloading models at runtime.
+# Pre-download spaCy, SentenceTransformer, and HSEmotion models to cache them in the image.
+# We patch torch.load in the HSEmotion one-liner to bypass the weights_only=True check introduced in PyTorch 2.6+.
 RUN python -c "import spacy; spacy.cli.download('en_core_web_sm')"
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-en-v1.5')"
-RUN python -c "from hsemotion.facial_emotions import HSEmotionRecognizer; HSEmotionRecognizer(model_name='enet_b2_8', device='cpu')"
+RUN python -c "import torch; orig = torch.load; torch.load = lambda *a, **k: orig(*a, **{**k, 'weights_only': False, 'map_location': 'cpu'}); from hsemotion.facial_emotions import HSEmotionRecognizer; HSEmotionRecognizer(model_name='enet_b2_8', device='cpu')"
 
 # Copy the backend application source code and set ownership to 'user'
 COPY --chown=user backend/ .
