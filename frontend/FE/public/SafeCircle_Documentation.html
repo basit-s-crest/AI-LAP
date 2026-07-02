@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SafeCircle — Technical Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  :root {
+    --bg-main: #F0F4F8;
+    --bg-surface: #FFFFFF;
+    --bg-surface-2: #E6EFF5;
+
+    --ink: #1E252B;
+    --ink-mid: #3A4550;
+    --ink-soft: #5C6B73;
+    --ink-ghost: #8D99AE;
+
+    --sage: #68A688;
+    --sage-light: #EAF3EE;
+    --sage-mid: #99CBB2;
+
+    --amber: #FF8D69;
+    --amber-light: #FFF1EE;
+    --amber-mid: #FFC4B3;
+
+    --rose: #FF7894;
+    --rose-light: #FFF0F2;
+    --rose-mid: #FFA3B4;
+
+    --teal: #53A4D0;
+    --teal-light: #EDF5FA;
+    --teal-mid: #9FD2EF;
+
+    --plum: #E36EB3;
+    --plum-light: #FDF0F7;
+    --plum-mid: #F3A9D1;
+
+    --border: #D2DBE3;
+    --border-mid: #A8B7C7;
+
+    --shadow-sm: 0 4px 12px rgba(92, 107, 115, 0.03);
+    --shadow-md: 0 12px 30px rgba(92, 107, 115, 0.05);
+    --shadow-lg: 0 24px 50px rgba(92, 107, 115, 0.08);
+
+    --r-sm: 12px;
+    --r-md: 20px;
+    --r-lg: 28px;
+    --r-xl: 36px;
+    --r-circle: 999px;
+
+    --pride-grad: linear-gradient(135deg, #FF7894 0%, #FF8D69 20%, #FFE180 40%, #8EE2BE 60%, #53A4D0 80%, #9C8AE9 100%);
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background:
+      radial-gradient(circle at 10% 20%, rgba(83, 164, 208, 0.15) 0%, transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(156, 138, 233, 0.12) 0%, transparent 45%),
+      radial-gradient(circle at 50% 80%, rgba(83, 164, 208, 0.08) 0%, transparent 50%),
+      linear-gradient(135deg, #E3EFFB 0%, #F1F6FC 50%, #E8F2FC 100%);
+    color: var(--ink);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    background-attachment: fixed;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: rgba(104, 166, 136, 0.25); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(104, 166, 136, 0.45); }
+
+  .serif { font-family: 'Outfit', sans-serif; font-weight: 700; letter-spacing: -0.5px; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .anim-up { animation: fadeUp .4s cubic-bezier(0.16,1,0.3,1) both; }
+
+  /* ═══════ LAYOUT ═══════ */
+  .shell {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    max-width: 1440px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+
+  /* ═══════ SIDEBAR ═══════ */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 32px 22px;
+    border-right: 1px solid var(--border);
+    background: rgba(255,255,255,0.5);
+  }
+
+  .brand-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+
+  .wordmark {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    background: linear-gradient(135deg, var(--sage) 0%, var(--amber) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+
+  .tagline { color: var(--ink-soft); font-size: 11px; letter-spacing: 0.5px; margin-bottom: 26px; }
+
+  .nav-group-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--ink-ghost);
+    font-weight: 700;
+    margin: 20px 0 8px 10px;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--r-sm);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink-mid);
+    text-decoration: none;
+    transition: all .2s;
+  }
+
+  .nav-link:hover { background: var(--bg-surface-2); color: var(--ink); }
+
+  .nav-link .n {
+    width: 20px; height: 20px;
+    border-radius: 6px;
+    background: var(--bg-surface-2);
+    color: var(--ink-soft);
+    font-size: 10px;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .nav-link.sub { padding-left: 30px; font-size: 12.5px; font-weight: 500; color: var(--ink-soft); }
+
+  /* ═══════ MAIN ═══════ */
+  .main { padding: 44px 56px 100px; min-width: 0; }
+
+  .hero {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 40px 44px;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 5px;
+    background: var(--pride-grad);
+  }
+
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--sage); background: var(--sage-light);
+    padding: 6px 14px; border-radius: var(--r-circle); margin-bottom: 18px;
+  }
+
+  .hero h1 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 38px;
+    letter-spacing: -1px;
+    color: var(--ink);
+    margin-bottom: 12px;
+  }
+
+  .hero p { color: var(--ink-soft); font-size: 15.5px; max-width: 720px; line-height: 1.65; }
+
+  .hero-meta { display: flex; gap: 28px; margin-top: 26px; flex-wrap: wrap; }
+  .hero-meta div { font-size: 12.5px; color: var(--ink-ghost); }
+  .hero-meta strong { display: block; color: var(--ink); font-size: 13.5px; font-weight: 700; margin-bottom: 2px; }
+
+  section.doc-section { margin-bottom: 54px; scroll-margin-top: 24px; }
+
+  .section-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+
+  .section-num {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 15px;
+    color: white;
+    background: linear-gradient(135deg, var(--sage) 0%, var(--teal) 100%);
+    width: 38px; height: 38px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .section-head h2 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 24px;
+    letter-spacing: -0.5px;
+    color: var(--ink);
+  }
+
+  .sub-head {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 16.5px;
+    color: var(--ink);
+    margin: 26px 0 10px;
+    padding-left: 2px;
+    border-left: 3px solid var(--amber);
+    padding-left: 12px;
+  }
+
+  .lede { color: var(--ink-soft); font-size: 14.5px; line-height: 1.7; margin-bottom: 18px; max-width: 900px; }
+
+  /* Portal overview cards */
+  .portal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 10px; }
+
+  .portal-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 22px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+    transition: all .3s cubic-bezier(0.16,1,0.3,1);
+  }
+  .portal-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+  .portal-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+  .pc-sage::after { background: var(--sage); }
+  .pc-amber::after { background: var(--amber); }
+  .pc-teal::after { background: var(--teal); }
+  .pc-rose::after { background: var(--rose); }
+
+  .portal-card h3 { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 16px; margin: 6px 0 8px; color: var(--ink); }
+  .portal-card .aud { font-size: 11.5px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 10px; }
+  .portal-card p { font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
+
+  /* Tables */
+  .table-wrap {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 22px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  th {
+    text-align: left;
+    padding: 13px 22px;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--ink-soft);
+    font-weight: 700;
+    border-bottom: 1.5px solid var(--border);
+    background: var(--bg-surface-2);
+  }
+
+  td { padding: 15px 22px; font-size: 13.5px; color: var(--ink); border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.55; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg-surface-2); }
+
+  td.feat, td.tech { font-weight: 700; color: var(--ink); white-space: nowrap; }
+
+  /* Screenshot galleries */
+  .gallery-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--ink-ghost);
+    margin: 2px 0 10px;
+  }
+
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 26px;
+  }
+
+  .gallery figure {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform .2s, box-shadow .2s;
+  }
+
+  .gallery figure:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+
+  .gallery img {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    display: block;
+    cursor: zoom-in;
+    background: var(--bg-surface-2);
+  }
+
+  .gallery figcaption {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 37, 43, 0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    cursor: zoom-out;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 90vw; max-height: 88vh; border-radius: var(--r-md); box-shadow: var(--shadow-lg); }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 11px;
+    border-radius: var(--r-circle);
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .b-sage { background: var(--sage-light); color: var(--sage); }
+  .b-amber { background: var(--amber-light); color: var(--amber); }
+  .b-rose { background: var(--rose-light); color: var(--rose); }
+  .b-teal { background: var(--teal-light); color: var(--teal); }
+  .b-plum { background: var(--plum-light); color: var(--plum); }
+  .b-dim { background: var(--bg-surface-2); color: var(--ink-soft); border: 1px solid var(--border); }
+
+  .callout {
+    background: var(--teal-light);
+    border: 1px solid var(--teal-mid);
+    border-radius: var(--r-md);
+    padding: 16px 20px;
+    font-size: 13px;
+    color: var(--ink-mid);
+    line-height: 1.6;
+    margin-top: 6px;
+  }
+  .callout strong { color: var(--teal); }
+
+  .quickref {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 32px 36px;
+    box-shadow: var(--shadow-md);
+  }
+  .qr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 32px; margin-top: 10px; }
+  .qr-item { display: flex; gap: 10px; font-size: 13.5px; color: var(--ink-mid); line-height: 1.6; padding: 10px 0; border-bottom: 1px dashed var(--border); }
+  .qr-item b { color: var(--ink); font-weight: 700; min-width: 120px; flex-shrink: 0; }
+
+  footer.doc-footer { text-align: center; padding: 40px 0 10px; color: var(--ink-ghost); font-size: 12px; }
+
+  @media (max-width: 1100px) {
+    .shell { grid-template-columns: 1fr; }
+    .sidebar { position: relative; height: auto; }
+    .portal-grid { grid-template-columns: 1fr 1fr; }
+    .main { padding: 30px 20px; }
+  }
+  @media (max-width: 640px) {
+    .portal-grid { grid-template-columns: 1fr; }
+    .qr-grid { grid-template-columns: 1fr; }
+    th, td { padding: 10px 12px; font-size: 12.5px; }
+  }
+
+  @media print {
+    .sidebar { display: none; }
+    .shell { grid-template-columns: 1fr; }
+    body { background: white; }
+  }
+
+  /* Added for Setup & Reference */
+  code {
+    font-family: 'Consolas', 'Courier New', Courier, monospace;
+    background: var(--bg-surface-2);
+    color: var(--ink);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 90%;
+    font-weight: 500;
+  }
+  pre {
+    background: var(--ink);
+    color: #F8F9FA;
+    padding: 18px 24px;
+    border-radius: var(--r-sm);
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 14px 0 22px;
+    border: 1px solid var(--border-mid);
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+  }
+  pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  .setup-step {
+    margin-bottom: 30px;
+  }
+  .setup-step h3 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--ink);
+    margin: 20px 0 8px;
+  }
+  .setup-step p {
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+  .setup-step ul {
+    margin-left: 24px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+  }
+  .setup-step li {
+    margin-bottom: 6px;
+  }
+  .callout.info {
+    background: var(--sage-light);
+    border-color: var(--sage-mid);
+    color: var(--ink-mid);
+  }
+  .callout.info strong {
+    color: var(--sage);
+  }
+</style>
+</head>
+
+<body>
+<div class="shell">
+
+  <!-- ═══════════ SIDEBAR NAV ═══════════ -->
+  <aside class="sidebar">
+    <div class="brand-row"><div class="wordmark">SafeCircle</div></div>
+    <div class="tagline">TECHNICAL DOCUMENTATION</div>
+
+    <div class="nav-group-label">Overview</div>
+    <a class="nav-link" href="#s1"><span class="n">1</span> What This System Is</a>
+
+    <div class="nav-group-label">Portals</div>
+    <a class="nav-link" href="#s2"><span class="n">2</span> Portals & Role-Based Features</a>
+    <a class="nav-link sub" href="#s2-1">Super Admin Portal</a>
+    <a class="nav-link sub" href="#s2-2">Organization Portal</a>
+    <a class="nav-link sub" href="#s2-3">Coach Portal</a>
+    <a class="nav-link sub" href="#s2-4">Member Portal</a>
+
+    <div class="nav-group-label">Engineering</div>
+    <a class="nav-link" href="#s3"><span class="n">3</span> Frontend Stack</a>
+    <a class="nav-link" href="#s4"><span class="n">4</span> Backend Stack</a>
+    <a class="nav-link" href="#s5"><span class="n">5</span> Real-Time & Streaming</a>
+    <a class="nav-link" href="#s6"><span class="n">6</span> AI, ML & NLP</a>
+    <a class="nav-link" href="#s7"><span class="n">7</span> Databases & Storage</a>
+    <a class="nav-link" href="#s8"><span class="n">8</span> Background Processing</a>
+    <a class="nav-link" href="#s9"><span class="n">9</span> Security & Compliance</a>
+
+    <div class="nav-group-label">Setup & Reference</div>
+    <a class="nav-link" href="#s10"><span class="n">10</span> Local Setup</a>
+    <a class="nav-link" href="#s11"><span class="n">11</span> Docker Setup</a>
+    <a class="nav-link" href="#s12"><span class="n">12</span> Port & Service Mapping</a>
+  </aside>
+
+  <!-- ═══════════ MAIN CONTENT ═══════════ -->
+  <main class="main">
+
+    <div class="hero anim-up">
+      <div class="hero-eyebrow">● Internal Engineering Reference</div>
+      <h1>SafeCircle — Technology & Portal Documentation</h1>
+      <p>A complete reference covering what SafeCircle does, the four role-based portals that make up the product, and every service, framework, third-party library, and SDK used to build it — what each one does and why it was chosen.</p>
+      <div class="hero-meta">
+        <div><strong>Platform</strong>HIPAA-compliant clinical decision support</div>
+        <div><strong>Portals</strong>Super Admin · Organization · Coach · Member</div>
+        <div><strong>Core Services</strong>Next.js · Node/Express · FastAPI · Redis</div>
+      </div>
+    </div>
+
+    <!-- ═══ 1. WHAT THIS SYSTEM IS ═══ -->
+    <section class="doc-section" id="s1">
+      <div class="section-head"><div class="section-num">1</div><h2>What This System Is</h2></div>
+      <p class="lede">SafeCircle is a HIPAA-compliant, real-time clinical decision support platform. It monitors coaching/therapy sessions and patient communication channels (chat, journals, assessments) to detect early signs of emotional distress by combining text sentiment, voice acoustics, and facial expression analysis. It gives coaches live, AI-assisted risk insights during sessions and keeps a longitudinal clinical memory for each patient.</p>
+      <p class="lede">The system is built as four cooperating services: a Next.js web dashboard, a Node.js/Express API for accounts and messaging, a Python/FastAPI service for AI inference and real-time audio/video analysis, and a Redis-backed background job queue — all sitting on top of two Supabase PostgreSQL databases.</p>
+    </section>
+
+    <!-- ═══ 2. PORTALS ═══ -->
+    <section class="doc-section" id="s2">
+      <div class="section-head"><div class="section-num">2</div><h2>Platform Portals & Role-Based Features</h2></div>
+      <p class="lede">SafeCircle is built around four specialized portals, each serving a different role in the wellness ecosystem.</p>
+
+      <div class="portal-grid">
+        <div class="portal-card pc-sage">
+          <span class="badge b-sage">Super Admin</span>
+          <h3>Super Admin Portal</h3>
+          <div class="aud">Platform Administrators</div>
+          <p>Manage the entire platform: users, coaches, organizations, community groups, platform-wide risk monitoring, and system settings.</p>
+        </div>
+        <div class="portal-card pc-teal">
+          <span class="badge b-teal">Organization</span>
+          <h3>Organization Portal</h3>
+          <div class="aud">Universities · Companies · Healthcare Institutions</div>
+          <p>Run and oversee a wellness program for their members / employees / students.</p>
+        </div>
+        <div class="portal-card pc-amber">
+          <span class="badge b-amber">Coach</span>
+          <h3>Coach Portal</h3>
+          <div class="aud">Mental Health Coaches · Therapists · Clinicians</div>
+          <p>Conduct live sessions, monitor client risk, and document clinical progress.</p>
+        </div>
+        <div class="portal-card pc-rose">
+          <span class="badge b-rose">Member</span>
+          <h3>Member Portal</h3>
+          <div class="aud">Individuals Seeking Support</div>
+          <p>Track mood, complete assessments, connect with a coach, and engage with the peer community.</p>
+        </div>
+      </div>
+
+      <!-- 2.1 Super Admin -->
+      <div class="sub-head" id="s2-1">2.1 Super Admin Portal</div>
+      <p class="lede">Administrator overseeing the entire SafeCircle ecosystem across every organization, coach, and member. This is the command center of the platform.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:26%">Feature</th><th>What It Does</th></tr></thead>
+          <tbody>
+            <tr><td class="feat">Platform Dashboard</td><td>At-a-glance view of total registered users, active coaches, total sessions completed, and accounts pending verification, plus a live activity feed of signups, community activity, session bookings, and flagged content.</td></tr>
+            <tr><td class="feat">Platform Activity Chart</td><td>Engagement graph toggling between 7 / 15 / 30-day views, tracking member, coach, and organization logins together to spot spikes, drops, or growth trends.</td></tr>
+            <tr><td class="feat">User Management</td><td>Searchable, platform-wide table of every account (name, email, verification status, last active, organization). Admins verify pending accounts, review activity, and remove accounts that violate platform standards.</td></tr>
+            <tr><td class="feat">Coach Management</td><td>View each coach's assigned organizations, current member caseload, and active/inactive status. Add new coaches, edit existing ones, or deactivate/remove them.</td></tr>
+            <tr><td class="feat">Community Groups Oversight</td><td>Platform-wide view of every peer support group — name, topic, moderator, member count, and recent post activity — with the ability to archive inactive or inappropriate groups.</td></tr>
+            <tr><td class="feat">Organizations Management</td><td>View each partner organization's type, subscription plan, active members, assigned coaches, and monthly usage. Add organizations, update billing, and monitor usage against plan limits.</td></tr>
+            <tr><td class="feat">Platform Settings</td><td>System-wide configuration: branding (name, tagline), support email address, maximum session duration, self-registration on/off, and maintenance mode.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="gallery-label">Screenshots</div>
+      <div class="gallery">
+        <figure><img src="https://drive.google.com/thumbnail?id=1L_vI2Ui26QHZLbf31vPqVDjqLNk9AwCP&sz=w1000" alt="Admin Overview" onclick="openLightbox(this.src)"><figcaption>Platform Dashboard</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=1xp4ssuMH_lZaUoRlDAnNNfFxABE2fl50&sz=w1000" alt="User Management" onclick="openLightbox(this.src)"><figcaption>User Management</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=1TvIZ3bf3QXfLzjTW9-UX78ZgS2CAkPmo&sz=w1000" alt="Coach Management" onclick="openLightbox(this.src)"><figcaption>Coach Management</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=19bZrEBbEZocfyiBajaDV6aj6jOyDGo36&sz=w1000" alt="Community Group Management" onclick="openLightbox(this.src)"><figcaption>Community Group Management</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=1flMD4asnMXyCJtlpN7oHv85szoQl4z8n&sz=w1000" alt="Client Organization Management" onclick="openLightbox(this.src)"><figcaption>Client Organization Management</figcaption></figure>
+      </div>
+      
+      <div class="gallery-label">Video</div>
+      <div class="table-wrap" style="padding:16px;"><iframe src="https://drive.google.com/file/d/1TuOgNuz2BosyJZMAP8S4petj8S3XZRoJ/preview" width="100%" height="400" style="border:none; border-radius:12px;" allow="autoplay" allowfullscreen></iframe></div>
+      
+      <!-- 2.2 Organization -->
+      <div class="sub-head" id="s2-2">2.2 Organization Portal</div>
+      <p class="lede">Universities, employers, and healthcare institutions running SafeCircle wellness programs for their members/employees.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:26%">Feature</th><th>What It Does</th></tr></thead>
+          <tbody>
+            <tr><td class="feat">Program Overview</td><td>Organization-level view of active members, assigned coaches, and current usage against the subscription plan.</td></tr>
+            <tr><td class="feat">Subscription & Billing</td><td>Visibility into the organization's current plan and billing status (managed centrally by Super Admins).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="gallery-label">Screenshots</div>
+      <div class="gallery">
+        <figure><img src="https://drive.google.com/thumbnail?id=1vqyoBxiS3FSxADDYG3Yw-jmFLaINz9Tk&sz=w1000" alt="Organization Portal screenshot 1" onclick="openLightbox(this.src)"><figcaption>Program Overview</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=1ZGYhZkCH_QCVxULB8n2XDGry6xK1WHKa&sz=w1000" alt="Organization Portal screenshot 2" onclick="openLightbox(this.src)"><figcaption>Members</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=1d3oz476_WLN5Mmz4cLG1ptxpDQn-5vYv&sz=w1000" alt="Organization Portal screenshot 3" onclick="openLightbox(this.src)"><figcaption>Weekly Reports</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=1uAv_1u8UowsZN46JfMW5_UgDscYSo08y&sz=w1000" alt="Organization Portal screenshot 4" onclick="openLightbox(this.src)"><figcaption>Coaches</figcaption></figure>
+      </div>
+
+      <div class="gallery-label">Video</div>
+      <div class="table-wrap" style="padding:16px;"><iframe src="https://drive.google.com/file/d/1Y9kCbIv_mOs2vTanYzYQHPVKbv5aaH3n/preview" width="100%" height="400" style="border:none; border-radius:12px;" allow="autoplay" allowfullscreen></iframe></div>
+      
+
+      <!-- 2.3 Coach -->
+      <div class="sub-head" id="s2-3">2.3 Coach Portal</div>
+      <p class="lede">Mental health coaches, therapists, and clinicians conducting sessions and monitoring client risk.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:26%">Feature</th><th>What It Does</th></tr></thead>
+          <tbody>
+            <tr><td class="feat">Live Session Hosting</td><td>Hosts the video/audio coaching session via LiveKit, with camera/mic controls and session lifecycle management.</td></tr>
+            <tr><td class="feat">Live Session Monitor</td><td>Real-time transcription of session audio, live acoustic tone analysis (pitch, energy, pause ratio), and live AI-generated clinical prompt suggestions delivered during the session.</td></tr>
+            <tr><td class="feat">Consent Gate</td><td>Verifies the member's active consent for recording and AI analysis before a session is allowed to proceed.</td></tr>
+            <tr><td class="feat">Affect Incongruence / "Masking" Alerts</td><td>Flags moments where a member's words say one thing but their voice or facial expression says another — a key early indicator of hidden distress.</td></tr>
+            <tr><td class="feat">Session Notes</td><td>Draft and finalize structured session notes (summary, observations, recommendations) with automatic versioning.</td></tr>
+            <tr><td class="feat">Session-to-Session Change Insights</td><td>Compares a current draft note against the previous finalized note to auto-generate a narrative change summary, improvements, concerns/setbacks, goal progress, behavioral patterns, and safety flags.</td></tr>
+            <tr><td class="feat">Safety Net Classifier</td><td>A keyword-based backup check (e.g. "suicide", "self-harm") that force-raises a safety alert even if the AI classifier misses it — a deliberate second layer beneath the LLM.</td></tr>
+            <tr><td class="feat">Scoped Access</td><td>Coaches can only see data for members assigned to them, enforced at the database level.</td></tr>
+            <tr><td class="feat">Live Risk Dashboard</td><td>Real-time, platform-wide feed of members showing concerning emotional patterns or crisis indicators. Filterable by risk level (Low / Moderate / High / Crisis); each alert shows the member's name, risk level, latest mood entry, specific decline indicators, and alert timestamp — built for immediate intervention, not periodic reporting.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="gallery-label">Screenshots</div>
+      <div class="gallery">
+        <figure><img src="https://drive.google.com/thumbnail?id=1Rf55RX7WTUX7wzmKzjxAfo2LfNBFlVwX&sz=w1000" alt="Coach Portal screenshot 1" onclick="openLightbox(this.src)"><figcaption>Coach Dashboard</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=12YUnnZl0frF5FRqm186JRfwh8WHncDaf&sz=w1000" alt="Coach Portal screenshot 2" onclick="openLightbox(this.src)"><figcaption>Availability</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=11EblYxj2OIiAn9JTVab0oKuxxCbE6cYi&sz=w1000" alt="Coach Portal screenshot 3" onclick="openLightbox(this.src)"><figcaption>Sessions</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=16jAZJRcV3mTms7FRAI-LS93Qr8x7pLUm&sz=w1000" alt="Coach Portal screenshot 4" onclick="openLightbox(this.src)"><figcaption>Chat Section</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=1hp9f-7cQ9C7zB39QKnTKKE-zCB-VaaG4&sz=w1000" alt="Coach Portal screenshot 5" onclick="openLightbox(this.src)"><figcaption>Client Session</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=1Y4GnHOp2JR_Sna6bTJYw6DwkkbutkNye&sz=w1000" alt="Coach Portal screenshot 6" onclick="openLightbox(this.src)"><figcaption>Live Risk Dashboard</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=1GEnPXLtsyqmtvRKhpxrOEiEAcOlcY7_h&sz=w1000" alt="Coach Portal screenshot 7" onclick="openLightbox(this.src)"><figcaption>Risk Reports</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=18CHsSlILTpVHlk7qK20d5aUH_Mb3EZ2q&sz=w1000" alt="Coach Portal screenshot 8" onclick="openLightbox(this.src)"><figcaption>Session Notes</figcaption></figure>
+      </div>
+      
+      <div class="gallery-label">Video</div>
+      <div class="table-wrap" style="padding:16px;"><iframe src="https://drive.google.com/file/d/1yWpBk8D8Rla6SJdCKVKfYESbCQ-eEAER/preview" width="100%" height="400" style="border:none; border-radius:12px;" allow="autoplay" allowfullscreen></iframe></div>
+      <div class="table-wrap" style="padding:16px;"><iframe src="https://drive.google.com/file/d/1yA5cGGAMQFpLQGKlosG1D49DyjkOXEBV/preview" width="100%" height="400" style="border:none; border-radius:12px;" allow="autoplay" allowfullscreen></iframe></div>
+
+      <!-- 2.4 Member -->
+      <div class="sub-head" id="s2-4">2.4 Member Portal</div>
+      <p class="lede">Individuals receiving mental health support through SafeCircle.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:26%">Feature</th><th>What It Does</th></tr></thead>
+          <tbody>
+            <tr><td class="feat">Onboarding & Consent</td><td>Account registration, an explicit consent opt-in modal, and baseline PHQ-8 / GAD-7 assessments completed before first use.</td></tr>
+            <tr><td class="feat">Mood Check-ins & Journaling</td><td>Daily mood tracking and journal entries, automatically screened for risk signals.</td></tr>
+            <tr><td class="feat">Community Peer Posts</td><td>Post and engage in moderated peer support groups organized around shared experiences.</td></tr>
+            <tr><td class="feat">Chat with Coach</td><td>Direct messaging with the member's assigned coach between sessions.</td></tr>
+            <tr><td class="feat">Clinical Assessments</td><td>Periodic structured assessments (PHQ-8, GAD-7, ACEs) that feed into the member's risk profile.</td></tr>
+            <tr><td class="feat">Consent Management</td><td>View and update active consent status (recording, AI analysis) at any time.</td></tr>
+            <tr><td class="feat">Live Coaching Sessions</td><td>Join scheduled video/audio sessions with their coach.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="gallery-label">Screenshots</div>
+      <div class="gallery">
+        <figure><img src="https://drive.google.com/thumbnail?id=12RZ7p7Xz44M8wqYkEyfPyKyRafO406aX&sz=w1000" alt="Member Portal screenshot 1" onclick="openLightbox(this.src)"><figcaption>User Home Page</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=1lUwLJiXSTJoYsgUTohyt9H8A81sKYqjH&sz=w1000" alt="Member Portal screenshot 2" onclick="openLightbox(this.src)"><figcaption>Mood Check-ins & Journaling</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=16EdpS9xbxDELQO4QhhbZgxjjnVMhnuRz&sz=w1000" alt="Member Portal screenshot 3" onclick="openLightbox(this.src)"><figcaption>Community Peer Posts</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=16_A1sDwuWzv4UmYHjrCe3dDh_XwfDQpl&sz=w1000" alt="Member Portal screenshot 4" onclick="openLightbox(this.src)"><figcaption>Chat with Coach</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=17-E1AB1mW6J12sZgwpjtu0h49Ezkl0KB&sz=w1000" alt="Member Portal screenshot 5" onclick="openLightbox(this.src)"><figcaption>Session Booking</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=1AROovZAk3uMyYKoWWcM4cibNj1gsbC4j&sz=w1000" alt="Member Portal screenshot 6" onclick="openLightbox(this.src)"><figcaption>Messages</figcaption></figure>
+        <figure><img src="https://drive.google.com/thumbnail?id=1AqY8vQruzSw5CbuqaJllO8Us3AafRp5A&sz=w1000" alt="Member Portal screenshot 7" onclick="openLightbox(this.src)"><figcaption>User Settings</figcaption></figure>
+      </div>
+
+      <div class="gallery-label">Video</div>
+      <div class="table-wrap" style="padding:16px;"><iframe src="https://drive.google.com/file/d/19iWhLSxOjP5G86VWMxW-V8crrOOjhC4t/preview" width="100%" height="400" style="border:none; border-radius:12px;" allow="autoplay" allowfullscreen></iframe></div>
+
+    <!-- ═══ 3. FRONTEND ═══ -->
+    <section class="doc-section" id="s3">
+      <div class="section-head"><div class="section-num">3</div><h2>Frontend Stack</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:20%">Technology / Tool</th><th style="width:16%">Category</th><th style="width:32%">What It Does</th><th>Why We Use It</th></tr></thead>
+          <tbody>
+            <tr><td class="tech">Next.js 16 (React 19)</td><td><span class="badge b-teal">Web framework</span></td><td>Renders the coach/patient dashboard, handles routing and API routes.</td><td>Gives server-side rendering, built-in API routes, and fast client-side hydration out of the box.</td></tr>
+            <tr><td class="tech">Tailwind CSS / CSS</td><td><span class="badge b-dim">Styling</span></td><td>Utility-first styling for layouts, responsive design and visual polish.</td><td>Fast to build with, keeps CSS bundle small, easy to keep consistent across the app.</td></tr>
+            <tr><td class="tech">Redux Toolkit</td><td><span class="badge b-sage">State management</span></td><td>Holds global client-side state such as auth/session status and UI flags.</td><td>Simple, predictable state handling for data that isn't tied to the server.</td></tr>
+            <tr><td class="tech">React Query (TanStack)</td><td><span class="badge b-sage">State management</span></td><td>Fetches, caches and auto-syncs server data (e.g. consent status, assessment results).</td><td>Removes manual cache/refetch logic and keeps the UI in sync with the database.</td></tr>
+            <tr><td class="tech">LiveKit Client SDK / @livekit/components-react</td><td><span class="badge b-amber">Video/Audio SDK</span></td><td>Powers the in-browser video call UI — camera/mic controls, track rendering.</td><td>Ready-made, production-grade WebRTC components so we don't build call UI from scratch.</td></tr>
+            <tr><td class="tech">Google MediaPipe</td><td><span class="badge b-plum">Computer vision SDK</span></td><td>Runs in the browser to map 478 facial landmarks from the patient's camera feed in real time.</td><td>Processes video locally on the client, so raw video never has to be uploaded to our servers — better privacy and lower bandwidth.</td></tr>
+            <tr><td class="tech">Recharts</td><td><span class="badge b-teal">Charting library</span></td><td>Draws the risk-trend graphs and clinical data visualizations on the dashboard.</td><td>React-native charting that's quick to wire up to live data.</td></tr>
+            <tr><td class="tech">Lucide React</td><td><span class="badge b-dim">Icon library</span></td><td>Provides the icon set used across the UI.</td><td>Lightweight, consistent icon system.</td></tr>
+            <tr><td class="tech">Sonner</td><td><span class="badge b-dim">UI notifications</span></td><td>Shows toast alerts (e.g. risk escalation notices) to coaches.</td><td>Simple, unobtrusive notification component.</td></tr>
+            <tr><td class="tech">NextAuth</td><td><span class="badge b-rose">Authentication</span></td><td>Handles frontend session/auth flow for the Next.js app.</td><td>Standard, well-supported auth solution for Next.js apps.</td></tr>
+            <tr><td class="tech">Socket.io-client</td><td><span class="badge b-amber">WebSocket client</span></td><td>Connects the dashboard to the real-time Express messaging server.</td><td>Enables instant receipt of new chat messages and alerts.</td></tr>
+            <tr><td class="tech">Axios</td><td><span class="badge b-teal">HTTP client</span></td><td>Makes API requests to the Node.js and Python backend servers.</td><td>Simplifies HTTP communication with promise-based async requests.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ 4. BACKEND ═══ -->
+    <section class="doc-section" id="s4">
+      <div class="section-head"><div class="section-num">4</div><h2>Backend Stack</h2></div>
+
+      <div class="sub-head">4.1 TypeScript / Node.js Service</div>
+      <p class="lede">Handles accounts, messaging, groups, consent, and issues short-lived LiveKit session tokens.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:18%">Technology / Tool</th><th style="width:18%">Category</th><th style="width:32%">What It Does</th><th>Why We Use It</th></tr></thead>
+          <tbody>
+            <tr><td class="tech">Node.js + Express</td><td><span class="badge b-teal">API framework</span></td><td>Serves REST endpoints for auth, messaging, groups, membership and consent.</td><td>Mature, high-throughput I/O handling; integrates cleanly with Prisma and WebSockets.</td></tr>
+            <tr><td class="tech">Prisma ORM</td><td><span class="badge b-sage">Database client</span></td><td>Type-safe queries and migrations against the core Postgres schema.</td><td>Reduces raw SQL, gives compile-time safety and easy schema migrations.</td></tr>
+            <tr><td class="tech">BullMQ</td><td><span class="badge b-amber">Job queue</span></td><td>Enqueues background jobs (e.g. ingestion processing) so API responses stay fast.</td><td>Reliable Redis-backed queueing with retries, widely used in Node.js stacks.</td></tr>
+            <tr><td class="tech">ioredis / redis</td><td><span class="badge b-rose">Redis client</span></td><td>Connects the Node service to Redis for queues and pub/sub.</td><td>Standard, high-performance Redis client for Node.js.</td></tr>
+            <tr><td class="tech">Socket.io</td><td><span class="badge b-amber">WebSocket framework</span></td><td>Powers the real-time chat gateway for direct messaging and support groups.</td><td>Provides low-latency, bi-directional text message delivery.</td></tr>
+            <tr><td class="tech">livekit-server-sdk</td><td><span class="badge b-plum">LiveKit server client</span></td><td>Signs JWT access tokens for coaches and members to join WebRTC rooms.</td><td>Essential for secure video/audio session access validation.</td></tr>
+            <tr><td class="tech">Nodemailer</td><td><span class="badge b-dim">Email delivery</span></td><td>Sends automated email reminders, notifications, and onboarding alerts.</td><td>Reliable and straightforward library for SMTP mail dispatch in Node.js.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub-head">4.2 Python Service</div>
+      <p class="lede">Runs everything AI/clinical: LLM risk classification, speech-to-text gateway, acoustic and facial emotion analysis, and the RAG-based coaching agent.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:18%">Technology / Tool</th><th style="width:18%">Category</th><th style="width:32%">What It Does</th><th>Why We Use It</th></tr></thead>
+          <tbody>
+            <tr><td class="tech">FastAPI + Uvicorn</td><td><span class="badge b-teal">API framework</span></td><td>Async API server handling ingestion, WebSocket audio streaming, emotion detection, and RAG endpoints.</td><td>Best-in-class async performance in Python and native support for the ML/audio libraries the pipeline depends on.</td></tr>
+            <tr><td class="tech">SQLAlchemy (async)</td><td><span class="badge b-sage">Database ORM</span></td><td>Async database access for the clinical/AI schema — events, vectors, memory records.</td><td>Handles complex async queries and connection pooling needed for high-throughput inference writes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ 5. REAL-TIME ═══ -->
+    <section class="doc-section" id="s5">
+      <div class="section-head"><div class="section-num">5</div><h2>Real-Time Communication & Streaming</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:20%">Technology / Tool</th><th style="width:20%">Category</th><th style="width:30%">What It Does</th><th>Why We Use It</th></tr></thead>
+          <tbody>
+            <tr><td class="tech">LiveKit SFU</td><td><span class="badge b-amber">Video/Audio infrastructure</span></td><td>Routes the live WebRTC video/audio call between coach and patient.</td><td>Handles multi-party call routing and media delivery so we don't run our own media servers.</td></tr>
+            <tr><td class="tech">Deepgram Nova-3 API + SDK</td><td><span class="badge b-teal">Speech-to-text service</span></td><td>Converts streamed patient/coach audio into a live text transcript.</td><td>Very low latency (sub-100ms silence detection), built for real-time streaming use cases.</td></tr>
+            <tr><td class="tech">WebSockets</td><td><span class="badge b-plum">Protocol</span></td><td>Streams raw audio to the STT gateway and pushes live emotion/analysis events to the dashboard.</td><td>Needed for continuous, low-latency, bi-directional data during an active session.</td></tr>
+            <tr><td class="tech">Server-Sent Events (SSE)</td><td><span class="badge b-plum">Protocol</span></td><td>Pushes live risk-score and alert updates from the server to the coach's dashboard.</td><td>Simple one-way live-update channel — lighter weight than WebSockets for this use case.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ 6. AI / ML / NLP ═══ -->
+    <section class="doc-section" id="s6">
+      <div class="section-head"><div class="section-num">6</div><h2>AI, Machine Learning & NLP</h2></div>
+
+      <div class="sub-head">6.1 LLM Inference Providers</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:22%">Technology / Tool</th><th style="width:16%">Category</th><th style="width:32%">What It Does</th><th>Why We Use It</th></tr></thead>
+          <tbody>
+            <tr><td class="tech">Groq API — Llama 3.1 (8B / 70B)</td><td><span class="badge b-sage">LLM provider</span></td><td>Primary model for real-time risk classification and RAG-based clinical suggestions.</td><td>Extremely fast inference, which is essential for keeping suggestions 'live' during a session.</td></tr>
+            <tr><td class="tech">OpenRouter</td><td><span class="badge b-teal">LLM routing service</span></td><td>Provides access to alternate/fallback models when needed.</td><td>Gives flexibility to route to different model providers without re-integrating each one.</td></tr>
+            <tr><td class="tech">Google Gemini API (2.0 / 2.5)</td><td><span class="badge b-sage">LLM provider</span></td><td>Fallback model used for more comprehensive, non-time-critical clinical profile generation.</td><td>Strong reasoning quality for deeper, less latency-sensitive analysis.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub-head">6.2 Orchestration</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:22%">Technology / Tool</th><th style="width:16%">Category</th><th style="width:32%">What It Does</th><th>Why We Use It</th></tr></thead>
+          <tbody>
+            <tr><td class="tech">Strands Framework</td><td><span class="badge b-plum">Agent orchestration</span></td><td>Builds the clinical RAG agent that combines patient history, transcript, and acoustic data into live suggestions.</td><td>Lightweight framework purpose-built for composing agent workflows around LLM calls.</td></tr>
+            <tr><td class="tech">LiteLLM</td><td><span class="badge b-dim">LLM abstraction layer</span></td><td>Provides one consistent interface for calling different LLM providers (Groq, OpenRouter, Gemini).</td><td>Avoids writing separate integration code per provider and makes swapping models easy.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub-head">6.3 Acoustic (Voice) Analysis</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:22%">Technology / Tool</th><th style="width:16%">Category</th><th style="width:32%">What It Does</th><th>Why We Use It</th></tr></thead>
+          <tbody>
+            <tr><td class="tech">Librosa</td><td><span class="badge b-amber">Audio analysis library</span></td><td>Extracts pitch (F0), energy and speech-rate features from patient audio.</td><td>Standard scientific-Python library for audio feature extraction; well-tested pitch/energy algorithms.</td></tr>
+            <tr><td class="tech">Pydub</td><td><span class="badge b-amber">Audio processing library</span></td><td>Handles audio format conversion and manipulation.</td><td>Simple, reliable audio handling utility that pairs well with librosa.</td></tr>
+            <tr><td class="tech">soundfile</td><td><span class="badge b-amber">Audio I/O library</span></td><td>Reads/writes audio waveform data.</td><td>Fast, dependable audio file I/O used alongside librosa/pydub.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub-head">6.4 Facial & Visual Emotion Analysis</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:26%">Technology / Tool</th><th style="width:16%">Category</th><th style="width:28%">What It Does</th><th>Why We Use It</th></tr></thead>
+          <tbody>
+            <tr><td class="tech">HSEmotion (EfficientNet-B2, model enet_b2_8)</td><td><span class="badge b-plum">Facial emotion model</span></td><td>Classifies facial expressions (happy, sad, angry, fear, etc.) from camera frames.</td><td>Pretrained, accurate emotion classifier that runs efficiently in a background worker pool.</td></tr>
+            <tr><td class="tech">PyTorch / timm</td><td><span class="badge b-teal">ML framework</span></td><td>Runs the HSEmotion deep-learning model on the backend.</td><td>Industry-standard deep learning runtime with strong pretrained-model support via timm.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sub-head">6.5 Text / NLP & De-identification</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:20%">Technology / Tool</th><th style="width:18%">Category</th><th style="width:30%">What It Does</th><th>Why We Use It</th></tr></thead>
+          <tbody>
+            <tr><td class="tech">Microsoft Presidio</td><td><span class="badge b-rose">PII de-identification</span></td><td>Scrubs personally identifying information out of text before it's processed or stored.</td><td>Purpose-built, well-maintained tool for PHI/PII redaction — important for HIPAA compliance.</td></tr>
+            <tr><td class="tech">SpaCy</td><td><span class="badge b-sage">NLP library</span></td><td>Supports entity recognition used in the de-identification pipeline.</td><td>Fast, production-grade NLP toolkit that Presidio relies on.</td></tr>
+            <tr><td class="tech">TextBlob</td><td><span class="badge b-sage">Sentiment analysis</span></td><td>Calculates text sentiment polarity, compared against vocal tone to detect "masking" (saying one thing, feeling another).</td><td>Lightweight, quick sentiment scoring suitable for real-time use.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ 7. DATABASES ═══ -->
+    <section class="doc-section" id="s7">
+      <div class="section-head"><div class="section-num">7</div><h2>Databases & Storage</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:22%">Technology / Tool</th><th style="width:16%">Category</th><th style="width:30%">What It Does</th><th>Why We Use It</th></tr></thead>
+          <tbody>
+            <tr><td class="tech">Supabase Cloud (PostgreSQL)</td><td><span class="badge b-teal">Managed database</span></td><td>Hosts two logical schemas: one for users/messages/groups and one for AI/clinical data.</td><td>Fully managed Postgres with built-in auth, encryption tooling and row-level security support.</td></tr>
+            <tr><td class="tech">pgvector</td><td><span class="badge b-plum">Postgres extension</span></td><td>Stores 384-dimension embeddings and enables semantic (similarity) search over clinical narratives and memory events.</td><td>Lets us do AI-style semantic search directly inside Postgres without a separate vector database.</td></tr>
+            <tr><td class="tech">pgsodium / pg_crypto</td><td><span class="badge b-rose">Postgres extension</span></td><td>Encrypts Protected Health Information (PHI) such as narrative text and quotes at the database level.</td><td>Required for HIPAA compliance — ensures sensitive data is encrypted at rest, even from direct DB access.</td></tr>
+            <tr><td class="tech">Supabase Vault</td><td><span class="badge b-amber">Key management</span></td><td>Securely stores and manages the encryption keys used by pgsodium.</td><td>Keeps cryptographic keys out of application code and config files.</td></tr>
+            <tr><td class="tech">Row-Level Security (RLS)</td><td><span class="badge b-sage">Access control</span></td><td>Restricts each database row so only authorized users (e.g. the assigned coach or the patient themself) can read it.</td><td>Core HIPAA requirement — enforces per-patient data access control directly at the database layer.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ 8. BACKGROUND PROCESSING ═══ -->
+    <section class="doc-section" id="s8">
+      <div class="section-head"><div class="section-num">8</div><h2>Background Processing</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:22%">Technology / Tool</th><th style="width:20%">Category</th><th style="width:28%">What It Does</th><th>Why We Use It</th></tr></thead>
+          <tbody>
+            <tr><td class="tech">Redis</td><td><span class="badge b-rose">In-memory data store</span></td><td>Backs the job queue and pub/sub messaging (e.g. broadcasting new risk scores).</td><td>Very fast, reliable store for queues and real-time messaging between services.</td></tr>
+            <tr><td class="tech">BullMQ</td><td><span class="badge b-amber">Job queue framework</span></td><td>Processes background jobs like ingestion analysis outside the main request/response cycle.</td><td>Decouples slow AI/LLM work from user-facing API calls, keeping the app responsive.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ 9. SECURITY ═══ -->
+    <section class="doc-section" id="s9">
+      <div class="section-head"><div class="section-num">9</div><h2>Security & Compliance Tooling</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:24%">Technology / Tool</th><th style="width:18%">Category</th><th style="width:28%">What It Does</th><th>Why We Use It</th></tr></thead>
+          <tbody>
+            <tr><td class="tech">pgsodium / pg_crypto encryption</td><td><span class="badge b-rose">Data encryption</span></td><td>Encrypts PHI fields at rest in the database.</td><td>Meets HIPAA requirements for protecting sensitive health data.</td></tr>
+            <tr><td class="tech">Row-Level Security (RLS)</td><td><span class="badge b-sage">Access control</span></td><td>Enforces that clinicians can only see data for patients assigned to them.</td><td>Database-enforced privacy boundary, not just an application-level check.</td></tr>
+            <tr><td class="tech">Audit triggers (log_phi_access)</td><td><span class="badge b-plum">Compliance logging</span></td><td>Automatically logs every read/write touching clinical records.</td><td>Creates an audit trail required for HIPAA compliance reviews.</td></tr>
+            <tr><td class="tech">JWT-based auth tokens</td><td><span class="badge b-teal">Authentication</span></td><td>Short-lived tokens used to authorize API calls, WebSocket connections and LiveKit sessions.</td><td>Reduces risk if a token is exposed, since it expires quickly.</td></tr>
+            <tr><td class="tech">Microsoft Presidio</td><td><span class="badge b-rose">PII scrubbing</span></td><td>Removes identifying details from text before it's sent to external LLM providers.</td><td>Minimizes PHI exposure to third-party AI services.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ 10. LOCAL SETUP ═══ -->
+    <section class="doc-section" id="s10">
+      <div class="section-head"><div class="section-num">10</div><h2>Step-by-Step Local Setup Guide</h2></div>
+      <p class="lede">Follow this guide to get all SafeCircle services running locally in development mode.</p>
+      
+      <div class="setup-step">
+        <h3>Prerequisites</h3>
+        <p>Make sure your local machine has the following tools installed and running:</p>
+        <ul>
+          <li><strong>Node.js v22 LTS</strong> (recommended)</li>
+          <li><strong>Python v3.12</strong> (3.13+ has compatibility issues with specific package wheels)</li>
+          <li><strong>PostgreSQL</strong> (version 15+ recommended, running on default port <code>5432</code>)</li>
+          <li><strong>Redis</strong> (running on default port <code>6379</code>)</li>
+          <li><strong>uv</strong> (high-performance Python package installer)</li>
+        </ul>
+        <p><strong>Installation of <code>uv</code>:</strong></p>
+        <p>Windows (PowerShell):</p>
+        <pre><code>powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"</code></pre>
+        <p>Mac/Linux:</p>
+        <pre><code>curl -LsSf https://astral.sh/uv/install.sh | sh</code></pre>
+      </div>
+
+      <div class="setup-step">
+        <h3>Step 1: Start Redis via Docker</h3>
+        <p>SafeCircle relies on Redis for BullMQ queues and SSE live update Pub/Sub mechanisms. The most straightforward way to run Redis locally on any system is using a Docker container:</p>
+        <pre><code>docker run -d --name safecircle-redis-local -p 6379:6379 redis:alpine</code></pre>
+        <p>To verify that Redis is running, check the container status:</p>
+        <pre><code>docker ps</code></pre>
+      </div>
+
+      <div class="setup-step">
+        <h3>Step 2: Create PostgreSQL Databases</h3>
+        <p>You need to manually create <strong>two</strong> PostgreSQL databases in your database instance (e.g., via <code>psql</code> or pgAdmin):</p>
+        <pre><code>CREATE DATABASE vasl_ts;   -- Used by the TypeScript Express backend
+CREATE DATABASE vasl;      -- Used by the Python FastAPI backend</code></pre>
+      </div>
+
+      <div class="setup-step">
+        <h3>Step 3: Set Up Environment Files</h3>
+        <p>Create or copy the environment configuration files from their respective examples:</p>
+        <ol style="margin-left: 24px; margin-bottom: 12px; font-size: 14px; color: var(--ink-soft); line-height: 1.6;">
+          <li style="margin-bottom: 6px;"><strong>Frontend Client (<code>frontend/FE/.env.local</code>)</strong>: Create this file inside the <code>frontend/FE/</code> folder (copied from <code>.env.example</code>).</li>
+          <li style="margin-bottom: 6px;"><strong>TypeScript Backend (<code>frontend/BE/.env</code>)</strong>: Create this file inside the <code>frontend/BE/</code> folder.</li>
+          <li style="margin-bottom: 6px;"><strong>Python Backend (<code>backend/.env</code>)</strong>: Create this file inside the <code>backend/</code> folder.</li>
+        </ol>
+        <p><em>(Refer to the environment configuration templates in Section 4 of the Markdown guide).</em></p>
+      </div>
+
+      <div class="setup-step">
+        <h3>Step 4: Install JavaScript Workspace Dependencies</h3>
+        <p>From the <strong>project root directory</strong>, run:</p>
+        <pre><code>npm install --force</code></pre>
+        <p>This command hoists and installs all npm dependencies for both <code>frontend/FE</code> and <code>frontend/BE</code> workspaces at the root level.</p>
+      </div>
+
+      <div class="setup-step">
+        <h3>Step 5: Setup TypeScript Express Backend & Database</h3>
+        <p>Navigate to the Express backend directory, generate the Prisma client, and run database migrations to deploy schemas to <code>vasl_ts</code>:</p>
+        <pre><code>cd frontend/BE
+npx prisma generate
+npx prisma migrate deploy</code></pre>
+      </div>
+
+      <div class="setup-step">
+        <h3>Step 6: Setup Python FastAPI Backend</h3>
+        <p>Navigate to the Python backend directory, initialize and activate the virtual environment, install dependencies, and run database migrations to populate <code>vasl</code>:</p>
+        <pre><code>cd backend
+uv venv --python 3.12
+
+# Windows (PowerShell):
+.venv\Scripts\activate
+
+# Mac / Linux:
+source .venv/bin/activate
+
+# Install dependencies:
+uv pip install -r requirements.txt
+
+# Run migrations:
+python -m app.migrate</code></pre>
+      </div>
+
+      <div class="setup-step">
+        <h3>Step 7: Start All Services</h3>
+        <p><strong>Option A: Windows Automated Launch (Recommended)</strong></p>
+        <p>From the project root directory, run the PowerShell script to spin up all 4 services concurrently in separate windows:</p>
+        <pre><code>.\dev.ps1</code></pre>
+        
+        <p><strong>Option B: Manual Terminal Startup (4 terminals)</strong></p>
+        <p>Open 4 separate terminal tabs from the project root directory and run:</p>
+        <ul style="list-style-type: none; margin-left: 0;">
+          <li style="margin-bottom: 12px;"><strong>Terminal 1: Next.js Frontend</strong> (runs at <code>http://localhost:3000</code>)
+            <pre><code>cd frontend/FE
+npm run dev</code></pre>
+          </li>
+          <li style="margin-bottom: 12px;"><strong>Terminal 2: BullMQ Background Worker</strong> (feeds jobs to Python API)
+            <pre><code>cd frontend/FE
+npm run worker</code></pre>
+          </li>
+          <li style="margin-bottom: 12px;"><strong>Terminal 3: TypeScript Express Backend</strong> (runs at <code>http://localhost:4000</code>)
+            <pre><code>cd frontend/BE
+npm run dev</code></pre>
+          </li>
+          <li style="margin-bottom: 12px;"><strong>Terminal 4: Python FastAPI Backend</strong> (runs at <code>http://localhost:8001</code>)
+            <pre><code>cd backend
+# Activate venv: Windows: .venv\Scripts\activate | Mac/Linux: source .venv/bin/activate
+uvicorn main:app --host 0.0.0.0 --reload --loop asyncio --port 8001</code></pre>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ═══ 11. DOCKER SETUP ═══ -->
+    <section class="doc-section" id="s11">
+      <div class="section-head"><div class="section-num">11</div><h2>Step-by-Step Docker Setup Guide</h2></div>
+      <p class="lede">This project is configured with a multi-container Docker Compose setup to run all SafeCircle services under a single command by pulling pre-built images from Docker Hub.</p>
+
+      <div class="setup-step">
+        <h3>Prerequisites</h3>
+        <ul>
+          <li><strong>Docker</strong> and <strong>Docker Compose</strong> installed on your host system.</li>
+          <li>A running <strong>PostgreSQL</strong> database (e.g., a remote Supabase instance or a local Docker/host database instance).</li>
+        </ul>
+      </div>
+
+      <div class="setup-step">
+        <h3>Step 1: Copy the Docker Environment Template</h3>
+        <p>When running the SafeCircle stack by pulling pre-built Docker images under the <code>basit0crest</code> Docker Hub namespace (configured in <code>docker-compose.yml</code>), you must manage a single consolidated <code>.env</code> file in the project root. This file merges all environment variables required by all containers.</p>
+        <p>Copy the Docker-specific environment template to the project root:</p>
+        <p>Windows (PowerShell):</p>
+        <pre><code>Copy-Item .env.docker.example .env</code></pre>
+        <p>Mac/Linux:</p>
+        <pre><code>cp .env.docker.example .env</code></pre>
+        <p>Open the root <code>.env</code> file and configure your database URLs and API keys (such as <code>OPENROUTER_API_KEY</code>, <code>DEEPGRAM_API_KEY</code>, etc.).</p>
+        <div class="callout info">
+          <strong>Note on Network Mapping:</strong> Environment variables prefixed with <code>NEXT_PUBLIC_</code> are resolved in the user's browser, so they must point to <code>localhost</code> (e.g., <code>http://localhost:4000</code>). Other variables used internally by Docker containers (like <code>FASTAPI_URL</code> and <code>REDIS_URL</code>) use the container hostnames (e.g., <code>http://python:8001</code> or <code>redis://redis:6379/0</code>).
+        </div>
+      </div>
+
+      <div class="setup-step">
+        <h3>Step 2: Deploy Database Migrations</h3>
+        <p>Before launching the docker-compose stack, ensure your databases are migrated:</p>
+        <ol style="margin-left: 24px; margin-bottom: 12px; font-size: 14px; color: var(--ink-soft); line-height: 1.6;">
+          <li style="margin-bottom: 6px;"><strong>TypeScript Express Backend Schema (<code>vasl_ts</code>)</strong>: Deploy the schema from your host computer using Prisma (ensure your local <code>frontend/BE/.env</code> matches your target database credentials):
+            <pre><code>cd frontend/BE
+npx prisma migrate deploy</code></pre>
+          </li>
+          <li style="margin-bottom: 6px;"><strong>Python FastAPI Backend Schema (<code>vasl</code>)</strong>: Once the containers are running (Step 3), deploy migrations inside the running container:
+            <pre><code>docker compose exec python python -m app.migrate</code></pre>
+          </li>
+        </ol>
+      </div>
+
+      <div class="setup-step">
+        <h3>Step 3: Run the Docker Compose Stack</h3>
+        <p>From the project root directory, launch all services in detached mode:</p>
+        <pre><code>docker compose up -d</code></pre>
+        <p>This command starts 5 containers:</p>
+        <ul>
+          <li><code>safecircle-redis</code> on port <code>6379</code></li>
+          <li><code>safecircle-python</code> on port <code>8001</code></li>
+          <li><code>safecircle-backend</code> on port <code>4000</code></li>
+          <li><code>safecircle-frontend</code> on port <code>3000</code></li>
+          <li><code>safecircle-worker</code> (BullMQ background worker)</li>
+        </ul>
+      </div>
+
+      <div class="setup-step">
+        <h3>Step 4: Verify and Monitor Containers</h3>
+        <p>Verify that the containers are running and healthy:</p>
+        <pre><code>docker compose ps</code></pre>
+        <p>To monitor logs for all containers in real time:</p>
+        <pre><code>docker compose logs -f</code></pre>
+        <p>Or view logs for a specific service (e.g., the Python backend):</p>
+        <pre><code>docker compose logs -f python</code></pre>
+      </div>
+
+      <div class="setup-step">
+        <h3>Step 5: Stop the Containers</h3>
+        <p>To stop and clean up the container stack:
+          <pre><code>docker compose down</code></pre>
+        </p>
+      </div>
+    </section>
+
+    <!-- ═══ 12. PORT MAPPING ═══ -->
+    <section class="doc-section" id="s12">
+      <div class="section-head"><div class="section-num">12</div><h2>Port & Service Mapping Reference</h2></div>
+      <p class="lede">Here is a summary of all active services, ports, and default locations in the SafeCircle system:</p>
+      
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:22%">Service Name</th>
+              <th style="width:10%">Port</th>
+              <th style="width:25%">Internal Location URL</th>
+              <th style="width:25%">External / UI Link</th>
+              <th>Role / Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="tech">Next.js Frontend</td>
+              <td><code>3000</code></td>
+              <td><code>http://localhost:3000</code></td>
+              <td><a href="http://localhost:3000" target="_blank">http://localhost:3000</a></td>
+              <td>Renders patient & coach dashboards, stream monitors, starts BullMQ queue jobs</td>
+            </tr>
+            <tr>
+              <td class="tech">Node/Express Backend</td>
+              <td><code>4000</code></td>
+              <td><code>http://localhost:4000</code></td>
+              <td><code>http://localhost:4000</code> (API endpoints)</td>
+              <td>Handles authentication, patient consent, messaging, group communications</td>
+            </tr>
+            <tr>
+              <td class="tech">FastAPI Backend (Python)</td>
+              <td><code>8001</code></td>
+              <td><code>http://localhost:8001</code></td>
+              <td><a href="http://localhost:8001/docs" target="_blank">http://localhost:8001/docs</a> (Swagger UI)</td>
+              <td>Runs HSEmotion FER analyzer, tone analysis, local RAG embedders and speech WS proxies</td>
+            </tr>
+            <tr>
+              <td class="tech">Redis Server</td>
+              <td><code>6379</code></td>
+              <td><code>redis://localhost:6379</code></td>
+              <td><em>N/A</em></td>
+              <td>Manages BullMQ job queues and Pub/Sub crisis notifications</td>
+            </tr>
+            <tr>
+              <td class="tech">Postgres DB (vasl_ts)</td>
+              <td><code>5432</code></td>
+              <td><code>postgresql://localhost:5432/vasl_ts</code></td>
+              <td><em>N/A</em></td>
+              <td>Stores core application entities: users, messages, sessions, consent states</td>
+            </tr>
+            <tr>
+              <td class="tech">Postgres DB (vasl)</td>
+              <td><code>5432</code></td>
+              <td><code>postgresql://localhost:5432/vasl</code></td>
+              <td><em>N/A</em></td>
+              <td>Stores AI-related data: NLP events, vector embeddings (pgvector), risk calculations</td>
+            </tr>
+            <tr>
+              <td class="tech">LiveKit SFU Server</td>
+              <td><code>7880</code></td>
+              <td><code>ws://localhost:7880</code></td>
+              <td><em>N/A</em></td>
+              <td>Routes WebRTC audio/video connections between clinicians and members</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="doc-footer">SafeCircle — Internal Technical Documentation</footer>
+
+  </main>
+</div>
+
+<!-- Lightbox for gallery images -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="Enlarged screenshot">
+</div>
+<script>
+  function openLightbox(src) {
+    document.getElementById('lightbox-img').src = src;
+    document.getElementById('lightbox').classList.add('open');
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+  }
+</script>
+</body>
+</html>

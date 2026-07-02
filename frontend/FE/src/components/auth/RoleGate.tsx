@@ -72,9 +72,21 @@ export function RoleGate() {
             <div className="gate-tagline">{brandTagline}</div>
           </div>
         </div>
-        <div className="gate-proto-badge">
-          <span>🌿</span>
-          <span>{brandTitle} &nbsp;·&nbsp; <strong>Platform Prototype V1</strong></span>
+        <div className="flex items-center gap-3">
+          <a
+            href="/SafeCircle_Documentation.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="gate-proto-badge hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+            style={{ textDecoration: "none", borderColor: "var(--plum)" }}
+          >
+            <span>📄</span>
+            <span style={{ color: "var(--plum)" }}><strong>View Documentation</strong></span>
+          </a>
+          <div className="gate-proto-badge">
+            <span>🌿</span>
+            <span>{brandTitle} &nbsp;·&nbsp; <strong>Platform Prototype V1</strong></span>
+          </div>
         </div>
       </div>
       
@@ -116,6 +128,33 @@ export function RoleGate() {
             </div>
           </button>
         ))}
+      </div>
+
+      <div className="mt-4 flex justify-center w-full anim-up" style={{ animationDelay: "0.3s" }}>
+        <a
+          href="/SafeCircle_Documentation.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="portal-card c-plum flex flex-col md:flex-row items-start md:items-center gap-6 w-full text-left p-6 md:p-8 group"
+          style={{ minHeight: "auto", textDecoration: "none", cursor: "pointer" }}
+        >
+          <div className="pc-icon bg-plum flex-shrink-0" style={{ marginBottom: 0, width: "48px", height: "48px", fontSize: "24px" }}>
+            📄
+          </div>
+          <div className="flex-grow">
+            <div className="pc-label" style={{ color: "var(--plum)", fontWeight: 700, fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>Documentation</div>
+            <div className="pc-title" style={{ fontSize: "20px", marginTop: "4px", fontWeight: 800 }}>SafeCircle Interactive System Documentation</div>
+            <div className="pc-desc" style={{ marginTop: "4px", fontSize: "13px", color: "var(--ink-soft)" }}>
+              Explore the complete design guidelines, HIPAA security implementation plans, risk engines, and database models.
+            </div>
+          </div>
+          <div 
+            className="hidden md:flex items-center justify-center rounded-full bg-plum-light w-10 h-10 text-plum font-bold text-xl transition-transform group-hover:translate-x-2"
+            style={{ color: "var(--plum)", backgroundColor: "var(--plum-light)", flexShrink: 0 }}
+          >
+            →
+          </div>
+        </a>
       </div>
     </div>
   );

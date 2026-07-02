@@ -357,6 +357,10 @@
       background: var(--rose);
     }
 
+    .portal-card.c-plum::before {
+      background: var(--plum);
+    }
+
     .portal-card:hover {
       border-color: var(--border-mid);
       box-shadow: var(--shadow-lg);
@@ -416,6 +420,10 @@
 
     .c-rose .pc-label {
       color: var(--rose);
+    }
+
+    .c-plum .pc-label {
+      color: var(--plum);
     }
 
     .pc-title {
@@ -2842,9 +2850,15 @@
         <div class="gate-wordmark">SafeCircle</div>
         <div class="gate-tagline">Culturally Intelligent Mental Health</div>
       </div>
-      <div class="gate-proto-badge">
-        <span>🌿</span>
-        <span>SafeCircle &nbsp;·&nbsp; <strong>Platform Prototype V1</strong></span>
+      <div class="flex items-center gap-3" style="display: flex; align-items: center; gap: 12px;">
+        <a href="./SafeCircle_Documentation.html" target="_blank" class="gate-proto-badge" style="text-decoration: none; border-color: var(--plum); cursor: pointer; transition: all 0.2s;">
+          <span>📄</span>
+          <span style="color: var(--plum);"><strong>View Documentation</strong></span>
+        </a>
+        <div class="gate-proto-badge">
+          <span>🌿</span>
+          <span>SafeCircle &nbsp;·&nbsp; <strong>Platform Prototype V1</strong></span>
+        </div>
       </div>
     </div>
     
@@ -2900,6 +2914,18 @@
           <div class="pc-desc">Manage your schedule, clients, messages, session notes, and availability.</div>
         </div>
       </div>
+    </div>
+
+    <div class="mt-4 anim-up" style="animation-delay:.3s; margin-top: 24px; display: flex; justify-content: center; width: 100%;">
+      <a href="./SafeCircle_Documentation.html" target="_blank" class="portal-card c-plum" style="min-height: auto; text-decoration: none; cursor: pointer; display: flex; flex-direction: row; align-items: center; gap: 24px; width: 100%; padding: 24px 32px; border-color: var(--border);">
+        <div class="pc-icon bg-plum" style="margin-bottom: 0; width: 48px; height: 48px; font-size: 24px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--plum-light);">📄</div>
+        <div style="flex-grow: 1; text-align: left;">
+          <div class="pc-label" style="color: var(--plum); font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">Documentation</div>
+          <div class="pc-title" style="font-size: 20px; margin-top: 4px; font-weight: 800; color: var(--ink);">SafeCircle Interactive System Documentation</div>
+          <div class="pc-desc" style="margin-top: 4px; font-size: 13px; color: var(--ink-soft); line-height: 1.6;">Explore the complete design guidelines, HIPAA security implementation plans, risk engines, and database models.</div>
+        </div>
+        <div class="doc-arrow" style="color: var(--plum); font-weight: 800; font-size: 24px; transition: transform 0.2s;">→</div>
+      </a>
     </div>
   </div>`;
     }

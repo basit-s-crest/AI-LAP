@@ -329,6 +329,10 @@ body {
   background: var(--rose);
 }
 
+.portal-card.c-plum::before {
+  background: var(--plum);
+}
+
 .portal-card:hover {
   border-color: var(--border-mid);
   box-shadow: var(--shadow-lg);
