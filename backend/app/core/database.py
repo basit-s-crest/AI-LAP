@@ -23,8 +23,8 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env from backend directory absolutely
-load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env", override=True)
+# Load .env from backend directory absolutely, preserving system env variables
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env", override=False)
 
 # ── Change your database here (or in .env) ────────────────────────────────────
 DATABASE_URL: str = os.getenv(

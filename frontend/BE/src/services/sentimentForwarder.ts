@@ -49,6 +49,7 @@ let redisConnectPromise: Promise<Redis> | null = null;
 
 function createRedisClient(): Redis {
   const url = process.env.REDIS_URL ?? "redis://127.0.0.1:6379/0";
+  console.log("[sentiment/redis] Initializing client pointing to: " + url.replace(/:[^:@\n]+@/g, ':***@'));
 
   const client = new Redis(url, {
     lazyConnect: true,

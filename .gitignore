@@ -61,3 +61,6 @@ Thumbs.db
 
 # Turborepo cache (if you add it later)
 .turbo/
+
+# Auto-copied files during Render build/run
+frontend/BE/worker.mjs

@@ -295,12 +295,17 @@ export default function LiveSessionTranscript({
     return unifiedTranscript.some((line) => line.isFinal);
   }, [unifiedTranscript]);
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const transcriptContainerRef = useRef<HTMLDivElement>(null);
+  const insightsContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to the bottom when the transcript updates
+  // Auto-scroll to the bottom of the transcript when the transcript updates, only if user was near the bottom
   useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    const el = transcriptContainerRef.current;
+    if (el) {
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+      if (isNearBottom || unifiedTranscript.length <= 1) {
+        el.scrollTop = el.scrollHeight;
+      }
     }
   }, [unifiedTranscript]);
 
@@ -377,12 +382,14 @@ export default function LiveSessionTranscript({
       </div>
 
       {/* 2. Scrollable Content Feed */}
+      {/* Live Transcript Container */}
       <div
-        ref={scrollContainerRef}
-        className="flex-grow overflow-y-auto px-6 py-6 min-h-0 scroll-smooth"
+        ref={transcriptContainerRef}
+        className={`flex-grow overflow-y-auto px-6 py-6 min-h-0 scroll-smooth ${
+          activeSubTab === "transcript" ? "block" : "hidden"
+        }`}
       >
-        {activeSubTab === "transcript" ? (
-          <div className="space-y-4">
+        <div className="space-y-4">
             {unifiedTranscript.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-8 space-y-3">
                 <div className="w-12 h-12 bg-white border border-[#D2DBE3] rounded-full flex items-center justify-center text-dim shadow-sm">
@@ -439,7 +446,15 @@ export default function LiveSessionTranscript({
               })
             )}
           </div>
-        ) : (
+        </div>
+
+        {/* AI Insights Container */}
+        <div
+          ref={insightsContainerRef}
+          className={`flex-grow overflow-y-auto px-6 py-6 min-h-0 scroll-smooth ${
+            activeSubTab === "insights" ? "block" : "hidden"
+          }`}
+        >
           <div className="space-y-4">
             {/* Sub-tab Switcher inside AI Insights */}
             <div className="flex justify-center p-0.5 bg-[#E4ECF4]/60 rounded-xl border border-[#D2DBE3]/50 shrink-0">
@@ -887,8 +902,7 @@ export default function LiveSessionTranscript({
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
 
       {/* 3. Bottom Controls Bar */}
       <div className="bg-white border-t border-[#D2DBE3] px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">

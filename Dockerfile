@@ -1,0 +1,55 @@
+# Use an official Python 3.12-slim base image
+FROM python:3.12-slim
+
+# Prevent Python from writing .pyc files and enable unbuffered logging
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install system dependencies (build-essential, curl, git, and media/audio libs)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    git \
+    libsndfile1 \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up user for Hugging Face Spaces (UID 1000)
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH \
+    HF_HOME=/home/user/.cache/huggingface \
+    TORCH_HOME=/home/user/.cache/torch
+
+# Set working directory to the user's home folder app directory
+WORKDIR $HOME/app
+
+# Create a python virtual environment and prepend it to PATH.
+# This prevents PEP 668 'externally-managed-environment' errors when pip is invoked internally (e.g. by spaCy download).
+RUN python -m venv $HOME/venv
+ENV PATH="$HOME/venv/bin:$PATH"
+
+# Install uv (extremely fast Python package installer)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Copy backend dependencies list first to leverage Docker build cache
+COPY --chown=user backend/requirements.txt .
+
+# Install Python packages using uv into the virtual environment
+RUN uv pip install -r requirements.txt
+
+# Pre-download spaCy, SentenceTransformer, and HSEmotion models to cache them in the image.
+# We patch torch.load in the HSEmotion one-liner to bypass the weights_only=True check introduced in PyTorch 2.6+.
+RUN python -c "import spacy; spacy.cli.download('en_core_web_sm')"
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-en-v1.5')"
+RUN python -c "import torch; orig = torch.load; torch.load = lambda *a, **k: orig(*a, **{**k, 'weights_only': False, 'map_location': 'cpu'}); from hsemotion.facial_emotions import HSEmotionRecognizer; HSEmotionRecognizer(model_name='enet_b2_8', device='cpu')"
+
+# Copy the backend application source code and set ownership to 'user'
+COPY --chown=user backend/ .
+
+# Hugging Face Spaces expects the container to run on port 7860
+EXPOSE 7860
+
+# Command to run uvicorn on port 7860
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]

@@ -21,8 +21,8 @@ from dotenv import load_dotenv
 # Suppress Pydantic namespace conflict warnings from third-party libraries (e.g. Presidio)
 warnings.filterwarnings("ignore", category=UserWarning, message='.*has conflict with protected namespace "model_".*')
 
-# Load env variables from .env file, overriding any pre-existing environment variables
-load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env", override=True)
+# Load env variables from .env file, preserving pre-existing environment variables
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env", override=False)
 
 # ── Windows: psycopg (async) requires SelectorEventLoop, not ProactorEventLoop.
 # The policy must be set before uvicorn creates its event loop.
