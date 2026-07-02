@@ -130,8 +130,24 @@ export const compareSessionNotes = async (req: Request, res: Response): Promise<
       });
     }
 
+    // Check if a comparison already exists in the database
+    const existingInsight = await prisma.memberChangeInsight.findFirst({
+      where: {
+        sessionNoteIdA: noteA.id,
+        sessionNoteIdB: noteB.id,
+      },
+    });
+
+    const { forceRefresh } = req.body as { forceRefresh?: boolean };
+
+    // If an existing insight is found, and Note B hasn't been edited/saved since it was generated
+    if (existingInsight && !forceRefresh && existingInsight.createdAt >= latestVersionB.createdAt) {
+      console.log(`[compareSessionNotes] Returning cached change insight for session ${sessionId}`);
+      return res.status(200).json({ status: "success", insight: existingInsight });
+    }
+
     // Call Python backend
-    const pyBaseUrl = process.env.PYTHON_BACKEND_URL || "http://localhost:8001";
+    const pyBaseUrl = process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:8001";
     console.log(`[compareSessionNotes] Calling Python backend at: ${pyBaseUrl}/v1/change-detection/compare`);
 
     const response = await fetch(`${pyBaseUrl}/v1/change-detection/compare`, {
@@ -171,14 +187,6 @@ export const compareSessionNotes = async (req: Request, res: Response): Promise<
       hasSafetyAlert: boolean;
     };
 
-    // Upsert MemberChangeInsight
-    const existingInsight = await prisma.memberChangeInsight.findFirst({
-      where: {
-        sessionNoteIdA: noteA.id,
-        sessionNoteIdB: noteB.id,
-      },
-    });
-
     let insight;
     if (existingInsight) {
       insight = await prisma.memberChangeInsight.update({
@@ -191,6 +199,7 @@ export const compareSessionNotes = async (req: Request, res: Response): Promise<
           behavioralPatterns: result.behavioralPatterns,
           safetyFlags: result.safetyFlags,
           hasSafetyAlert: result.hasSafetyAlert,
+          createdAt: new Date(), // Manually update creation timestamp to serve as cache invalidator
         },
       });
     } else {

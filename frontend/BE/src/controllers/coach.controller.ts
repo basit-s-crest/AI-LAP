@@ -348,7 +348,7 @@ export const getMyMembers = async (
       },
     });
 
-    const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+    const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://127.0.0.1:8001").trim().replace(/\/$/, "");
 
     const members = await Promise.all(
       assignments.map(async (a) => {
@@ -586,7 +586,7 @@ export const getMemberRiskReport = async (
 ): Promise<Response> => {
   try {
     const { memberToken } = req.params;
-    const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+    const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://127.0.0.1:8001").trim().replace(/\/$/, "");
     const response = await fetch(`${pythonBaseUrl}/v1/risk/member/${memberToken}`);
     if (!response.ok) {
       const text = await response.text();
@@ -610,7 +610,7 @@ export const recalculateMemberRisk = async (
 ): Promise<Response> => {
   try {
     const { memberToken } = req.params;
-    const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+    const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://127.0.0.1:8001").trim().replace(/\/$/, "");
     const response = await fetch(`${pythonBaseUrl}/v1/risk/member/${memberToken}/recalculate`, {
       method: "POST",
     });
@@ -636,7 +636,7 @@ export const getOrgRiskSummary = async (
 ): Promise<Response> => {
   try {
     const { orgId } = req.params;
-    const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+    const pythonBaseUrl = (process.env.PYTHON_BACKEND_URL ?? "http://127.0.0.1:8001").trim().replace(/\/$/, "");
     const response = await fetch(`${pythonBaseUrl}/v1/risk/org/${orgId}/summary`);
     if (!response.ok) {
       const text = await response.text();

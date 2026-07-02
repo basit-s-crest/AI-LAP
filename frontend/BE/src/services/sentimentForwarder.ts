@@ -130,7 +130,7 @@ async function safePublish(channel: string, payload: unknown): Promise<void> {
 }
 
 function pythonBaseUrl(): string {
-  return (process.env.PYTHON_BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/$/, "");
+  return (process.env.PYTHON_BACKEND_URL ?? "http://127.0.0.1:8001").trim().replace(/\/$/, "");
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {

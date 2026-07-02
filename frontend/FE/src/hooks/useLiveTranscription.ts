@@ -240,7 +240,7 @@ export function useLiveTranscription(
       }
 
       // Point WebSocket connection to our Python STT WebSocket proxy
-      const pythonBackendUrl = resolveApiUrl(process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || "http://localhost:8001");
+      const pythonBackendUrl = resolveApiUrl(process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || "http://127.0.0.1:8001");
       let wsUrl = pythonBackendUrl.replace(/^http/, 'ws') + '/v1/stt';
       if (transcriptionToken && sessionId) {
         wsUrl += `?token=${encodeURIComponent(transcriptionToken)}&sessionId=${encodeURIComponent(sessionId)}`;

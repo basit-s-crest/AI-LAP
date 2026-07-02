@@ -7,7 +7,7 @@ from app.modules.rag.embedder import get_embedding, get_embedding_async
 
 logger = logging.getLogger(__name__)
 
-def get_litellm_model() -> LiteLLMModel:
+def get_litellm_model(max_tokens: int = 350) -> LiteLLMModel:
     """Configures and returns the LiteLLMModel based on environmental key definitions."""
     groq_api_key = os.getenv("GROQ_API_KEY", "").strip().strip("'\"")
     if groq_api_key:
@@ -40,7 +40,7 @@ def get_litellm_model() -> LiteLLMModel:
         client_args=client_args,
         params={
             "temperature": 0.2,
-            "max_tokens": 350
+            "max_tokens": max_tokens
         }
     )
 

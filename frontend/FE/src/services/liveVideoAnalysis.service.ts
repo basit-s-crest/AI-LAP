@@ -17,7 +17,7 @@ export interface SessionAggregationResponse {
 }
 
 const getPythonBackendUrl = () => {
-  return process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || "http://localhost:8001";
+  return process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || "http://127.0.0.1:8001";
 };
 
 export const LiveVideoAnalysisApiService = {

@@ -7,7 +7,7 @@ import requests
 import json
 from datetime import datetime, timezone
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://127.0.0.1:8001"
 
 def test_1_consent_403():
     """Task 1: Verify POST /v1/ingest/peer-post returns 403 when consent_active: false"""
@@ -22,11 +22,11 @@ def test_1_consent_403():
     
     response = requests.post(f"{BASE_URL}/v1/ingest/peer-post", json=payload)
     
-    print(f"✓ Task 1: Status Code = {response.status_code}")
+    print(f"[OK] Task 1: Status Code = {response.status_code}")
     print(f"  Response: {response.json()}")
     
     assert response.status_code == 403, f"Expected 403, got {response.status_code}"
-    print("  ✅ PASSED: Returns 403 when consent_active is false\n")
+    print("  [PASS] Returns 403 when consent_active is false\n")
     return True
 
 if __name__ == "__main__":
@@ -37,4 +37,4 @@ if __name__ == "__main__":
     try:
         test_1_consent_403()
     except Exception as e:
-        print(f"  ❌ FAILED: {e}\n")
+        print(f"  [FAIL] {e}\n")

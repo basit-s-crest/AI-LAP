@@ -39,7 +39,19 @@ async def run_session_comparison(note_a: dict, note_b: dict) -> dict:
     Orchestrates session comparison using strands Agent and LiteLLM model.
     Applies the custom risk and safety classifier logic to identify alerts.
     """
-    model = get_litellm_model()
+    model = get_litellm_model(max_tokens=1500)
+    
+    # Normalize keyThemes to List[str]
+    for note in (note_a, note_b):
+        kt = note.get("keyThemes")
+        if kt is None:
+            note["keyThemes"] = []
+        elif isinstance(kt, str):
+            note["keyThemes"] = [kt] if kt.strip() else []
+        elif isinstance(kt, list):
+            note["keyThemes"] = [str(x) for x in kt]
+        else:
+            note["keyThemes"] = [str(kt)]
     
     prompt = (
         "You are an expert psychiatric AI assistant analyzing progress and changes between two mental health coaching sessions.\n"

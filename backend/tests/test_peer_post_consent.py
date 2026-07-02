@@ -27,7 +27,7 @@ def test_peer_post_consent_false_returns_403():
     
     # Act: Make POST request to the endpoint
     response = httpx.post(
-        "http://localhost:8000/v1/ingest/peer-post",
+        "http://127.0.0.1:8001/v1/ingest/peer-post",
         json=payload,
         timeout=10.0
     )

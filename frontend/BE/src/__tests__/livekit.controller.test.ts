@@ -48,6 +48,8 @@ describe("LiveKit Controller", () => {
     process.env.LIVEKIT_API_KEY = "test-key";
     process.env.LIVEKIT_API_SECRET = "test-secret";
     process.env.LIVEKIT_URL = "test-url";
+    process.env.JWT_SECRET = "test-jwt-secret";
+    sessionMock().findMany.mockResolvedValue([]);
   });
 
   describe("startVideoSession", () => {

@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union
 from app.modules.change_detection.services import run_session_comparison
 
 class SessionNoteDetails(BaseModel):
     summary: str
-    keyThemes: List[str]
+    keyThemes: Union[List[str], str]
     sentiment: str
     coachObservations: str
     recommendedFollowUp: str
